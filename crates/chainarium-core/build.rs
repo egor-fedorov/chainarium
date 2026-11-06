@@ -17,6 +17,9 @@ fn main() {
     let root = PathBuf::from(std::env::var("CARGO_MANIFEST_DIR").unwrap()).join("../..");
     let mut paths = vec![];
     for dir in ["crates", "web", "scenarios"] {
+        // Watch directory membership as well as existing files: a new fixture
+        // or module must invalidate the fingerprint even before it is listed.
+        println!("cargo:rerun-if-changed={}", root.join(dir).display());
         files(&root.join(dir), &mut paths);
     }
     for file in ["Cargo.toml", "Cargo.lock", "rust-toolchain.toml"] {
