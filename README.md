@@ -175,7 +175,8 @@ checkpoint/resume, fork, A/B и мобильную верстку. Снимки 
 
 Независимый [review DEC-22/M4b](docs/reviews/dec22-independent-review.md) завершён
 без подтверждённых findings; сохранены 12 тестов, включая 640 differential cases.
-Review DEC-23/M4c требуется отдельно.
+[Review DEC-23/M4c](docs/reviews/dec23-independent-review.md) выявил два P2
+(nonce/time overflow); исправления до `f99114a` независимо перепроверены.
 
 Фактические результаты и оставшиеся проверки: [журнал прогресса](docs/progress.md).
 Сценарий CLI ограничен 64 MiB, отдельная транзакция — 1 MiB. Web restore

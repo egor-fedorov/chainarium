@@ -17,10 +17,11 @@ M4b / DEC-22 реализован и функционально проверен
 M4c — **Accepted DEC-23** (§23.2.11): поиск backrun,
 ограниченное наблюдение и conditional net после bid. До реализации сохранены
 аналитические `docs/reviews/backrun-reference.py`/`.json`. Реализация и Rust/CLI/browser
-проверки завершены; независимый review M4c выполняется на `99c26d1`.
-Подтверждён P2: переполнение при построении payment nonce останавливало раунд.
-Исправление `467876f` (Skip NonceExhausted для невозможной own sequence)
-прошло адресный тест и Clippy, передано reviewer для перепроверки.
+проверки завершены. Независимый review M4c на `99c26d1` выявил два P2:
+исчерпание nonce и overflow lifetime/reaction delay. Исправления `467876f`,
+`bcacbcf`, `f99114a` адресно перепроверены reviewer; оба findings закрыты.
+Отчёт — `docs/reviews/dec23-independent-review.md`, сохранены16 независимых
+тестов и отдельный boundary test. Итоговый suite reviewer —271 passed.
 Следующий M4d: **Accepted DEC-24** (§23.2.12), LiquidateAndSell + bounded
 liquidator, Own/Flash funding и SC-06 competition. До реализации сохранены
 `docs/reviews/liquidator-reference.py`/`.json`; контракт согласован, реализация начата.
@@ -586,7 +587,14 @@ read-only inspection/checkpoint/restore, desktop/mobile, JS errors0 и overflow0
 `output/m4c-competition.png`, `output/m4c-fees.png`,
 `output/m4c-fees-mobile.png`; competition desktop и fees mobile просмотрены.
 
-Независимый review DEC-23 требуется отдельно. Flash-funded search, liquidator
+Независимый review DEC-23 завершён: два P2 исправлены и перепроверены.
+Nonce exhaustion даёт Skip NonceExhausted, overflow lifetime — Skip
+DeadlineOverflow, непредставимое due_at реакции — BackrunReactionTimeOverflow
+без enqueue. Точные границы MAX сохраняются. 16 независимых tests покрывают768
+integer cases,96 cap variations, private/future noninterference и replay;
+дополнительный тест —10 nonce boundaries. Полный review suite на `f99114a`:
+271 passed. Ограничения — `docs/reviews/dec23-independent-review.md`.
+Flash-funded search, liquidator
 competition, прочие роли, hooks и M5 ещё не реализованы этим срезом. Ограничение
 числа проб не доказывает performance при максимальных payload/history; G-16
 остаётся открыт. Условный лучший ответ не обещает включения или глобального
@@ -647,8 +655,7 @@ latency UI и полные workloads M5 ещё не измерены/не при
    его отчёт и 12 независимых тестов сохранены.
    M4c / DEC-23 (§23.2.11) реализован: поиск backrun по видимой victim,
    sizes/route caps, bundle и net после fees/bid. Независимый
-   read-only review этого среза разрешён и выполняется; исправление nonce
-   finding передано на адресную перепроверку. Для M4d принят
+   read-only review этого среза завершён; два P2 исправлены и перепроверены. Для M4d принят
    DEC-24 (§23.2.12) с численными ожиданиями, реализация начата.
    Затем M4: liquidator policies, hooks и остальные роли;
    M5: MTM, эксперименты, полный explorer и приёмка. Новые существенные решения
