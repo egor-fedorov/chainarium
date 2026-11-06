@@ -491,7 +491,10 @@ latency UI и полные workloads M5 ещё не измерены/не при
    в его отчёте. Новые механизмы M4 потребуют отдельного review.
 4. M4a / DEC-21 реализован, функциональные проверки и независимый review
    завершены; ограничения указаны в `docs/reviews/dec21-independent-review.md`.
-   Затем M4: bundles/greedy, поисковые backrun/liquidator policies, hooks;
+   Следующий контракт — **Proposed DEC-22** в `docs/spec.md` §23.2.10:
+   bundles/greedy с реальным bid, разрешёнными reverts, visibility и search budgets.
+   `bundle-reference.py`/`.json` фиксируют расчёты до реализации; ожидается
+   согласование по §23.7. Затем M4: поисковые backrun/liquidator policies, hooks;
    M5: MTM, эксперименты, полный explorer и приёмка. Новые существенные
    архитектурные решения требуют конкретных карточек и согласования по §23.7.
 5. Полные user-task/latency/performance budgets и независимое review должны

@@ -1009,7 +1009,7 @@ agents:
 | REQ-AUTH-01 | §5.3–5.4, §6 | Права native execution, v1 | M1; дополнение M2/M3 | VF-AUTH-01 | **О:** чужой sender/баланс/order/LP, unauthorized update, поддельный callback, подмена caller и выход за делегацию; защищённые счета нельзя назначить sender/fee account; **И:** origin не передаёт полномочия, allowance расходуется и откатывается по профилю | M1–M2d: sender, allowance, LP, oracle, callback и protected accounts проверены; order/M3 впереди; review M1–M3b выполнен, см. docs/reviews/m1-m3b-independent-review.md (docs/progress.md) |
 | REQ-EXEC-01 | §6 | native-execution-v1 / native-cost-v1 | M1 | VF-EXEC-01 | **И:** late failure откатывает все протоколы; **Т:** ресурс по 100/10/5/1, fee/refund/nonce по §6; **О:** resource exhaustion и ошибка пользовательского JSON различаются; ModelError посреди блока останавливает запуск без частичного commit | M1: success/revert/exhaustion/ModelError проверены; review M1–M3b выполнен, см. docs/reviews/m1-m3b-independent-review.md (docs/progress.md) |
 | REQ-BLOCK-01 | §11 | Native chain profile, v1 | M1, M4 | VF-BLOCK-01 | **О:** невалидный envelope не включается; **И:** valid revert расходует nonce/стоимость; лимит блока соблюдён; block undo возвращает fees/nonce и системные переходы; симуляция кандидата не удваивает начисления | M1: лимит/nonce/fee budget/simulation проверены; M4 не выполнен (docs/progress.md) |
-| REQ-MEMPOOL-01 | §11.2–11.3 | Scheduler/mempool, v1 | M4 | VF-MEMPOOL-01 | **О/И:** nonce gap, конфликт одинаковых sender/nonce и повторная доставка обрабатываются по профилю; скрытое сообщение недоступно постороннему агенту; реакция на pending tx возможна до cutoff; tie-breaker воспроизводим | M4a / DEC-21: cutoff, delays/visibility, nonce/funding, dedup/TTL/caps, ModelError и replay проверены; независимый review впереди (docs/progress.md) |
+| REQ-MEMPOOL-01 | §11.2–11.3 | Scheduler/mempool, v1 | M4 | VF-MEMPOOL-01 | **О/И:** nonce gap, конфликт одинаковых sender/nonce и повторная доставка обрабатываются по профилю; скрытое сообщение недоступно постороннему агенту; реакция на pending tx возможна до cutoff; tie-breaker воспроизводим | M4a / DEC-21: cutoff, delays/visibility, nonce/funding, dedup/TTL/caps, ModelError и replay проверены; независимый review завершён без подтверждённых findings, см. docs/reviews/dec21-independent-review.md (docs/progress.md) |
 | REQ-CPMM-01 | §7.1 | cpmm-v1 | M1 | VF-CPMM-01 | **Т:** при reserves 1000/1000, input 100 и нулевой swap fee output равен 90, новые reserves 1100/910; **О:** `min_out = 91`; **И:** неуменьшение произведения при swap и точный учёт ненулевой fee | M1: zero/nonzero fee, min_out и 500 invariant cases пройдены (docs/progress.md) |
 | REQ-CPMM-02 | §7.1 | LP-правила cpmm-v1 | M2a | VF-CPMM-LP-01 | **Т:** mint/burn, округление, dust и последний выход по принятому LP-профилю; **О:** положительный ввод с нулём shares, нарушение min_shares/min_assets, недостаточный баланс; **И:** claims согласованы с reserves, поздний отказ откатывает LP-операцию | M2a: analytical/boundary/rollback tests и LP demo пройдены; review M1–M3b выполнен, см. docs/reviews/m1-m3b-independent-review.md (docs/progress.md) |
 | REQ-ROUTE-01 | §7.5 | Router native, v1 | M2a, M2e | VF-ROUTE-01 | **Т:** каждый hop получает фактический output предыдущего; **И:** маршрут между несколькими CPMM, затем CPMM/StableSwap сохраняет учёт; stale quote исполняется с повторными проверками; существующий баланс кошелька не присваивается output операции | M2a/e: CPMM/StableSwap, реальные outputs, stale minimum и общий rollback проверены; review M1–M3b выполнен, см. docs/reviews/m1-m3b-independent-review.md (docs/progress.md) |
@@ -1962,6 +1962,143 @@ checkpoint с pending/inflight/seen IDs и независимость от UI/ч
 запросов. UI/CLI должны объяснять отправку, видимость, arrival, Waiting/rejection,
 порядок, receipt и фактические fees одним воспроизводимым результатом.
 
+### 23.2.10. Следующий контракт M4b — Proposed DEC-22
+
+**DEC-22 / G-09/G-10, bundles и ограниченный greedy builder.** Предложение
+продолжает Accepted DEC-21, но ещё не согласовано и не реализовано. Новые профили:
+`native-bundles-v1` и `bounded-greedy-v1`. Scheduler M4a, native cost, ledger,
+права и правила nonce/fee не пересматриваются. Поисковые backrun/liquidator
+политики и hooks остаются отдельными следующими срезами.
+
+**Состав и авторство.** Bundle имеет отдельный BundleId, submitter AgentId,
+упорядоченные members, включительный диапазон `min_block..max_block`, deadline,
+`allowed_reverts` по TxId и явно заданный bid. Отправка использует каналы и
+задержки DEC-21. CandidateId типизирован (`Transaction` либо `Bundle`), поэтому
+одинаковые строки TxId/BundleId не конфликтуют между пространствами имён.
+
+Member — собственная Transaction с `agent == submitter` и управляемым sender
+либо `VisibleTxId`: точная копия ранее доставленной submitter транзакции.
+Visible-ссылка разрешается **в момент отправки bundle** из его разрешённых
+messages/own outbox; будущая отправка, чужой private payload и глобальный
+registry не служат источниками. Разрешённый payload закрепляется в отправленном
+bundle; последующее вытеснение сообщения не меняет уже отправленную группу.
+M4b предоставляет сценарные bundle emissions; автоматическая поисковая policy
+будет отдельным срезом. Входной сценарий не наделяет submitter чужими правами.
+
+Пустой bundle, повтор member TxId внутри него, неверное авторство/chain/program,
+неверный диапазон и `allowed_reverts` с неизвестным member отклоняются целиком.
+Один и тот же TxId в разных группах допустим только при побайтно эквивалентном
+каноническом Transaction payload. Конфликт payload сохраняет первый registry
+payload и отклоняет новую группу. Проверка и регистрация новых members атомарны;
+частично зарегистрированной невалидной группы нет. Members не поступают в
+standalone mempool автоматически. Явная доставка идентичного native payload
+может создать его первый standalone candidate; повторная доставка этого
+standalone candidate сохраняет правила Duplicate/terminal ID DEC-21.
+
+Registry native TxIds общий с DEC-21. Выбранный member больше не исполняется
+ни самостоятельно, ни в другой группе. Terminal rejection уже отправленного
+standalone TxId не обходится упаковкой в bundle. Отказ **пробного** bundle не
+делает его members глобально отклонёнными и не удаляет другие группы с теми же
+members. У группы собственные arrival, TTL и terminal disposition; повтор её
+BundleId не обновляет время и не возобновляет закрытый candidate. Незавершённая
+собственная группа с текущим nonce учитывается в busy guard periodic policies.
+
+**Реальный bid.** При `bid > 0` указывается `payment_tx_id`: последний member
+с управляемым submitter плательщиком, отличным от fee account. Его программа —
+ровно один обычный `Transfer` суммы bid в fee asset на `chain.fee_account`.
+Этот member обязан завершиться Success и не может входить в allowed_reverts.
+Native fee платежа начисляется обычным способом. При bid=0 payment отсутствует.
+Несовпадение суммы/актива/получателя, фиктивный self-payment, нехватка денег или
+невключаемый nonce платежа не создают доход: группа не выбирается. Поле bid не
+является отдельной проводкой и не прибавляется второй раз к builder balance.
+
+**Групповая приёмка.** Builder пробует members подряд на копии текущего
+канонического префикса блока, общим executor. Системные переходы применены
+один раз при начале блока, не повторяются для каждого probe. Полная длина группы должна помещаться и
+в оставшийся лимит выбранных native transactions; группа не обрезается. Перед **каждым**
+member проверяются nonce, fee budget, deadline и его полный declared limit в
+оставшемся ресурсе; после исполнения вычитается actual used. Требование равно
+этим последовательным проверкам, а не сумме declared limits группы.
+
+ProtocolRevert и ResourceExhausted допустимы только для перечисленных TxIds.
+Их native fee/nonce сохраняются, предыдущие успешные members сохраняют эффекты.
+Запрещённый revert, неподходящий member или неуспешный payment исключает **весь
+пробный кандидат**: ни один его receipt/fee/nonce не становится каноническим.
+Это правило выбора группы, а не новый rollback уже включённой транзакции.
+ModelError в любой пробе останавливает весь раунд без commit, как в DEC-21.
+
+Выбранный проверенный snapshot фиксируется целиком либо воспроизводится на том
+же неизменённом префиксе; повторных fees/accrual нет. Members группы непрерывны,
+interleaving запрещён. После выбора пересечения TxIds и конкурирующие nonce
+проверяются заново; funding от предыдущей группы может разблокировать следующую.
+Невместимый/ещё не целевой/временно неуспешный кандидат остаётся Waiting до
+следующего изменения префикса/раунда, deadline, max_block или TTL. Структурный
+отказ, stale member и истечение диапазона — terminal rejection без fees.
+
+**Builders и пределы поиска.** FIFO использует arrival/event ID/CandidateId.
+Для FeePriority ключ обычной tx — resource_price, группы — минимум
+resource_price её members, затем FIFO; bid этот baseline-ключ не повышает.
+Старый Fixed сохраняет список native TxIds; дополнительный `FixedItems` явно
+задаёт типизированные candidate IDs для экспериментов с группами.
+
+Greedy сравнивает успешные полные probes по **фактически выплаченным native
+fees от других senders плюс исполненный обозначенный bid**, затем меньшему
+actual used, затем FIFO. Самовыплаченная native fee не входит в score. Поле bid
+без успешного payment не учитывается, а сам перевод bid учитывается один раз.
+Произвольные входящие переводы и заём builder не повышают score; proceeds других
+активов не оцениваются через MTM. Фактическое изменение баланса builder в fee
+asset показывается отдельно от суммы fees+bid. Кандидат, уменьшающий этот баланс,
+не выбирается; нулевой score допустим. Это локальная эвристика по валовым
+платежам fees/bid, не экономический PnL, без отношения к gas, lookahead или
+заявления глобального оптимума.
+
+В каждом выборе pending candidates обходятся в порядке FIFO, включая группы;
+Greedy пробует их до исчерпания общего бюджета, выбирает лучший завершённый
+probe и начинает новый обход на обновлённом префиксе. Неисследованный candidate
+не объявляется невыгодным. Поиск с непроверенными candidates явно отмечается truncated. Бюджеты общие на весь раунд, не сбрасываются после
+выбора. FIFO/Fixed/FixedItems/FeePriority также расходуют probe budget при
+проверке группы; обычные native candidates сохраняют DEC-21 execution path.
+
+Все caps задаются явно, могут быть уменьшены, нули запрещены:
+
+| Предел | Cap / reference preset | Исчерпание |
+| --- | --- | --- |
+| Members одной группы, включая payment | 16 | Невалидная группа |
+| Размер полного resolved bundle | 1 MiB | Группа отклоняется до проб |
+| Pending bundles / все pending candidates | 128 / прежние 1024 | Reject new, без вытеснения существующих |
+| Уникальные BundleIds за запуск | 4096 | Новый ID отклоняется; terminal dedup сохраняется |
+| Начатые candidate probes за раунд | 64 | Выбор среди уже завершённых probes; остальные отмечены untested |
+| Native member attempts во всех probes | 256 | Перед probe требуется бюджет на полную длину; расходуются фактические member attempts, оставшаяся резервация освобождается; не начатый probe — budget-limited |
+| Выбранные native transactions / eligibility checks | Прежние 256 / 65536 | Оставшиеся candidates переносятся |
+
+Emissions, known native TxIds, queue, events, visible messages, retention и
+rounds остаются в общих caps DEC-21: bundle не получает отдельный неограниченный
+канал. Одно bundle message занимает одну запись доставки/visible; его members
+не порождают скрытые отдельные сообщения. OnVisibleProgram M4a по-прежнему
+реагирует только на отдельное native transaction message. Метрики показывают
+реальные probe counts, бюджетные отказы, candidate outcome, ожидаемый/полученный
+score и builder balance delta, отдельные native fees и bid без двойного счёта. Checkpoint хранит
+группы, references, dispositions и очереди на committed-границе.
+
+**Численные ожидания до кода.** `docs/reviews/bundle-reference.py`/`.json`:
+
+| Fixture | Ожидание |
+| --- | --- |
+| Alice1000 Q; tx0 Transfer20 Q Bob, tx1 Transfer10 Q Bob + false assert, tx2 bid50 Q builder; каждый limit200/price1, block limit500; tx1 разрешён revert | Units115/125/115; Bob20 Q, Alice575 Q, builder405 Q = fees355 + bid50; nonce3. Успешный tx0 сохраняется |
+| Та же группа, tx1 не разрешён revert | 0 канонических receipts/fees; Alice1000, Bob0, builder0, nonce0 |
+| Та же допустимая группа, remaining439/440 | 439 не вмещает declared limit последнего member, группа не выбирается; 440 достаточно. Actual used всей группы355 |
+| Дополнительный обычный candidate Carol1000 Q→Bob1 Q, limit200/price3; block500 | Greedy выбирает bundle со score405, ordinary затем не вмещается; FeePriority выбирает ordinary с delta345, bundle затем не вмещается. Carol654 Q / Bob1 Q в FeePriority |
+| Две группы с идентичным общим member | После его включения одной группой другая не исполняет его повторно; чужая проба не списывает fee |
+| Sender=builder, пустая native программа, limit200/price3 | Receipt fee300 Q, фактический прирост builder0 Q; greedy score0, не300 |
+| Обычный Transfer100 Q builder, limit200/price1 | Native fee115 Q, balance delta215 Q; score115 Q. Произвольный перевод не становится обозначенным bid |
+
+Дополнительные обязательные проверки: неизвестный/private/future VisibleTxId,
+чужой payer, неверный/необеспеченный bid, разрешённое exhaustion, late payment
+failure, nonce/funding/conflicts между группами и standalone, exact deadlines/
+target range, оба search budgets, deterministic tie-break/truncation, ModelError
+после успешного префикса, replay с overlapping groups, UI/CLI без вымышленных fees
+от отклонённых probes. Предложение не реализуется до согласования владельца.
+
 ### 23.3. Вертикальные срезы и Definition of Done
 
 Работа дробится на сквозные сценарии **требование → состояние → действие → исполнение → тесты → trace → визуальное объяснение**. Новый компонент не считается завершённым по одному лишь trait, mock API или графическому экрану. На один срез — один проверяемый вопрос и минимальное число новых механизмов.
@@ -2036,7 +2173,9 @@ reference lending G-05, external oracle часть G-06, router budget част�
 принят DEC-20 (§23.2.8); реализация и проверка отражаются в журнале прогресса.
 Для scheduler/mempool/basic builders принят **DEC-21** (§23.2.9)
 с численными ожиданиями; реализация M4a и функциональные проверки выполнены,
-независимый review ещё предстоит (docs/progress.md).
+независимый review завершён без подтверждённых findings (docs/progress.md).
+Для bundles/greedy подготовлен **Proposed DEC-22** (§23.2.10) с аналитическими
+ожиданиями; согласование владельца и реализация ещё впереди.
 Остальные механизмы и бюджеты остаются открытыми. Таблица ниже сохраняет
 исходные условия gates и критерии их полной приёмки.
 

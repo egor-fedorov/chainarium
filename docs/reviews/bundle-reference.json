@@ -1,0 +1,70 @@
+{
+  "status": "pre-implementation expectations for Proposed DEC-22",
+  "allowed_late_revert": {
+    "member_units": [
+      "115",
+      "125",
+      "115"
+    ],
+    "member_statuses": [
+      "Success",
+      "ProtocolRevert",
+      "Success"
+    ],
+    "native_fees_Q": "355",
+    "bid_Q": "50",
+    "builder_delta_Q": "405",
+    "sender_Q": "575",
+    "recipient_Q": "20",
+    "sender_nonce": "3"
+  },
+  "forbidden_late_revert": {
+    "canonical_receipts": "0",
+    "canonical_fee_Q": "0",
+    "sender_Q": "1000",
+    "recipient_Q": "0",
+    "builder_Q": "0",
+    "sender_nonce": "0"
+  },
+  "declared_limit_boundary": {
+    "each_member_limit": "200",
+    "total_actual_used": "355",
+    "minimum_initial_block_remaining": "440",
+    "remaining_439": "whole candidate fails inclusion; no canonical effects",
+    "remaining_440": "all three members fit"
+  },
+  "same_input_builder_comparison": {
+    "block_limit": "500",
+    "greedy": {
+      "chosen": "bundle",
+      "used": "355",
+      "builder_delta_Q": "405",
+      "bundle_sender_Q": "575",
+      "ordinary_sender_Q": "1000",
+      "recipient_Q": "20"
+    },
+    "fee_priority": {
+      "chosen": "ordinary_price_3",
+      "used": "115",
+      "builder_delta_Q": "345",
+      "bundle_sender_Q": "1000",
+      "ordinary_sender_Q": "654",
+      "recipient_Q": "1"
+    }
+  },
+  "shared_member": {
+    "included_TxId_count": "1",
+    "competing_bundle": "not selected after shared member commits"
+  },
+  "ordinary_builder_transfer": {
+    "body_transfer_Q": "100",
+    "native_fee_Q": "115",
+    "actual_builder_delta_Q": "215",
+    "greedy_score_Q": "115"
+  },
+  "self_fee_only": {
+    "receipt_fee_Q": "300",
+    "actual_builder_delta_Q": "0",
+    "greedy_score_Q": "0"
+  }
+}
