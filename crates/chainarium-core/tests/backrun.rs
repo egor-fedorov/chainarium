@@ -157,6 +157,41 @@ fn unrepresentable_search_deadline_skips_without_saturating_or_aborting_victim()
         );
     }
 }
+
+#[test]
+fn unrepresentable_reaction_time_drops_trigger_without_aborting_delivery() {
+    let max: Amount =
+        "115792089237316195423570985008687907853269984665640564039457584007913129639935"
+            .parse()
+            .unwrap();
+    for (headroom, queued) in [(0, false), (7, false), (8, true)] {
+        let mut s = fixture("public");
+        policy(&mut s).reaction_delay = max.checked_sub(headroom.into()).unwrap();
+        let r = finish(s);
+        assert!(search(&r).decisions.is_empty());
+        assert_eq!(r.blocks[0].receipts.len(), 1);
+        assert_eq!(r.blocks[0].receipts[0].tx_id, "victim");
+        let state = r.scheduler.as_ref().unwrap();
+        assert_eq!(
+            state
+                .queue
+                .iter()
+                .any(|e| matches!(e.kind, EventKind::BackrunReaction { .. }) && e.due_at == max),
+            queued
+        );
+        assert_eq!(
+            r.blocks[0]
+                .scheduler
+                .as_ref()
+                .unwrap()
+                .trace
+                .iter()
+                .any(|t| t.action == "BackrunReactionTimeOverflow"),
+            !queued
+        );
+        assert_eq!(Run::restore(&r.checkpoint().unwrap()).unwrap(), r);
+    }
+}
 #[test]
 fn private_without_recipient_cannot_start_search() {
     let r = finish(fixture("private"));

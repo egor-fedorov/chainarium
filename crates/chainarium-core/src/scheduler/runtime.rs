@@ -266,17 +266,29 @@ impl Round<'_> {
                 .or_default()
                 .insert(id.into())
         {
-            self.enqueue(
-                at.checked_add(delay)?,
-                EventKind::BackrunReaction {
-                    tx_id: id.into(),
-                    agent: agent.into(),
-                    depth,
-                },
-                at,
-                Some(id),
-                Some(agent),
-            )?;
+            match at.checked_add(delay) {
+                Ok(due_at) => {
+                    self.enqueue(
+                        due_at,
+                        EventKind::BackrunReaction {
+                            tx_id: id.into(),
+                            agent: agent.into(),
+                            depth,
+                        },
+                        at,
+                        Some(id),
+                        Some(agent),
+                    )?;
+                }
+                Err(_) => self.note(
+                    Some(event),
+                    at,
+                    Some(id),
+                    Some(agent),
+                    "BackrunReactionTimeOverflow",
+                    "reaction dropped: due time is not representable",
+                ),
+            }
         }
         if let Some(p) = self.c.reactive.get(agent)
             && p.rules.contains_key(id)
