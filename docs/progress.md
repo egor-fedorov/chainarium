@@ -8,7 +8,8 @@ DEC-05–DEC-21 приняты владельцем.
 Общий partial-fill router, LP/MM-политики и heterogeneous arbitrage реализованы.
 Контракт M4a принят как **DEC-21** (§23.2.9) 2026-11-06;
 scheduler/mempool/basic builders реализованы и функционально проверены.
-Независимый review M4a ещё предстоит.
+Независимый review M4a завершён без подтверждённых замечаний;
+отчёт — `docs/reviews/dec21-independent-review.md`.
 
 ## Что работает
 
@@ -53,11 +54,14 @@ LP shares, C/D/S/E, escrow, точный HF и запись oracle, фактич
 ## Фактическая проверка
 
 - `scripts/cargo.sh fmt --check` и Clippy всех targets с `-D warnings` — прошли.
-- `scripts/cargo.sh test --workspace --locked --offline` — **174 tests passed**:
+- Основная suite `scripts/cargo.sh test --workspace --locked --offline` — **174 tests passed**:
   7 unit tests (включая fault injection), 19 acceptance, 20 composition, 19 credit,
   10 stable, 10 twap, 7 flash_liquidation, 14 book, 17 clmm, 11 heterogeneous,
   16 policies, 6 independent_dec20, 18 scheduler; ignored=0.
   Независимые DEC-20 tests сохраняют 4504 аналитических случая и LP/MM границы.
+- Ещё **10 independent_dec21 tests passed** в основном checkout после переноса
+  из отдельного review: 360 расписаний, 2160 раундов, 42 resource/fee boundary cases.
+  Всего в suite **184 tests**, все выполненные проверки прошли.
 - `node --test web/wire.test.mjs` — канонические строки, диапазоны и точный
   decimal conversion прошли; JS экономические команды не проходят через Number.
 - `python3 scripts/check-ui.py` — пройден путь всех двадцати двух presets, readonly
@@ -415,8 +419,26 @@ Browser прошёл все 22 presets, просмотр прошлого сос
 Результат — M4a, не весь M4. Bundles/greedy, поисковые backrun/liquidator policies,
 hooks и дальнейшие роли не реализованы. Исчерпывающая performance-приёмка G-16
 не выполнена: caps определяют результат, но не обещают latency на максимальных
-размерах payload/очереди/истории. Независимый review DEC-21 требуется отдельно;
-reviews M1–M3b и DEC-20 эту новую реализацию не охватывают.
+размерах payload/очереди/истории.
+
+Независимый review DEC-21 завершён для `215ffcf`, diff `d66959c..215ffcf`, без
+подтверждённых actionable findings. Reviewer сам исполнил полную suite, шесть
+CLI/browser demos, проверки API ModelError/invalid profile и 10 собственных tests.
+Они сохранены как `tests/independent_dec21.rs`: отдельный integer ledger/oracle
+сравнил 360 расписаний (8640 emissions, 2160 раундов) для трёх builders;
+42 случая проверили exhaustion при limit100..120 и fee recipient=sender.
+Дополнительно проверены event tie/clamping, terminal rejection при повторной
+доставке, private own outbox, reaction после истечения visible message, actual-time
+deadline, authorization TransferFrom и полный rollback после обработки событий.
+Тесты повторены в основном checkout. Отчёт и границы доказательства —
+`docs/reviews/dec21-independent-review.md`. Performance на совместных максимальных
+caps, cross-platform replay и будущие поисковые/обучаемые политики не доказаны.
+
+После переноса тестов в основную suite Clippy/fmt прошли; release пересобран:
+`39132d01c8561b3c85c475b6e7b681604b4428135416c05e292eb1d740c82375`.
+Шесть exports/resumes повторены в `output/m4a-reviewed/`, все четыре файла
+результата каждого demo совпали побайтно. Реализация ядра/UI после review
+не менялась; новый build fingerprint учитывает добавленный файл тестов.
 
 ### Fixtures и границы доказательства
 
@@ -467,8 +489,8 @@ latency UI и полные workloads M5 ещё не измерены/не при
    границы review — `docs/reviews/dec20-independent-review.md`.
 3. M2f/M2g входят в завершённый review M1–M3b; ограничения проверки указаны
    в его отчёте. Новые механизмы M4 потребуют отдельного review.
-4. M4a / DEC-21 реализован, все функциональные проверки пройдены;
-   следующий шаг — независимый read-only review этого diff в отдельном контексте.
+4. M4a / DEC-21 реализован, функциональные проверки и независимый review
+   завершены; ограничения указаны в `docs/reviews/dec21-independent-review.md`.
    Затем M4: bundles/greedy, поисковые backrun/liquidator policies, hooks;
    M5: MTM, эксперименты, полный explorer и приёмка. Новые существенные
    архитектурные решения требуют конкретных карточек и согласования по §23.7.
