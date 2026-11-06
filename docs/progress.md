@@ -1,6 +1,6 @@
 # Прогресс Chainarium — 2026-11-06
 
-Цель: весь v1.0 из §2.1. Текущий результат — **исполняемый прототип M1–M4f**.
+Цель: весь v1.0 из §2.1. Текущий результат — **исполняемый прототип M1–M4g**.
 Это не готовая v1.0. Независимый review M1–M3b завершён, три findings исправлены
 и перепроверены. Отдельный review M3c–M3d завершён без подтверждённых findings;
 область и ограничения сохранены в `docs/reviews/dec20-independent-review.md`.
@@ -82,7 +82,11 @@ fees/nonce/resource accounting и deterministic replay. Канонические
   ModelError отменяет весь round вместе с RNG. Пользователь выбирает
   SuccessfulOnly/AnyReceipt; trial и фактические оплаченные receipts разделены.
 
-UI содержит 52 presets, play/pause/step, просмотр block→tx→call, балансы, сравнение котировок и трасса solver,
+- M4g: flash-funded arbitrage с фиксированным principal/provider, своим native
+  fee reserve и root net guard после settlement. Bounded DFS и общий budget
+  семейства; RequireFull, typed submit outcomes, diagnostic/actual separation.
+
+UI содержит 58 presets, play/pause/step, просмотр block→tx→call, балансы, сравнение котировок и трасса solver,
 LP shares, C/D/S/E, escrow, точный HF и запись oracle, фактически использованную
 в конкретном вызове. Расчёт риска выполняет Rust; JS отображает готовые строки.
 Есть export/checkpoint/restore/fork и A/B параметров SC-01.
@@ -90,23 +94,25 @@ LP shares, C/D/S/E, escrow, точный HF и запись oracle, фактич
 ## Фактическая проверка
 
 - `scripts/cargo.sh fmt --check` и Clippy всех targets с `-D warnings` — прошли.
-- `scripts/cargo.sh test --workspace --locked --offline` — **381 tests passed** в полном прогоне после исправлений DEC-26:
-  18 unit tests (включая fault injection), 19 acceptance, 20 composition, 19 credit,
+- `scripts/cargo.sh test --workspace --locked --offline` — **412 tests passed** в полном прогоне после M4g:
+  23 unit tests (включая fault injection), 19 acceptance, 20 composition, 19 credit,
   10 stable, 10 twap, 7 flash_liquidation, 14 book, 17 clmm, 11 heterogeneous,
   16 policies, 6 independent_dec20, 10 independent_dec21, 12 independent_dec22,
   18 scheduler, 26 bundles, 30 backrun, 16 independent_dec23,
   1 independent_dec23_boundaries, 12 liquidation_sale, 20 liquidator_policy,
-  7 independent_dec24, 21 hooks, 13 independent_dec25, 20 baseline_agents, 8 independent_dec26;
+  7 independent_dec24, 21 hooks, 13 independent_dec25, 20 baseline_agents, 8 independent_dec26,
+  6 independent_dec26_fix, 20 flash_arbitrage;
   ignored=0. Независимые тесты сохраняют аналитические sweeps предыдущих reviews.
   Полный прогон включает перенесённые DEC-25/DEC-26 reviewer tests и регрессии исправлений.
   Release пересобран; экономический reference DEC-26 повторно совпал побайтно.
 - `node --test web/wire.test.mjs` — канонические строки, диапазоны и точный
   decimal conversion прошли; JS экономические команды не проходят через Number.
-- `python3 scripts/check-ui.py` — пройден путь всех 52 presets, readonly
+- `python3 scripts/check-ui.py` — пройден путь всех 58 presets, readonly
   просмотр, trace, checkpoint/resume, fork/A-B, точные Amount/Price через HTTP,
   desktop/mobile; ошибок JavaScript и горизонтального overflow нет.
 - Release build и `git diff --check` — прошли.
-- CLI: все 52 demos исполнены финальной release-сборкой. Для шести baseline-agent
+- CLI: все 58 demos исполнены финальной release-сборкой. Для шести новых flash-arbitrage
+  demos checkpoint/resume даёт идентичные run/events/probes/delivery/transactions exports. Для шести baseline-agent
   demos checkpoint/resume дал побайтно одинаковые run/events/baseline-decisions/delivery/transactions exports. Для шести hook demos
   checkpoint/resume дал побайтно одинаковые `run.json`, `events.jsonl`,
   `hook-attempts.jsonl` и `transactions.csv`. Оба StableSwap demos после checkpoint/resume
@@ -881,23 +887,58 @@ Missing/foreign order ID меняет diagnostic text, но не Observation/act
 это ограничение researcher diagnostics явно записано в отчёте.
 Логи: `/tmp/chainarium-dec26-fix-{full,target,clippy,release,cli,browser}.log`.
 Экспорты: `output/dec26-fix-validated/`.
-Optional flash-funded arbitrage,
+Flash-funded arbitrage реализован в M4g ниже;
 MTM/experiments/full explorer и M5 performance/user-task gates остаются открытыми.
 
-### Следующий срез M4g / Accepted DEC-27
+### M4g / Accepted DEC-27 — bounded flash arbitrage
 
 В `docs/spec.md` §23.2.15 записан конкретный контракт bounded flash arbitrage:
 один principal/provider, own native fee reserve, закрытые RequireFull пути,
 3 hops /64 trials /4096 venue checks, общий budget семейства, actual net после
 settlement/fees и явные submission outcomes. Статус **Accepted**: владелец согласовал контракт 2026-11-06 до реализации;
-новая policy/controller/UI ещё не реализованы.
+policy/controller, CLI export и UI реализованы. M1 scheduler профиль не принимает;
+Own policy продолжает работать по ранее принятому контракту.
 
 Независимый integer reference `docs/reviews/flash-arbitrage-reference.py`/`.json`
 содержит8 случаев. До реализации policy они сопоставлены с literal programs
 существующего native executor: success, exact/minimum+1, fee reserve shortage,
 late guard revert и settlement shortfall. Все точные balances/reserves/provider
 и used совпали. Артефакты: `output/flash-arbitrage-reference-check/`.
-Это не тест отсутствующего route search; его acceptance явно перечислен в карточке.
+Это pre-implementation арифметический reference; policy/search проверены отдельно.
+
+Новая policy получает restricted common system preview и выбранный public
+provider. Simulation capability разрешает только fixed FlashLoan→ExecuteRoute→
+root net guard, проверяет envelope, замкнутость, отсутствие повторных venues
+и directional limits. Нет произвольного callback/foreign-wallet probe.
+Кандидаты обходятся DFS в VenueId order; общий budget ограничивает и успешные,
+и непродуктивные префиксы. Лучший завершённый выбирается по net, used, path;
+при exhaustion truncated остаётся видимым. Отправка сохраняет Queued/Rejected;
+позднее включение/revert отдельно отражается в canonical receipt.
+
+20 integration tests покрывают точные two/three-hop расчёты, 64 trials и4096
+непродуктивных venue checks, shared budget в AgentId order, tie-break по used/path,
+CPMM/StableSwap/CLMM/book, price limits и RequireFull partial rollback,
+hook dynamic fee/payout/counter с изолированными probes и actual rollback,
+funding/nonce/time/U256 boundaries, Public/Private/busy/expiry, Known/Queue
+refusal, foreign/future noninterference и rehashed report tamper.
+Две unit проверки: ограничение simulation capability и ModelError после probe/
+canonical flash settlement, возвращающий весь round и RNG другой baseline policy.
+Дополнительно сохранены6+3 tests независимой перепроверки DEC-26.
+
+Полный suite412 passed, fmt/Clippy all-targets `-D warnings`, Node wire и JS syntax
+checks прошли. Release fingerprint
+`af4edd565c07650308d75d1b4efcc6262b83d6416d4ed7d1547375b775d282aa`.
+Все58 CLI demos исполнены;6 новых checkpoint/resume дали побайтно одинаковые
+run/events/flash-arbitrage-probes/delivery/transactions exports. Во всех новых
+demos RNG.positions остаётся пустым. Логи `/tmp/chainarium-m4g-{full,target,clippy,release,cli}.log`,
+экспорты `output/m4g-final-validated/`.
+Все58 browser presets прошли на финальной сборке, включая новые6 cases,
+readonly просмотр, restore с genesis, реальные route cards/отменённые legs,
+точные balances/fees и mobile без overflow. JS ошибок нет; лог
+`/tmp/chainarium-m4g-browser.log`. Снимки `output/m4g-success.png` и
+`output/m4g-shortfall-mobile.png` просмотрены.
+Независимый review DEC-27 ещё не выполнен;
+MTM/experiments/full explorer и M5 gates остаются открытыми.
 
 ### Fixtures и границы доказательства
 
@@ -910,9 +951,10 @@ late guard revert и settlement shortfall. Все точные balances/reserves
 | Deposit shares | zero mint, minima, cash shortage без burn, last exit, bootstrap с E | Bankrupt проверен на invariant-valid defensive snapshot, не заявлен достижимым из genesis этого positive-payment preset |
 | Oracle | unauthorized/source/pair/future/duplicate/out-of-order; возраст 60/61; safe stale operations; consumer trace | External/native spot/TWAP; bounded history и однократное floor проверены |
 | Hooks | exact pre-implementation reference, resource/node/depth/capability boundaries, composed search/payout/rollback, ModelError; независимый DEC-25 review без findings | CPMM only; область и ограничения в docs/reviews/dec25-independent-review.md |
+| Flash arbitrage | independent integer reference, bounded paths/probes, heterogeneous legs/hooks, fee/rollback, restricted capability, shared budgets и replay | DEC-27 реализован; независимый review впереди |
 | Baseline agents | independent RNG/ledger reference, target/publisher/preflight boundaries, paid actual failure, private/future isolation, atomic RNG, replay | DEC-26 P1/P2 исправлены и независимо закрыты на ce78187; не экономически оптимальные политики |
 | Checkpoint/export | replay/resume/fork/tamper, протоколы, LP/MM schedules/decisions | M4b groups, M4c trigger/search и M4d preview/trials/inflight snapshots проверены |
-| UI | реальные balances/trace, 52 presets, desktop/mobile, exact HTTP wire | Прототип; полная приёмка M5 не закрыта |
+| UI | реальные balances/trace, 58 presets, desktop/mobile, exact HTTP wire | Прототип; полная приёмка M5 не закрыта |
 
 Численные ожидания следуют §6/§8/§20 и принятым DEC; тесты не заменяют
 независимый review. Analytical sweep — детерминированная проверка инвариантов,
@@ -966,7 +1008,7 @@ latency UI и полные workloads M5 ещё не измерены/не при
    независимые численные ожидания — `docs/reviews/baseline-agents-reference.py`/`.json`.
    Reference ChaCha12 совпал с12 существующими DEC-10 draws; новые политики
    реализованы в M4f; независимый review нашёл P1/P2, исправления ce78187 независимо перепроверены и закрыты.
-   Следом остаётся optional arbitrage Flash;
+   Accepted DEC-27 реализован в M4g; отдельный независимый review ещё нужен;
    M5: MTM, эксперименты, полный explorer и приёмка. Новые существенные решения
    требуют конкретных карточек и согласования по §23.7.
 5. Полные user-task/latency/performance budgets и независимое review должны

@@ -113,12 +113,15 @@ pub struct Config {
     pub backrun: Option<backrun::Config>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub liquidator: Option<crate::policy::liquidator::Config>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub flash_arbitrage: Option<crate::policy::flash_arbitrage::Config>,
 }
 
 pub fn validate(s: &Scenario) -> Result<(), String> {
     let has = |m: &str| s.model_versions.iter().any(|v| v == m);
     let Some(c) = &s.scheduler else {
         if has(crate::policy::liquidator::MODEL)
+            || has(crate::policy::flash_arbitrage::MODEL)
             || has(backrun::MODEL)
             || !has("scheduler-m1-v1")
             || MODELS.iter().chain(bundles::MODELS.iter()).any(|m| has(m))
@@ -221,6 +224,7 @@ pub fn validate(s: &Scenario) -> Result<(), String> {
     bundles::validate_config(s, c)?;
     backrun::validate(s, c)?;
     crate::policy::liquidator::validate(s, c)?;
+    crate::policy::flash_arbitrage::validate(s, c)?;
     Ok(())
 }
 
@@ -503,6 +507,8 @@ pub struct Metrics {
 #[derive(Clone, Debug, Serialize, Deserialize, PartialEq, Eq)]
 #[serde(deny_unknown_fields)]
 pub struct Report {
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub flash_arbitrage: Option<crate::policy::flash_arbitrage::Report>,
     #[serde(default, skip_serializing_if = "Vec::is_empty")]
     pub baselines: Vec<crate::policy::agents::Decision>,
     #[serde(default, skip_serializing_if = "Option::is_none")]

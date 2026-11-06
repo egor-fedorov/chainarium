@@ -1,4 +1,4 @@
-"""M1–M4f browser/API acceptance. Run against `chainarium serve 8080`. Requires Playwright + Chromium."""
+"""M1–M4g browser/API acceptance. Run against `chainarium serve 8080`. Requires Playwright + Chromium."""
 import json
 from pathlib import Path
 from playwright.sync_api import sync_playwright, expect
@@ -908,6 +908,59 @@ with sync_playwright() as p:
         page.reload()
         expect(page.locator('#preset')).to_have_value('sc-agent-'+name)
         for i in range(2,rounds+1):
+            page.locator('#step').click()
+            expect(page.locator('#position')).to_contain_text(f'Исполнено {i} / {rounds}')
+        assert page.request.get('http://127.0.0.1:8080/api/run').json()==full
+    # DEC-27: funded closed cycles, actual loss, late delivery and fee-reserve rejection.
+    for name in ['success','unprofitable','guard','shortfall','delayed','budget']:
+        rounds=3 if name=='delayed' else 1
+        page.locator('#preset').select_option('sc-flash-arb-'+name)
+        page.locator('#new').click()
+        expect(page.locator('#position')).to_contain_text(f'Исполнено 0 / {rounds}')
+        expect(page.locator('#flash-arbitrage-panel')).to_be_visible()
+        genesis=page.request.get('http://127.0.0.1:8080/api/checkpoint').json()
+        page.locator('#step').click()
+        expect(page.locator('#position')).to_contain_text(f'Исполнено 1 / {rounds}')
+        first=page.request.get('http://127.0.0.1:8080/api/run').json()
+        d=first['blocks'][0]['scheduler']['flash_arbitrage']['decisions'][0]
+        reason={'unprofitable':'NoProfitableCycle','budget':'OwnFeeBudget'}.get(name,'ProfitableFlashCycle')
+        assert d['reason']==reason
+        expect(page.locator('#flash-arbitrage-result')).to_contain_text(reason)
+        saved=page.request.get('http://127.0.0.1:8080/api/checkpoint').json()
+        page.locator('#blocks button[data-block="-1"]').click()
+        expect(page.locator('#flash-arbitrage-result')).to_contain_text('Выполните раунд')
+        page.locator('#blocks button[data-block="0"]').click()
+        expect(page.locator('#flash-arbitrage-result')).to_contain_text(reason)
+        assert page.request.get('http://127.0.0.1:8080/api/checkpoint').json()==saved
+        if name=='success':
+            expect(page.locator('#flash-arbitrage-result')).to_contain_text('24104 Q')
+            expect(page.locator('#flash-arbitrage-result')).to_contain_text('оплачено 190 Q')
+            expect(page.locator('#flash-arbitrage-result')).to_contain_text('90661')
+            expect(page.locator('#flash-arbitrage-result')).to_contain_text('124344')
+            page.locator('#flash-arbitrage-panel').screenshot(path='output/m4g-success.png')
+        if name in ['guard','shortfall']:
+            expect(page.locator('#flash-arbitrage-result')).to_contain_text('ProtocolRevert')
+            expect(page.locator('#flash-arbitrage-result')).to_contain_text('оплачено '+('190' if name=='guard' else '180')+' Q')
+        if name in ['guard','shortfall']:
+            expect(page.locator('#flash-arbitrage-result')).to_contain_text('Отменённые ноги маршрута')
+        if name=='budget':
+            assert first['blocks'][0]['scheduler']['flash_arbitrage']['metrics']['trials']==0
+        for i in range(2,rounds+1):
+            page.locator('#step').click()
+            expect(page.locator('#position')).to_contain_text(f'Исполнено {i} / {rounds}')
+            expect(page.locator('#flash-arbitrage-result')).to_contain_text('BusyNonce')
+        full=page.request.get('http://127.0.0.1:8080/api/run').json()
+        assert full['state']['accounts']['alice']['balances']['Q']=={'success':'25104','unprofitable':'1000','guard':'810','shortfall':'820','delayed':'25104','budget':'299'}[name]
+        if name=='shortfall':
+            page.set_viewport_size({'width':390,'height':844})
+            assert page.evaluate('document.documentElement.scrollWidth <= innerWidth'), 'flash arbitrage mobile overflow'
+            page.locator('#flash-arbitrage-panel').evaluate("el=>el.scrollIntoView({block:'start'})")
+            page.screenshot(path='output/m4g-shortfall-mobile.png')
+            page.set_viewport_size({'width':1440,'height':1100})
+        assert page.request.post('http://127.0.0.1:8080/api/restore',data=genesis).ok
+        page.reload()
+        expect(page.locator('#preset')).to_have_value('sc-flash-arb-'+name)
+        for i in range(1,rounds+1):
             page.locator('#step').click()
             expect(page.locator('#position')).to_contain_text(f'Исполнено {i} / {rounds}')
         assert page.request.get('http://127.0.0.1:8080/api/run').json()==full

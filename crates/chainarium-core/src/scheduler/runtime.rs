@@ -2,6 +2,9 @@ use super::*;
 mod backrun_calls;
 mod baseline_calls;
 mod bundle_calls;
+mod flash_arbitrage_calls;
+#[cfg(test)]
+mod flash_arbitrage_fault;
 #[cfg(test)]
 mod independent_dec26;
 mod liquidator_calls;
@@ -17,6 +20,7 @@ struct Round<'a> {
     probes: Vec<bundles::Probe>,
     search: backrun::Report,
     liquidators: policy::liquidator::Report,
+    flash_arbitrage: policy::flash_arbitrage::Report,
     baselines: Vec<policy::agents::Decision>,
     system_preview: Option<World>,
     probe_check: &'a dyn Fn(&World) -> Result<(), String>,
@@ -634,6 +638,7 @@ fn advance_with_rng_check(
         probes: vec![],
         search: backrun::Report::default(),
         liquidators: policy::liquidator::Report::default(),
+        flash_arbitrage: policy::flash_arbitrage::Report::default(),
         baselines: vec![],
         system_preview: None,
         probe_check,
@@ -685,13 +690,23 @@ fn advance_with_rng_check(
         .map(|d| d.agent.clone())
         .chain(s.baseline_policies.keys().cloned())
         .chain(
+            c.flash_arbitrage
+                .iter()
+                .flat_map(|cfg| cfg.policies.keys().cloned()),
+        )
+        .chain(
             c.liquidator
                 .iter()
                 .flat_map(|cfg| cfg.policies.keys().cloned()),
         )
         .collect();
     for agent in periodic {
-        if s.baseline_policies.contains_key(&agent) {
+        if c.flash_arbitrage
+            .as_ref()
+            .is_some_and(|cfg| cfg.policies.contains_key(&agent))
+        {
+            r.flash_arbitrage_decision(&agent)?;
+        } else if s.baseline_policies.contains_key(&agent) {
             r.baseline_decision(&agent, &mut working_rng)?;
         } else if c
             .liquidator
@@ -788,6 +803,7 @@ fn advance_with_rng_check(
         k.committed_status = k.status.clone();
     }
     block.scheduler = Some(Report {
+        flash_arbitrage: c.flash_arbitrage.as_ref().map(|_| r.flash_arbitrage),
         baselines: r.baselines,
         search: c.backrun.as_ref().map(|_| r.search),
         liquidators: c.liquidator.as_ref().map(|_| r.liquidators),
@@ -844,6 +860,7 @@ mod tests {
             probes: vec![],
             search: backrun::Report::default(),
             liquidators: policy::liquidator::Report::default(),
+            flash_arbitrage: policy::flash_arbitrage::Report::default(),
             baselines: vec![],
             system_preview: None,
             probe_check: &|_| Ok(()),

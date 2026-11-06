@@ -1,5 +1,6 @@
 pub mod agents;
 pub mod baselines;
+pub mod flash_arbitrage;
 pub mod liquidator;
 use crate::{
     Amount, engine,

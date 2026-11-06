@@ -25,3 +25,14 @@
 Текущие браузерные регрессии F1/F2 и QueueLimit — в `scripts/check-ui.py`.
 Временные пути из исходного отчёта описывают артефакты review; постоянные
 fixtures и тесты перечислены выше. Проверка исправленного hash записывается отдельно.
+
+## Перепроверка исправлений
+
+[Отчёт](../dec26-fix-verification.md) фиксирует закрытие F1/F2 на `ce78187`.
+Дополнительные6 integration tests сохранены в
+`crates/chainarium-core/tests/independent_dec26_fix.rs`; ещё3 unit tests —
+`crates/chainarium-core/src/scheduler/runtime/independent_dec26/fix.rs`.
+При переносе unit tests изменены только путь include/import и пустой новый
+flash-arbitrage report в test Round; исходная матрица и assertions сохранены.
+Запуск: `scripts/cargo.sh test --locked --offline --test independent_dec26_fix`
+и `scripts/cargo.sh test --locked --offline --lib independent_dec26::fix`.

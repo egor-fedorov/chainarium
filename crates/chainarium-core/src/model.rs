@@ -393,6 +393,7 @@ impl Scenario {
                     && m != crate::liquidation::MODEL
                     && m != crate::hooks::MODEL
                     && m != crate::policy::agents::MODEL
+                    && m != crate::policy::flash_arbitrage::MODEL
                     && m != crate::scheduler::backrun::MODEL
                     && !crate::scheduler::MODELS.contains(&m.as_str())
                     && !crate::scheduler::bundles::MODELS.contains(&m.as_str())

@@ -1,7 +1,7 @@
 # Chainarium
 
 Локальная лаборатория DeFi с Rust-ядром. **v1.0 в разработке.**
-Сейчас исполняются M1–M4f: CPMM swaps/LP, маршруты, арбитражная политика
+Сейчас исполняются M1–M4g: CPMM swaps/LP, маршруты, арбитражная политика
 на собственных средствах, flash loans, lending, oracle, проценты и ликвидации, StableSwap, TWAP и flash-ликвидация,
 стакан GTC/IOC/FOK, CLMM и общий partial-fill router, rollback, fees/nonce и
 исчерпание ресурса. Добавлены event scheduler, mempool, Public/Private delivery,
@@ -15,6 +15,8 @@ Backrun policy ищет размер/маршрут по доставленно�
 их counter и transfers входят в общий rollback. Scripted/random users, borrower
 с целями долга/залога и native oracle publisher используют общий scheduler.
 Их выбор, preflight и фактические оплаченные receipts показаны отдельно.
+Flash arbitrage ищет закрытый RequireFull цикл на фиксированный principal,
+резервирует собственные native fees и проверяет net после settlement займа.
 Полный объём и приёмка: [спецификация](docs/spec.md).
 
 ## Запуск
@@ -53,15 +55,23 @@ M4e добавляет `hook-attempts.jsonl`: точки/инструкции и
 M4f добавляет `baseline-decisions.jsonl`: цели, RNG-выборки и диагностические
 пробы пользовательских, borrower и publisher политик. Реальные fees остаются
 в канонических receipts; RNG восстанавливается вместе с checkpoint.
-Для повторного запуска
-выберите новое имя папки.
+M4g добавляет `flash-arbitrage-probes.jsonl`: пути, ограничение поиска, provider,
+собственный fee reserve, conditional net и typed исход отправки. Canonical
+receipts отдельно показывают фактические расходы и rollback.
+Для повторного запуска выберите новое имя папки.
 Checkpoint восстанавливается только на committed-границе; checksum и повторное
 исполнение проверяют его целостность. CSV не является форматом восстановления.
 
-Доступны 52 presets в UI и CLI:
+Доступны 58 presets в UI и CLI:
 
 | Файл | Демонстрация |
 | --- | --- |
+| `scenarios/demos/sc-flash-arb-success.json` | Flash100000 Q, net24104 Q после fee50 и native190 |
+| `scenarios/demos/sc-flash-arb-unprofitable.json` | Малый цикл не окупает native fee: Skip без расходов |
+| `scenarios/demos/sc-flash-arb-guard.json` | Успешная проба, поздний guard revert; оплачено190 Q |
+| `scenarios/demos/sc-flash-arb-shortfall.json` | Изменение рынка нарушает settlement; rollback займа, fee180 Q |
+| `scenarios/demos/sc-flash-arb-delayed.json` | Одна доставка в round3, BusyNonce в промежуточных решениях |
+| `scenarios/demos/sc-flash-arb-budget.json` | Own299 не покрывает native fee reserve300; probes0 |
 | `scenarios/demos/sc-01.json` | Swap, поздний отказ, исчерпание ресурса |
 | `scenarios/demos/sc-lp.json` | Mint 100 shares, burn 25 и откат mint |
 | `scenarios/demos/sc-03-route.json` | Политика: 100 Q → 90 X → 123 Q |
@@ -210,7 +220,11 @@ checkpoint/resume, fork, A/B и мобильную верстку. Снимки 
   именованный ChaCha12 stream, две bounded выборки даже при Hold/BusyNonce;
   ModelError откатывает RNG вместе с раундом. Borrower выбирает один шаг по
   accrued debt/own collateral; publisher отправляет обычные Spot/Twap calls.
-- UI — прототип M1–M4f с52 presets. Полный explorer M5 впереди.
+- M4g: `bounded-flash-arbitrage-v1`, фиксированный principal/provider,
+  до3 hops/64 probes/4096 venue checks; RequireFull и root net guard после
+  settlement. Shared family budget, explicit truncation/submit refusal;
+  включённый actual revert оплачивается, диагностические пробы — нет.
+- UI — прототип M1–M4g с58 presets. Полный explorer M5 впереди.
 - Критерии всей v1.0 не объявляются выполненными. Независимый review и следующие
   открытые экономические контракты фиксируются согласно §23–24 спецификации.
 
@@ -239,7 +253,10 @@ checkpoint/resume, fork, A/B и мобильную верстку. Снимки 
 (чужой wallet через preflight) и P2 (потеря refusal отправки). Добавлены
 capability checks и явный submission outcome. [Перепроверка исправлений](docs/reviews/dec26-fix-verification.md)
 на `ce78187` закрыла оба findings без новых подтверждённых замечаний.
-Сохранены8 integration tests и2 unit tests reviewer.
+Сохранены8 integration +2 unit tests исходного reviewer и ещё6 integration
++3 unit tests адресной перепроверки.
+DEC-27/M4g реализован и функционально проверен; отдельный независимый review
+нового search/controller ещё не выполнен.
 
 Фактические результаты и оставшиеся проверки: [журнал прогресса](docs/progress.md).
 Сценарий CLI ограничен 64 MiB, отдельная транзакция — 1 MiB. Web restore

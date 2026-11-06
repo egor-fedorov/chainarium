@@ -286,6 +286,25 @@ impl Run {
             }
             write("liquidator-probes.jsonl", search.as_bytes())?;
         }
+        if self
+            .scenario
+            .scheduler
+            .as_ref()
+            .is_some_and(|c| c.flash_arbitrage.is_some())
+        {
+            let mut search = String::new();
+            for block in &self.blocks {
+                if let Some(report) = block
+                    .scheduler
+                    .as_ref()
+                    .and_then(|r| r.flash_arbitrage.as_ref())
+                {
+                    search.push_str(&serde_json::to_string(&serde_json::json!({"block":block.number,"phase":"FlashArbitrageSearchDiagnostic","search":report})).map_err(|e|e.to_string())?);
+                    search.push('\n');
+                }
+            }
+            write("flash-arbitrage-probes.jsonl", search.as_bytes())?;
+        }
         if !self.scenario.baseline_policies.is_empty() {
             let mut decisions = String::new();
             for b in &self.blocks {
@@ -352,6 +371,14 @@ impl Run {
         }
         if !self.scenario.baseline_policies.is_empty() {
             report.push_str("\nBaseline agent decisions: `baseline-decisions.jsonl`. Each decision identifies its parent and system preview, own target or sampled choice, and diagnostic preflight receipt. Trial fees are not canonical charges. Actual included receipts, fees and transfers remain in `run.json` / `events.jsonl`. Named RNG positions are checkpointed; reading decisions does not draw again.\n");
+        }
+        if self
+            .scenario
+            .scheduler
+            .as_ref()
+            .is_some_and(|c| c.flash_arbitrage.is_some())
+        {
+            report.push_str("\nFlash arbitrage: `flash-arbitrage-probes.jsonl`. Own native fee reserve is separate from borrowed principal. Closed RequireFull routes settle principal plus ceil flash fee before the final net guard. Search work, trial receipts and fees are diagnostic; actual included costs and rollback are in `run.json` / `events.jsonl`. Shared trial/venue budgets and truncation are explicit.\n");
         }
         write("report.md", report.as_bytes())
     }

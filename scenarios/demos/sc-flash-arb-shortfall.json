@@ -1,0 +1,213 @@
+{
+  "schema_version": "chainarium-scenario-m1-v1",
+  "model_versions": [
+    "native-execution-v1",
+    "native-cost-v1",
+    "cpmm-v1",
+    "chacha12-v1",
+    "cpmm-lp-v1",
+    "bounded-route-v1",
+    "strict-flash-provider-v1",
+    "heterogeneous-route-v1",
+    "event-scheduler-v1",
+    "bounded-mempool-v1",
+    "basic-builders-v1",
+    "bounded-flash-arbitrage-v1"
+  ],
+  "name": "Flash arbitrage: shortfall",
+  "seed": "42",
+  "assets": {
+    "X": {
+      "decimals": 0
+    },
+    "Q": {
+      "decimals": 0
+    }
+  },
+  "accounts": {
+    "alice": {
+      "balances": {
+        "Q": "1000",
+        "X": "0"
+      },
+      "nonce": "0"
+    },
+    "bob": {
+      "balances": {
+        "Q": "0",
+        "X": "150000"
+      },
+      "nonce": "0"
+    },
+    "builder": {
+      "balances": {
+        "Q": "0",
+        "X": "0"
+      },
+      "nonce": "0"
+    },
+    "pool": {
+      "balances": {
+        "X": "1000000",
+        "Q": "1000000"
+      },
+      "nonce": "0"
+    },
+    "pool-b": {
+      "nonce": "0",
+      "balances": {
+        "X": "1000000",
+        "Q": "1500000"
+      }
+    },
+    "loan": {
+      "nonce": "0",
+      "balances": {
+        "Q": "10000000",
+        "X": "0"
+      }
+    }
+  },
+  "protocols": {
+    "cpmm": {
+      "account": "pool",
+      "x": "X",
+      "y": "Q",
+      "fee_bps": 30,
+      "owner": "alice"
+    },
+    "second": {
+      "account": "pool-b",
+      "x": "X",
+      "y": "Q",
+      "fee_bps": 30,
+      "owner": "alice"
+    }
+  },
+  "agents": {
+    "trader": {
+      "controlled_accounts": [
+        "alice"
+      ]
+    },
+    "recipient": {
+      "controlled_accounts": [
+        "bob"
+      ]
+    }
+  },
+  "chain": {
+    "id": "lab-1",
+    "fee_asset": "Q",
+    "fee_account": "builder",
+    "block_limit": "10000",
+    "interval": "1"
+  },
+  "blocks": [],
+  "policies": {},
+  "flash_providers": {
+    "loan": {
+      "account": "loan",
+      "asset": "Q",
+      "fee_bps": 5
+    }
+  },
+  "scheduler": {
+    "rounds": 1,
+    "builder": {
+      "type": "Fifo"
+    },
+    "limits": {
+      "agents": 64,
+      "emissions": 4096,
+      "rounds": 10000,
+      "pending": 1024,
+      "queue": 4096,
+      "visible": 256,
+      "known": 65536,
+      "events_per_round": 4096,
+      "reactions_per_round": 64,
+      "depth": 8,
+      "intents_per_agent": 1,
+      "retention": 32,
+      "inclusion_attempts": 256,
+      "eligibility_checks": 65536
+    },
+    "agents": {
+      "trader": {
+        "observe_public": true,
+        "observation_delay": "0",
+        "outgoing": {
+          "channel": {
+            "type": "Public"
+          },
+          "builder_delay": "1"
+        }
+      },
+      "recipient": {
+        "observe_public": true,
+        "observation_delay": "0",
+        "outgoing": {
+          "channel": {
+            "type": "Public"
+          },
+          "builder_delay": "0"
+        }
+      }
+    },
+    "emissions": [
+      {
+        "at": "0",
+        "producer_id": "market-move",
+        "producer_sequence": "0",
+        "delivery": {
+          "channel": {
+            "type": "Public"
+          },
+          "builder_delay": "0"
+        },
+        "transaction": {
+          "id": "market-move",
+          "agent": "recipient",
+          "sender": "bob",
+          "chain": "lab-1",
+          "nonce": "0",
+          "limit": "300",
+          "price": "0",
+          "deadline": "10",
+          "program": [
+            {
+              "type": "SwapExactIn",
+              "pool": "second",
+              "asset_in": "X",
+              "amount": "150000",
+              "min_out": "1"
+            }
+          ]
+        }
+      }
+    ],
+    "reactive": {},
+    "flash_arbitrage": {
+      "limits": {
+        "hops": 3,
+        "trials_per_policy": 64,
+        "trials_per_round": 64,
+        "venue_checks": 4096
+      },
+      "policies": {
+        "trader": {
+          "account": "alice",
+          "asset": "Q",
+          "provider": "loan",
+          "principal": "100000",
+          "minimum_net_profit": "1",
+          "resource_limit": "300",
+          "resource_price": "1",
+          "lifetime": "20",
+          "route_limits": []
+        }
+      }
+    }
+  }
+}

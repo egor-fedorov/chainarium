@@ -82,6 +82,20 @@ async fn wire(Json(value): Json<Wire>) -> Json<Wire> {
 }
 async fn preset(ApiPath(id): ApiPath<String>) -> Result<impl IntoResponse, ApiError> {
     let data = match id.as_str() {
+        "sc-flash-arb-success" => {
+            include_str!("../../../scenarios/demos/sc-flash-arb-success.json")
+        }
+        "sc-flash-arb-unprofitable" => {
+            include_str!("../../../scenarios/demos/sc-flash-arb-unprofitable.json")
+        }
+        "sc-flash-arb-guard" => include_str!("../../../scenarios/demos/sc-flash-arb-guard.json"),
+        "sc-flash-arb-shortfall" => {
+            include_str!("../../../scenarios/demos/sc-flash-arb-shortfall.json")
+        }
+        "sc-flash-arb-delayed" => {
+            include_str!("../../../scenarios/demos/sc-flash-arb-delayed.json")
+        }
+        "sc-flash-arb-budget" => include_str!("../../../scenarios/demos/sc-flash-arb-budget.json"),
         "sc-scheduler-public" => include_str!("../../../scenarios/demos/sc-scheduler-public.json"),
         "sc-scheduler-private" => {
             include_str!("../../../scenarios/demos/sc-scheduler-private.json")
@@ -430,6 +444,15 @@ fn app() -> Router {
             }),
         )
         .route(
+            "/flash-arbitrage.js",
+            get(|| async {
+                (
+                    [(header::CONTENT_TYPE, "text/javascript; charset=utf-8")],
+                    include_str!("../../../web/flash-arbitrage.js"),
+                )
+            }),
+        )
+        .route(
             "/agents.js",
             get(|| async {
                 (
@@ -609,7 +632,7 @@ async fn command() -> Result<(), String> {
             let listener = tokio::net::TcpListener::bind((std::net::Ipv4Addr::LOCALHOST, port))
                 .await
                 .map_err(|e| e.to_string())?;
-            println!("Chainarium M1–M4f inspector listening on port {port}");
+            println!("Chainarium M1–M4g inspector listening on port {port}");
             axum::serve(listener, app())
                 .await
                 .map_err(|e| e.to_string())?;
@@ -711,7 +734,7 @@ async fn command() -> Result<(), String> {
             );
         }
         "--help" | "help" => println!(
-            "Chainarium M1–M4f (v1.0 in development)\n  run SCENARIO NEW_OUTPUT_DIR\n  routes SCENARIO BLOCKS QUERY_JSON\n  checkpoint SCENARIO BLOCKS NEW_FILE\n  resume CHECKPOINT NEW_OUTPUT_DIR\n  serve [PORT]\n  benchmark [BLOCKS]"
+            "Chainarium M1–M4g (v1.0 in development)\n  run SCENARIO NEW_OUTPUT_DIR\n  routes SCENARIO BLOCKS QUERY_JSON\n  checkpoint SCENARIO BLOCKS NEW_FILE\n  resume CHECKPOINT NEW_OUTPUT_DIR\n  serve [PORT]\n  benchmark [BLOCKS]"
         ),
         _ => return Err("unknown command; use --help".into()),
     }

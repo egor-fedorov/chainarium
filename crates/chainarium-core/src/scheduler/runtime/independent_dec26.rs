@@ -109,3 +109,5 @@ fn independent_error_after_paid_revert_does_not_commit_any_rng_or_scheduler_stat
     assert_eq!(block.state.balance("alice", "Q"), 875.into());
     assert_eq!(rng.position("agent/trader"), 4.into());
 }
+
+mod fix;
