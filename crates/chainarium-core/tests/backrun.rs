@@ -86,6 +86,52 @@ fn exact_grid_selects_best_input_and_pays_real_bid_once() {
         expected["best"]["conditional_net_Q"].as_str().unwrap()
     );
 }
+
+#[test]
+fn own_nonce_capacity_covers_response_and_optional_payment_without_aborting_round() {
+    let max: Amount =
+        "115792089237316195423570985008687907853269984665640564039457584007913129639935"
+            .parse()
+            .unwrap();
+    for (available, bid, included) in [
+        (0, 0, false),
+        (0, 5, false),
+        (1, 5, false),
+        (1, 0, true),
+        (2, 5, true),
+    ] {
+        let mut s = fixture("public");
+        s.accounts.get_mut("alice").unwrap().nonce = max.checked_sub(available.into()).unwrap();
+        policy(&mut s).bid = bid.into();
+        // Deliver the standalone victim after the bundle so its zero-score tie cannot win.
+        s.scheduler.as_mut().unwrap().emissions[0]
+            .delivery
+            .builder_delay = 4.into();
+        let r = finish(s);
+        let d = &search(&r).decisions[0];
+        assert_eq!(d.bundle.is_some(), included);
+        if !included {
+            assert_eq!(d.reason, "NonceExhausted");
+            assert!(d.candidates.is_empty());
+        }
+        assert_eq!(
+            r.blocks
+                .iter()
+                .flat_map(|b| &b.receipts)
+                .filter(|t| t.tx_id == "victim")
+                .count(),
+            1
+        );
+        assert_eq!(
+            r.state.balance("alice", "Q"),
+            if included {
+                if bid == 0 { 10016.into() } else { 10011.into() }
+            } else {
+                10000.into()
+            }
+        );
+    }
+}
 #[test]
 fn private_without_recipient_cannot_start_search() {
     let r = finish(fixture("private"));

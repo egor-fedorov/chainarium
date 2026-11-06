@@ -218,6 +218,18 @@ impl Search<'_> {
         metrics: &mut Metrics,
         simulate: &mut dyn FnMut(&[Transaction]) -> Result<Trial, String>,
     ) -> Result<(), String> {
+        // Every own member must be able to consume its nonce, including the payment.
+        // An exhausted account is an unavailable action, not a failure of the round.
+        let increments = if self.policy.bid.is_zero() { 1 } else { 2 };
+        if self
+            .observation
+            .nonce
+            .checked_add(increments.into())
+            .is_err()
+        {
+            decision.reason = "NonceExhausted".into();
+            return Ok(());
+        }
         let seed = crate::run::digest(
             &serde_json::to_vec(&(&decision.agent, &decision.trigger, self.event_id))
                 .map_err(|e| e.to_string())?,
