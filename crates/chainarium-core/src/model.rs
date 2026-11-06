@@ -75,6 +75,14 @@ pub struct Transaction {
 #[derive(Clone, Debug, Serialize, Deserialize, PartialEq, Eq)]
 #[serde(tag = "type", deny_unknown_fields)]
 pub enum Call {
+    LiquidateAndSell {
+        market: String,
+        borrower: String,
+        max_repay: Amount,
+        min_collateral: Amount,
+        hops: Vec<crate::routing::heterogeneous::VenueHop>,
+        min_out: Amount,
+    },
     ExecuteRoute {
         asset_in: String,
         amount: Amount,
@@ -254,6 +262,7 @@ impl Call {
     pub fn label(&self) -> &'static str {
         match self {
             Self::ExecuteRoute { .. } => "ExecuteRoute",
+            Self::LiquidateAndSell { .. } => "LiquidateAndSell",
             Self::Transfer { .. } => "Transfer",
             Self::Approve { .. } => "Approve",
             Self::TransferFrom { .. } => "TransferFrom",
@@ -375,6 +384,8 @@ impl Scenario {
                     && m != crate::routing::heterogeneous::MODEL
                     && m != crate::policy::baselines::LP_MODEL
                     && m != crate::policy::baselines::MM_MODEL
+                    && m != crate::policy::liquidator::MODEL
+                    && m != crate::liquidation::MODEL
                     && m != crate::scheduler::backrun::MODEL
                     && !crate::scheduler::MODELS.contains(&m.as_str())
                     && !crate::scheduler::bundles::MODELS.contains(&m.as_str())
@@ -658,6 +669,36 @@ impl Scenario {
                 }
                 match call {
                     Call::Sequence { calls } => check(s, calls, depth + 1, n, &path, outputs)?,
+                    Call::LiquidateAndSell {
+                        market,
+                        borrower,
+                        hops,
+                        ..
+                    } => {
+                        if !s
+                            .model_versions
+                            .iter()
+                            .any(|m| m == crate::liquidation::MODEL)
+                        {
+                            return Err("missing liquidation sale model".into());
+                        }
+                        let cfg = s.lending.get(market).ok_or("unknown lending market")?;
+                        if !cfg.positions.contains_key(borrower) {
+                            return Err("unknown borrower position".into());
+                        }
+                        let output = crate::routing::heterogeneous::validate_hops(
+                            s,
+                            &cfg.collateral_asset,
+                            hops,
+                        )?;
+                        if output != cfg.debt_asset {
+                            return Err("liquidation sale must end in debt asset".into());
+                        }
+                        *n += 2 + hops.len();
+                        if *n > 1024 || depth + 2 > 32 {
+                            return Err("liquidation sale child node/depth limit".into());
+                        }
+                    }
                     Call::ExecuteRoute { asset_in, hops, .. } => {
                         let output =
                             crate::routing::heterogeneous::validate_hops(s, asset_in, hops)?;
@@ -762,6 +803,8 @@ pub struct Event {
 #[serde(deny_unknown_fields)]
 pub struct Trace {
     #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub liquidation: Option<crate::liquidation::SaleResult>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
     pub route: Option<crate::routing::heterogeneous::RouteResult>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub clmm: Option<crate::clmm::Trace>,
@@ -795,6 +838,8 @@ pub struct Charge {
 #[derive(Clone, Debug, Serialize, Deserialize, PartialEq, Eq)]
 #[serde(deny_unknown_fields)]
 pub struct Receipt {
+    #[serde(default, skip_serializing_if = "BTreeMap::is_empty")]
+    pub liquidations: BTreeMap<String, crate::liquidation::SaleResult>,
     #[serde(default, skip_serializing_if = "BTreeMap::is_empty")]
     pub route_results: BTreeMap<String, crate::routing::heterogeneous::RouteResult>,
     pub tx_id: String,

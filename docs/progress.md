@@ -1,6 +1,6 @@
 # Прогресс Chainarium — 2026-11-06
 
-Цель: весь v1.0 из §2.1. Текущий результат — **исполняемый прототип M1–M4c**.
+Цель: весь v1.0 из §2.1. Текущий результат — **исполняемый прототип M1–M4d**.
 Это не готовая v1.0. Независимый review M1–M3b завершён, три findings исправлены
 и перепроверены. Отдельный review M3c–M3d завершён без подтверждённых findings;
 область и ограничения сохранены в `docs/reviews/dec20-independent-review.md`.
@@ -22,9 +22,10 @@ M4c — **Accepted DEC-23** (§23.2.11): поиск backrun,
 `bcacbcf`, `f99114a` адресно перепроверены reviewer; оба findings закрыты.
 Отчёт — `docs/reviews/dec23-independent-review.md`, сохранены16 независимых
 тестов и отдельный boundary test. Итоговый suite reviewer —271 passed.
-Следующий M4d: **Accepted DEC-24** (§23.2.12), LiquidateAndSell + bounded
-liquidator, Own/Flash funding и SC-06 competition. До реализации сохранены
-`docs/reviews/liquidator-reference.py`/`.json`; контракт согласован, реализация начата.
+M4d: **Accepted DEC-24** (§23.2.12), LiquidateAndSell + bounded
+liquidator, Own/Flash funding и SC-06 competition реализованы. До реализации
+сохранены `docs/reviews/liquidator-reference.py`/`.json`. Нужен отдельный
+независимый review нового экономического call и policy; DEC-23 его не охватывает.
 
 ## Что работает
 
@@ -61,7 +62,7 @@ fees/nonce/resource accounting и deterministic replay. Канонические
   arbitrage с фактической native fee. Одно намерение на AgentId, Hold/Skip/Submit,
   старое committed observation и повторная проверка включения.
 
-UI содержит тридцать четыре presets, play/pause/step, просмотр block→tx→call, балансы, сравнение котировок и трасса solver,
+UI содержит сорок presets, play/pause/step, просмотр block→tx→call, балансы, сравнение котировок и трасса solver,
 LP shares, C/D/S/E, escrow, точный HF и запись oracle, фактически использованную
 в конкретном вызове. Расчёт риска выполняет Rust; JS отображает готовые строки.
 Есть export/checkpoint/restore/fork и A/B параметров SC-01.
@@ -69,19 +70,20 @@ LP shares, C/D/S/E, escrow, точный HF и запись oracle, фактич
 ## Фактическая проверка
 
 - `scripts/cargo.sh fmt --check` и Clippy всех targets с `-D warnings` — прошли.
-- `scripts/cargo.sh test --workspace --locked --offline` — **251 tests passed**:
-  9 unit tests (включая fault injection), 19 acceptance, 20 composition, 19 credit,
+- `scripts/cargo.sh test --workspace --locked --offline` — **305 tests passed**:
+  11 unit tests (включая fault injection), 19 acceptance, 20 composition, 19 credit,
   10 stable, 10 twap, 7 flash_liquidation, 14 book, 17 clmm, 11 heterogeneous,
   16 policies, 6 independent_dec20, 10 independent_dec21, 12 independent_dec22,
-  18 scheduler, 26 bundles, 27 backrun;
+  18 scheduler, 26 bundles, 30 backrun, 16 independent_dec23,
+  1 independent_dec23_boundaries, 12 liquidation_sale, 20 liquidator_policy;
   ignored=0. Независимые тесты сохраняют аналитические sweeps предыдущих reviews.
 - `node --test web/wire.test.mjs` — канонические строки, диапазоны и точный
   decimal conversion прошли; JS экономические команды не проходят через Number.
-- `python3 scripts/check-ui.py` — пройден путь всех тридцати четырёх presets, readonly
+- `python3 scripts/check-ui.py` — пройден путь всех сорока presets, readonly
   просмотр, trace, checkpoint/resume, fork/A-B, точные Amount/Price через HTTP,
   desktop/mobile; ошибок JavaScript и горизонтального overflow нет.
 - Release build и `git diff --check` — прошли.
-- CLI: все 34 demos исполнены. Оба StableSwap demos после checkpoint/resume
+- CLI: все 40 demos исполнены. Оба StableSwap demos после checkpoint/resume
   дают побайтно идентичные `run.json`. SC-05 checkpoint после блока 1 → resume:
   `run.json` побайтно совпадает с непрерывным запуском. В events JSONL начисление
   10 Q присутствует, отменённая liquidation не создаёт канонического write-off.
@@ -600,18 +602,81 @@ competition, прочие роли, hooks и M5 ещё не реализован
 остаётся открыт. Условный лучший ответ не обещает включения или глобального
 оптимума MEV и не заменяет будущие MTM/experiment metrics.
 
+### M4d / DEC-24 — liquidator, фактический залог и конкуренция
+
+`liquidate-and-sell-v1` выполняет common Liquidate и RequireFull route. Бюджет
+продажи — прирост collateral непосредственно от liquidation; существующий
+inventory не расходуется. Receipt сохраняет requested/paid/seized, фактический
+route и oracle use. Поздний guard, settlement shortage и partial fill отменяют
+liquidation, sale и write-off вместе. Включённая попытка сохраняет native fee/nonce;
+канонические typed results отменённой операции пусты, диагностическая trace сохранена.
+
+`bounded-liquidator-v1` выбирает разрешённый target, repayment и путь по одному
+accrual preview из parent state. Наблюдение содержит только собственные balances,
+публичные venues/feeds, перечисленные позиции и выбранный flash provider.
+Текущие/future emissions и private messages в него не входят. Policy использует
+Own либо Flash funding и final transaction net guard; max_repay flash principal
+не становится доходом. До16 targets,8 sizes,3 hops;64 trials и4096 venue checks
+всех liquidators за раунд. Порядок AgentId/market/borrower/size/venue детерминирован;
+best completed может отправляться при truncated, неисследованные варианты не
+объявляются убыточными. BusyNonce и проверенные nonce/deadline/delivery overflow
+дают явный Skip. Отправка использует обычный native scheduler, без bundle bid.
+
+Числа `docs/reviews/liquidator-reference.json` подтверждены Rust и CLI/browser:
+
+| Demo | Фактический результат |
+| --- | --- |
+| Own | Request60, paid60 Q, seized6 X, sale84 Q; net24 Q, write-off20 Q; C/D/S/E=80/0/80/0 |
+| Flash ×1000, price1 | Principal60000 Q, flash fee30 Q, sale84905 Q; native200 units/200 Q, net24675 Q; Carol25675 Q |
+| FIFO competition | Alice124735 Q; Carol99760 Q, NoDebt и fee240 Q; builder410 Q |
+| FeePriority competition | Alice99880 Q, NoDebt и fee120 Q; Carol124565 Q; builder460 Q |
+| Stale oracle | Первоначальный заём создан по свежей цене; на preview30 s новая цена имеет age10/max9, Skip, долг80 Q остаётся |
+| Delayed | Отправка20, arrival31; блок3 без receipt, блок4 BusyNonce и одно включение; Carol1024 Q |
+
+Winner использует170 units, NoDebt loser120. Оба включённых конкурента расходуют
+nonce; write-off выполняется один раз. Flash использует200 units, включая10 units
+существующего FlashCallback; численная ошибка исходного reference исправлена до
+policy implementation в `f16bb8a` и явно описана в §23.2.12.
+
+Полная проверка: **305 Rust tests**, fmt и Clippy `-D warnings`, wire test и JS syntax
+прошли. Новые34 tests:12 native liquidation_sale,20 liquidator_policy и2 unit
+наблюдения/fault injection. Покрыты actual inventory/prior partial close,
+Own actual paid vs request, native reserve/flash cash shortage, settlement/min_out
+rollback, stable solver work, CLMM/book partial rollback, authority/path/depth,
+ресурсные границы169/170 и199/200, HF equality/missing/stale oracle, single accrual,
+16/17 targets,8/9 sizes,64 trials/4096 venue checks, общие budgets/порядок,
+private/future noninterference, поздняя потеря прибыли, nonce/time exhaustion,
+expired intent, inflight checkpoint и tampered report, ModelError после sale/write-off.
+
+UI показывает config/funding, parent→preview, target health/freshness, условные
+кандидаты и net, выбранное погашение, включённого winner/loser и native fees.
+Инспектор раскрывает actual paid/seized/sale и точную oracle record. `liquidator-probes.jsonl`
+экспортирует диагностический поиск; canonical events/receipts остаются отдельными.
+Все40 browser presets прошли, включая read-only viewing, checkpoint/resume и mobile;
+новые desktop/mobile screenshots просмотрены, overflow и JS errors отсутствуют.
+Все40 CLI demos завершены. Для6 liquidator +6 backrun сценариев checkpoint/resume
+даёт побайтно одинаковые `run.json`, `events.jsonl`, `delivery.jsonl`,
+`transactions.csv` и применимые builder/search/liquidator probe exports.
+
+Release fingerprint: `e5347c96728677f327938fc4db0223f39fa031affad8c8aad4cbe92dace4c205`.
+Артефакты: `output/m4d-validated/`, `output/m4d-competition.png`,
+`output/m4d-flash-mobile.png`; логи `/tmp/chainarium-m4d-{full-tests,clippy,browser,cli}.log`.
+Независимый review DEC-24 ещё не выполнен; прежний DEC-23 review исключает этот scope.
+Это M4d, не вся M4 или v1.0: hooks, остальные роли, MTM/эксперименты/explorer и
+performance/user-task gates M5 остаются открытыми.
+
 ### Fixtures и границы доказательства
 
 | Проверка | Доказательство | Ограничение |
 | --- | --- | --- |
-| Ledger/auth/execution/block | acceptance + 5 injected ModelErrors после успешной tx, включая accrual/oracle | M4b независимо проверен; review M4c впереди |
+| Ledger/auth/execution/block | acceptance + 5 injected ModelErrors после успешной tx, включая accrual/oracle | M4b/M4c независимо проверены; review M4d впереди |
 | CPMM/LP/router/flash | composition: rounding/minima/ownership/reentry/actual output/rollback; 500 CPMM invariant cases | Native models; совместимость с внешним deployment не заявлена |
 | Lending accounting | exact fixture, caps/HF/LTV/cash, aggregate rates, multiple escrow, fractional carry, no-holder income | Прямой долг, заранее зарегистрированные позиции, максимум 1024/reserve |
 | Liquidation/loss | exact waterfall, partial close, dust, min_collateral, fee-preserving rollback, 256 deterministic boundary cases | Нет recovery/treasury; вывод equity запрещён |
 | Deposit shares | zero mint, minima, cash shortage без burn, last exit, bootstrap с E | Bankrupt проверен на invariant-valid defensive snapshot, не заявлен достижимым из genesis этого positive-payment preset |
 | Oracle | unauthorized/source/pair/future/duplicate/out-of-order; возраст 60/61; safe stale operations; consumer trace | External/native spot/TWAP; bounded history и однократное floor проверены |
-| Checkpoint/export | replay/resume/fork/tamper, протоколы, LP/MM schedules/decisions | M4b groups и M4c trigger/search snapshots проверены; будущие policies потребуют своих fixtures |
-| UI | реальные balances/trace, 34 presets, desktop/mobile, exact HTTP wire | Прототип; полная приёмка M5 не закрыта |
+| Checkpoint/export | replay/resume/fork/tamper, протоколы, LP/MM schedules/decisions | M4b groups, M4c trigger/search и M4d preview/trials/inflight snapshots проверены |
+| UI | реальные balances/trace, 40 presets, desktop/mobile, exact HTTP wire | Прототип; полная приёмка M5 не закрыта |
 
 Численные ожидания следуют §6/§8/§20 и принятым DEC; тесты не заменяют
 независимый review. Analytical sweep — детерминированная проверка инвариантов,
@@ -656,12 +721,13 @@ latency UI и полные workloads M5 ещё не измерены/не при
    M4c / DEC-23 (§23.2.11) реализован: поиск backrun по видимой victim,
    sizes/route caps, bundle и net после fees/bid. Независимый
    read-only review этого среза завершён; два P2 исправлены и перепроверены. Для M4d принят
-   DEC-24 (§23.2.12) с численными ожиданиями, реализация начата.
-   Затем M4: liquidator policies, hooks и остальные роли;
+   DEC-24 (§23.2.12) с численными ожиданиями; M4d реализован,
+   независимый review нового среза ещё впереди.
+   Затем M4: hooks и остальные роли;
    M5: MTM, эксперименты, полный explorer и приёмка. Новые существенные решения
    требуют конкретных карточек и согласования по §23.7.
 5. Полные user-task/latency/performance budgets и независимое review должны
-   быть выполнены до приёмки целевой v1.0. SC-06 с конкуренцией — этап M4.
+   быть выполнены до приёмки целевой v1.0. SC-06 с конкуренцией исполняется в M4d, независимый review впереди.
 
 Изменения находятся в рабочем checkout. Среда не публиковалась, push и публикация релизов
 не выполнялись. Ранее опубликованная конфигурация среды не изменялась повторно.

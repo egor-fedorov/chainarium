@@ -1,0 +1,408 @@
+{
+  "schema_version": "chainarium-scenario-m1-v1",
+  "model_versions": [
+    "native-execution-v1",
+    "native-cost-v1",
+    "cpmm-v1",
+    "chacha12-v1",
+    "isolated-collateral-lending-v1",
+    "oracle-observation-v1",
+    "heterogeneous-route-v1",
+    "strict-flash-provider-v1",
+    "event-scheduler-v1",
+    "bounded-mempool-v1",
+    "basic-builders-v1",
+    "liquidate-and-sell-v1",
+    "bounded-liquidator-v1"
+  ],
+  "name": "M4 · Liquidator · Flash funding",
+  "seed": "42",
+  "assets": {
+    "X": {
+      "decimals": 0
+    },
+    "Q": {
+      "decimals": 0
+    }
+  },
+  "accounts": {
+    "alice": {
+      "nonce": "0",
+      "balances": {
+        "Q": "0",
+        "X": "0"
+      }
+    },
+    "bob": {
+      "nonce": "0",
+      "balances": {
+        "Q": "0",
+        "X": "6000"
+      }
+    },
+    "carol": {
+      "nonce": "0",
+      "balances": {
+        "Q": "1000",
+        "X": "0"
+      }
+    },
+    "oracle": {
+      "nonce": "0",
+      "balances": {
+        "Q": "0",
+        "X": "0"
+      }
+    },
+    "builder": {
+      "nonce": "0",
+      "balances": {
+        "Q": "0",
+        "X": "0"
+      }
+    },
+    "reserve": {
+      "nonce": "0",
+      "balances": {
+        "Q": "0",
+        "X": "0"
+      }
+    },
+    "escrow-bob": {
+      "nonce": "0",
+      "balances": {
+        "Q": "0",
+        "X": "0"
+      }
+    },
+    "lender": {
+      "nonce": "0",
+      "balances": {
+        "Q": "100000",
+        "X": "0"
+      }
+    },
+    "sale": {
+      "nonce": "0",
+      "balances": {
+        "X": "100000",
+        "Q": "1500000"
+      }
+    },
+    "flash": {
+      "nonce": "0",
+      "balances": {
+        "Q": "10000000"
+      }
+    }
+  },
+  "protocols": {
+    "sale": {
+      "account": "sale",
+      "x": "X",
+      "y": "Q",
+      "fee_bps": 0,
+      "owner": "lender"
+    }
+  },
+  "agents": {
+    "alice": {
+      "controlled_accounts": [
+        "alice"
+      ]
+    },
+    "bob": {
+      "controlled_accounts": [
+        "bob"
+      ]
+    },
+    "carol": {
+      "controlled_accounts": [
+        "carol"
+      ]
+    },
+    "oracle": {
+      "controlled_accounts": [
+        "oracle"
+      ]
+    },
+    "lender": {
+      "controlled_accounts": [
+        "lender"
+      ]
+    }
+  },
+  "chain": {
+    "id": "lab-1",
+    "fee_asset": "Q",
+    "fee_account": "builder",
+    "block_limit": "10000",
+    "interval": "10"
+  },
+  "blocks": [],
+  "feeds": {
+    "feed": {
+      "base_asset": "X",
+      "quote_asset": "Q",
+      "source_id": "reference",
+      "publishers": [
+        "oracle"
+      ],
+      "initial": {
+        "price": {
+          "base_asset": "X",
+          "quote_asset": "Q",
+          "numerator": "20",
+          "denominator": "1"
+        },
+        "source_id": "reference",
+        "observed_at": "0",
+        "published_at": "0",
+        "sequence": "0",
+        "update_id": "genesis"
+      }
+    }
+  },
+  "lending": {
+    "credit": {
+      "cash_account": "reserve",
+      "debt_asset": "Q",
+      "collateral_asset": "X",
+      "feed": "feed",
+      "ltv_bps": 7500,
+      "lt_bps": 8000,
+      "close_bps": 10000,
+      "bonus_bps": 1000,
+      "reserve_factor": "200000000000000000",
+      "supply_cap": "1000000000",
+      "borrow_cap": "10000000",
+      "max_age": "60",
+      "rate": {
+        "type": "Constant",
+        "rate": "0"
+      },
+      "positions": {
+        "bob": "escrow-bob"
+      }
+    }
+  },
+  "flash_providers": {
+    "flash": {
+      "account": "flash",
+      "asset": "Q",
+      "fee_bps": 5
+    }
+  },
+  "scheduler": {
+    "rounds": 4,
+    "builder": {
+      "type": "Fifo"
+    },
+    "limits": {
+      "agents": 64,
+      "emissions": 4096,
+      "rounds": 10000,
+      "pending": 1024,
+      "queue": 4096,
+      "visible": 256,
+      "known": 65536,
+      "events_per_round": 4096,
+      "reactions_per_round": 64,
+      "depth": 8,
+      "intents_per_agent": 1,
+      "retention": 32,
+      "inclusion_attempts": 256,
+      "eligibility_checks": 65536
+    },
+    "agents": {
+      "alice": {
+        "observe_public": false,
+        "observation_delay": "0",
+        "outgoing": {
+          "channel": {
+            "type": "Public"
+          },
+          "builder_delay": "0"
+        }
+      },
+      "bob": {
+        "observe_public": false,
+        "observation_delay": "0",
+        "outgoing": {
+          "channel": {
+            "type": "Public"
+          },
+          "builder_delay": "0"
+        }
+      },
+      "carol": {
+        "observe_public": false,
+        "observation_delay": "0",
+        "outgoing": {
+          "channel": {
+            "type": "Public"
+          },
+          "builder_delay": "0"
+        }
+      },
+      "oracle": {
+        "observe_public": false,
+        "observation_delay": "0",
+        "outgoing": {
+          "channel": {
+            "type": "Public"
+          },
+          "builder_delay": "0"
+        }
+      },
+      "lender": {
+        "observe_public": false,
+        "observation_delay": "0",
+        "outgoing": {
+          "channel": {
+            "type": "Public"
+          },
+          "builder_delay": "0"
+        }
+      }
+    },
+    "emissions": [
+      {
+        "at": "1",
+        "producer_id": "environment",
+        "producer_sequence": "0",
+        "transaction": {
+          "id": "supply-100",
+          "agent": "lender",
+          "sender": "lender",
+          "chain": "lab-1",
+          "nonce": "0",
+          "limit": "1000",
+          "price": "0",
+          "deadline": "1000",
+          "program": [
+            {
+              "type": "Supply",
+              "market": "credit",
+              "amount": "100000",
+              "min_shares": "100000"
+            }
+          ]
+        },
+        "delivery": {
+          "channel": {
+            "type": "Public"
+          },
+          "builder_delay": "0"
+        }
+      },
+      {
+        "at": "2",
+        "producer_id": "environment",
+        "producer_sequence": "1",
+        "transaction": {
+          "id": "borrow-80",
+          "agent": "bob",
+          "sender": "bob",
+          "chain": "lab-1",
+          "nonce": "0",
+          "limit": "1000",
+          "price": "0",
+          "deadline": "1000",
+          "program": [
+            {
+              "type": "DepositCollateral",
+              "market": "credit",
+              "amount": "6000"
+            },
+            {
+              "type": "Borrow",
+              "market": "credit",
+              "amount": "80000"
+            }
+          ]
+        },
+        "delivery": {
+          "channel": {
+            "type": "Public"
+          },
+          "builder_delay": "0"
+        }
+      },
+      {
+        "at": "20",
+        "producer_id": "environment",
+        "producer_sequence": "2",
+        "transaction": {
+          "id": "publish-11",
+          "agent": "oracle",
+          "sender": "oracle",
+          "chain": "lab-1",
+          "nonce": "0",
+          "limit": "1000",
+          "price": "0",
+          "deadline": "1000",
+          "program": [
+            {
+              "type": "PublishOracle",
+              "feed": "feed",
+              "source_id": "reference",
+              "price": {
+                "base_asset": "X",
+                "quote_asset": "Q",
+                "numerator": "11",
+                "denominator": "1"
+              },
+              "observed_at": "20",
+              "sequence": "1",
+              "update_id": "price-drop"
+            }
+          ]
+        },
+        "delivery": {
+          "channel": {
+            "type": "Public"
+          },
+          "builder_delay": "0"
+        }
+      }
+    ],
+    "reactive": {},
+    "liquidator": {
+      "limits": {
+        "targets": 16,
+        "sizes": 8,
+        "hops": 3,
+        "venue_checks": 4096,
+        "trials_per_policy": 64,
+        "trials_per_round": 64
+      },
+      "policies": {
+        "carol": {
+          "account": "carol",
+          "targets": [
+            {
+              "market": "credit",
+              "borrower": "bob",
+              "repay_sizes": [
+                "20000",
+                "40000",
+                "60000",
+                "80000"
+              ]
+            }
+          ],
+          "route_limits": [],
+          "minimum_net_profit": "1",
+          "resource_limit": "500",
+          "resource_price": "1",
+          "lifetime": "30",
+          "funding": {
+            "type": "Flash",
+            "provider": "flash"
+          }
+        }
+      }
+    }
+  }
+}

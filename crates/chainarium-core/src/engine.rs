@@ -1,6 +1,7 @@
 mod book_calls;
 mod clmm_calls;
 mod credit_calls;
+mod liquidation_calls;
 mod oracle_calls;
 mod route_calls;
 use crate::{Amount, model::*};
@@ -287,6 +288,7 @@ struct Context<'a> {
     outputs: BTreeMap<String, (String, Amount)>,
     route_results: BTreeMap<String, crate::routing::heterogeneous::RouteResult>,
     active_flash: BTreeSet<String>,
+    liquidations: BTreeMap<String, crate::liquidation::SaleResult>,
 }
 impl Context<'_> {
     fn charge(&mut self, n: u64) -> Result<(), ExecutionError> {
@@ -338,6 +340,7 @@ impl Context<'_> {
         let saved = w.clone();
         let saved_outputs = self.outputs.clone();
         let saved_routes = self.route_results.clone();
+        let saved_liquidations = self.liquidations.clone();
         let event_start = self.events.len();
         let trace_index = self.trace.len();
         let callee = match c {
@@ -358,13 +361,15 @@ impl Context<'_> {
             | Call::SetCollateralUsage { market, .. }
             | Call::Borrow { market, .. }
             | Call::Repay { market, .. }
-            | Call::Liquidate { market, .. } => market.clone(),
+            | Call::Liquidate { market, .. }
+            | Call::LiquidateAndSell { market, .. } => market.clone(),
             Call::PublishOracle { feed, .. }
             | Call::PublishSpot { feed, .. }
             | Call::PublishTwap { feed, .. } => feed.clone(),
             _ => self.tx.sender.clone(),
         };
         self.trace.push(Trace {
+            liquidation: None,
             route: None,
             clmm: None,
             book: None,
@@ -411,6 +416,7 @@ impl Context<'_> {
             *w = saved;
             self.outputs = saved_outputs;
             self.route_results = saved_routes;
+            self.liquidations = saved_liquidations;
             self.events.truncate(event_start);
         }
         result
@@ -476,6 +482,7 @@ impl Context<'_> {
         let sender = self.tx.sender.clone();
         match c {
             Call::ExecuteRoute { .. } => self.route_call(w, c, path),
+            Call::LiquidateAndSell { .. } => self.liquidation_sale(w, c, path),
             Call::Transfer { to, asset, amount } => {
                 if self.s.protected(to) {
                     return Err(Protocol("protected protocol account".into()));
@@ -860,6 +867,7 @@ pub(crate) fn execute(s: &Scenario, w: &mut World, tx: &Transaction) -> Result<R
         outputs: BTreeMap::new(),
         route_results: BTreeMap::new(),
         active_flash: BTreeSet::new(),
+        liquidations: BTreeMap::new(),
     };
     let outcome = ctx.charge(100).and_then(|()| {
         for (i, c) in tx.program.iter().enumerate() {
@@ -890,6 +898,7 @@ pub(crate) fn execute(s: &Scenario, w: &mut World, tx: &Transaction) -> Result<R
     w.credit(&s.chain.fee_account, &s.chain.fee_asset, fee)?;
     if status != "Success" {
         ctx.route_results.clear();
+        ctx.liquidations.clear();
         for t in &mut ctx.trace {
             if t.outcome == "Success" {
                 t.outcome = "RolledBack".into();
@@ -898,6 +907,7 @@ pub(crate) fn execute(s: &Scenario, w: &mut World, tx: &Transaction) -> Result<R
     }
     w.invariant(s)?;
     Ok(Receipt {
+        liquidations: ctx.liquidations,
         route_results: ctx.route_results,
         tx_id: tx.id.clone(),
         sender: tx.sender.clone(),

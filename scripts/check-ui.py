@@ -1,4 +1,4 @@
-"""M1–M4c browser/API acceptance. Run against `chainarium serve 8080`. Requires Playwright + Chromium."""
+"""M1–M4d browser/API acceptance. Run against `chainarium serve 8080`. Requires Playwright + Chromium."""
 import json
 from pathlib import Path
 from playwright.sync_api import sync_playwright, expect
@@ -734,6 +734,65 @@ with sync_playwright() as p:
         page.locator('#play').click()
         expect(page.locator('#position')).to_contain_text('Исполнено 2 / 2',timeout=10000)
         assert page.request.get('http://127.0.0.1:8080/api/run').json()==full
+    # DEC-24: actual seizure, Own/Flash, paid losing attempt, preview age and delayed inclusion.
+    for name in ['own','flash','fifo','fee','stale','delayed']:
+        page.locator('#preset').select_option('sc-liquidator-'+name)
+        page.locator('#new').click()
+        expect(page.locator('#liquidator-panel')).to_be_visible()
+        for n in range(1,4):
+            page.locator('#step').click()
+            expect(page.locator('#position')).to_contain_text(f'Исполнено {n} / 4')
+        first=page.request.get('http://127.0.0.1:8080/api/run').json()
+        report=first['blocks'][2]['scheduler']['liquidators']
+        expect(page.locator('#liquidator-result')).to_contain_text('Расходы поиска не списаны')
+        if name=='stale':
+            expect(page.locator('#liquidator-result')).to_contain_text('StaleOracle')
+            assert report['metrics']['trials']==0
+            assert first['state']['lending']['credit']['debt']=='80'
+        else:
+            expect(page.locator('#liquidator-result')).to_contain_text('Условный net:')
+            expect(page.locator('#liquidator-result')).to_contain_text('20 s → preview 3 / 30 s')
+            if name!='delayed':
+                expect(page.locator('#liquidator-result')).to_contain_text('Фактически получено залога:')
+                page.locator('#transactions button[data-tx="0"]').click()
+                page.locator('#attempt').click()
+                index=1 if name=='flash' else 0
+                if name=='flash':
+                    traces=first['blocks'][2]['receipts'][0]['trace']
+                    index=next(i for i,t in enumerate(traces) if t['operation']=='LiquidateAndSell')
+                page.locator(f'#calls button[data-call="{index}"]').click()
+                expect(page.locator('#detail')).to_contain_text('Фактически погашено:')
+                expect(page.locator('#detail')).to_contain_text('Observed at 20')
+            if name in ['fifo','fee']:
+                expect(page.locator('#liquidator-result')).to_contain_text('NoDebt')
+                assert first['state']['accounts']['builder']['balances']['Q']==('410' if name=='fifo' else '460')
+                if name=='fee':
+                    page.locator('#liquidator-panel').screenshot(path='output/m4d-competition.png')
+            if name=='flash':
+                expect(page.locator('#liquidator-result')).to_contain_text('24675')
+                page.set_viewport_size({'width':390,'height':844})
+                assert page.evaluate('document.documentElement.scrollWidth <= innerWidth'), 'liquidator mobile overflow'
+                page.locator('#liquidator-panel').evaluate("el=>el.scrollIntoView({block:'start'})")
+                page.screenshot(path='output/m4d-flash-mobile.png')
+                page.set_viewport_size({'width':1440,'height':1100})
+        saved=page.request.get('http://127.0.0.1:8080/api/checkpoint').json()
+        page.locator('#blocks button[data-block="-1"]').click()
+        expect(page.locator('#liquidator-result')).to_contain_text('Запустите блок')
+        assert page.request.get('http://127.0.0.1:8080/api/checkpoint').json()==saved
+        page.locator('#step').click()
+        expect(page.locator('#position')).to_contain_text('Исполнено 4 / 4')
+        full=page.request.get('http://127.0.0.1:8080/api/run').json()
+        expected={'own':'1024','flash':'25675','fifo':'99760','fee':'124565','stale':'1000','delayed':'1024'}[name]
+        assert full['state']['accounts']['carol']['balances']['Q']==expected
+        if name=='delayed':
+            expect(page.locator('#liquidator-result')).to_contain_text('BusyNonce')
+            expect(page.locator('#liquidator-result')).to_contain_text('Фактически погашено:')
+        assert page.request.post('http://127.0.0.1:8080/api/restore',data=saved).ok
+        page.reload()
+        expect(page.locator('#preset')).to_have_value('sc-liquidator-'+name)
+        page.locator('#step').click()
+        expect(page.locator('#position')).to_contain_text('Исполнено 4 / 4')
+        assert page.request.get('http://127.0.0.1:8080/api/run').json()==full
     assert not errors, errors
     browser.close()
-print('PASS: browser run, trace, read-only viewing, checkpoint/resume, A/B, fork, exact U256 HTTP round-trip, mobile layout, LP, route policy, flash success/shortfall/rollback, credit interest/loss/redemption, exact oracle use, credit checkpoint replay, StableSwap curves/solver/LP/route/replay/depeg/mobile, TWAP 150/175/rollback/stale/readonly/checkpoint/mobile, flash liquidation real legs/loss/shortfall/rollback/checkpoint/mobile, order book levels/quote/fills/escrow/FOK/IOC/GTC/cancel/self-trade/rollback/replay/mobile, CLMM ranges/fees/surplus/crossings/partial/quote/rollback/replay/mobile, heterogeneous routes/limits/search/strict/residuals/readonly/rollback/replay/mobile, LP/MM policies/schedules/observation-delay/anchor-age/closed-cycle/stale-cancel/replay/mobile; M4 delivery/cutoff/Public/Private/late-response/nonce-gap/FIFO/FeePriority/readonly/checkpoint/mobile; bundles/greedy/paid-bid/allowed-and-forbidden-revert/visible-reference/private-isolation/diagnostic-probes/replay/mobile; backrun/public/private/grid/fees/bid/competition/fifo/delay/readonly/checkpoint/mobile')
+print('PASS: browser run, trace, read-only viewing, checkpoint/resume, A/B, fork, exact U256 HTTP round-trip, mobile layout, LP, route policy, flash success/shortfall/rollback, credit interest/loss/redemption, exact oracle use, credit checkpoint replay, StableSwap curves/solver/LP/route/replay/depeg/mobile, TWAP 150/175/rollback/stale/readonly/checkpoint/mobile, flash liquidation real legs/loss/shortfall/rollback/checkpoint/mobile, order book levels/quote/fills/escrow/FOK/IOC/GTC/cancel/self-trade/rollback/replay/mobile, CLMM ranges/fees/surplus/crossings/partial/quote/rollback/replay/mobile, heterogeneous routes/limits/search/strict/residuals/readonly/rollback/replay/mobile, LP/MM policies/schedules/observation-delay/anchor-age/closed-cycle/stale-cancel/replay/mobile; M4 delivery/cutoff/Public/Private/late-response/nonce-gap/FIFO/FeePriority/readonly/checkpoint/mobile; bundles/greedy/paid-bid/allowed-and-forbidden-revert/visible-reference/private-isolation/diagnostic-probes/replay/mobile; backrun/public/private/grid/fees/bid/competition/fifo/delay/readonly/checkpoint/mobile; liquidator/Own/Flash/actual-seizure/paid-loser/FIFO/FeePriority/stale/delayed/readonly/checkpoint/mobile')

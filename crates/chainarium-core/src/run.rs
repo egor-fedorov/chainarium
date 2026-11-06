@@ -261,6 +261,27 @@ impl Run {
             }
             write("search-probes.jsonl", search.as_bytes())?;
         }
+        if self
+            .scenario
+            .scheduler
+            .as_ref()
+            .is_some_and(|c| c.liquidator.is_some())
+        {
+            let mut search = String::new();
+            for block in &self.blocks {
+                if let Some(report) = block
+                    .scheduler
+                    .as_ref()
+                    .and_then(|r| r.liquidators.as_ref())
+                {
+                    search.push_str(&serde_json::to_string(&serde_json::json!({
+                        "block": block.number, "phase": "LiquidatorSearchDiagnostic", "search": report,
+                    })).map_err(|e| e.to_string())?);
+                    search.push('\n');
+                }
+            }
+            write("liquidator-probes.jsonl", search.as_bytes())?;
+        }
         write("events.jsonl", events.as_bytes())?;
         write("transactions.csv", csv.as_bytes())?;
         let mut report = format!(
@@ -287,6 +308,14 @@ impl Run {
             .is_some_and(|c| c.backrun.is_some())
         {
             report.push_str("\nBackrun decisions: `search-probes.jsonl`. Conditional net is measured after the authorized trigger and all own execution fees plus the bid. Search work is diagnostic; only builder-selected receipts affect the canonical ledger.\n");
+        }
+        if self
+            .scenario
+            .scheduler
+            .as_ref()
+            .is_some_and(|c| c.liquidator.is_some())
+        {
+            report.push_str("\nLiquidator decisions: `liquidator-probes.jsonl`. Observations name the parent and common accrual preview. Conditional net includes flash settlement and native fees. Canonical receipts contain actual repayment, collateral seizure, and sale; an included losing attempt pays its native fee. Probe fees do not affect balances. Reserve C/D/S/E and write-offs remain in `run.json`.\n");
         }
         write("report.md", report.as_bytes())
     }

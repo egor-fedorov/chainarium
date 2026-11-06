@@ -111,12 +111,15 @@ pub struct Config {
     pub bundles: Option<bundles::Config>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub backrun: Option<backrun::Config>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub liquidator: Option<crate::policy::liquidator::Config>,
 }
 
 pub fn validate(s: &Scenario) -> Result<(), String> {
     let has = |m: &str| s.model_versions.iter().any(|v| v == m);
     let Some(c) = &s.scheduler else {
-        if has(backrun::MODEL)
+        if has(crate::policy::liquidator::MODEL)
+            || has(backrun::MODEL)
             || !has("scheduler-m1-v1")
             || MODELS.iter().chain(bundles::MODELS.iter()).any(|m| has(m))
         {
@@ -217,6 +220,7 @@ pub fn validate(s: &Scenario) -> Result<(), String> {
     }
     bundles::validate_config(s, c)?;
     backrun::validate(s, c)?;
+    crate::policy::liquidator::validate(s, c)?;
     Ok(())
 }
 
@@ -475,6 +479,8 @@ pub struct Metrics {
 #[derive(Clone, Debug, Serialize, Deserialize, PartialEq, Eq)]
 #[serde(deny_unknown_fields)]
 pub struct Report {
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub liquidators: Option<crate::policy::liquidator::Report>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub search: Option<backrun::Report>,
     #[serde(default, skip_serializing_if = "Vec::is_empty")]

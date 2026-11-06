@@ -1,6 +1,7 @@
 use super::*;
 mod backrun_calls;
 mod bundle_calls;
+mod liquidator_calls;
 use crate::{Block, Rejected, engine, policy};
 
 struct Round<'a> {
@@ -12,6 +13,8 @@ struct Round<'a> {
     metrics: Metrics,
     probes: Vec<bundles::Probe>,
     search: backrun::Report,
+    liquidators: policy::liquidator::Report,
+    liquidation_preview: Option<World>,
     probe_check: &'a dyn Fn(&World) -> Result<(), String>,
     round: usize,
     cutoff: Amount,
@@ -596,6 +599,8 @@ fn advance_with_check(
         metrics: Metrics::default(),
         probes: vec![],
         search: backrun::Report::default(),
+        liquidators: policy::liquidator::Report::default(),
+        liquidation_preview: None,
         probe_check,
         round,
         cutoff,
@@ -640,12 +645,30 @@ fn advance_with_check(
     let mut decisions = policy::decisions_unless(s, parent, &|agent, account, nonce| {
         previous.busy(agent, account, nonce)
     })?;
-    for d in &decisions {
-        if let Some(tx) = &d.transaction {
-            *r.intents.entry(d.agent.clone()).or_default() += 1;
+    let periodic: BTreeSet<String> = decisions
+        .iter()
+        .map(|d| d.agent.clone())
+        .chain(
+            c.liquidator
+                .iter()
+                .flat_map(|cfg| cfg.policies.keys().cloned()),
+        )
+        .collect();
+    for agent in periodic {
+        if c.liquidator
+            .as_ref()
+            .is_some_and(|cfg| cfg.policies.contains_key(&agent))
+        {
+            r.liquidator_decision(&agent)?;
+        } else if let Some(tx) = decisions
+            .iter()
+            .find(|d| d.agent == agent)
+            .and_then(|d| d.transaction.clone())
+        {
+            *r.intents.entry(agent.clone()).or_default() += 1;
             r.submit(
-                tx.clone(),
-                c.agents[&d.agent].outgoing.clone(),
+                tx,
+                c.agents[&agent].outgoing.clone(),
                 0,
                 parent.timestamp,
                 None,
@@ -727,6 +750,7 @@ fn advance_with_check(
     }
     block.scheduler = Some(Report {
         search: c.backrun.as_ref().map(|_| r.search),
+        liquidators: c.liquidator.as_ref().map(|_| r.liquidators),
         probes: r.probes,
         trace: r.trace,
         metrics: r.metrics,
@@ -778,6 +802,8 @@ mod tests {
             metrics: Metrics::default(),
             probes: vec![],
             search: backrun::Report::default(),
+            liquidators: policy::liquidator::Report::default(),
+            liquidation_preview: None,
             probe_check: &|_| Ok(()),
             round: 1,
             cutoff: 10.into(),
@@ -859,5 +885,38 @@ mod search_fault_tests {
             assert_eq!(calls.get(), fault_at);
             assert_eq!((parent, previous), before);
         }
+    }
+}
+
+#[cfg(test)]
+mod liquidator_fault_tests {
+    use super::*;
+    #[test]
+    fn model_error_after_liquidation_and_writeoff_discards_entire_round() {
+        let s = Scenario::parse(include_bytes!(
+            "../../../../scenarios/demos/sc-liquidator-own.json"
+        ))
+        .unwrap();
+        let mut run = crate::Run::new(s).unwrap();
+        run.step().unwrap();
+        run.step().unwrap();
+        let parent = &run.state;
+        let previous = run.scheduler.as_ref().unwrap();
+        let before = run.clone();
+        let checks = std::cell::Cell::new(0);
+        let fault = |w: &World| {
+            checks.set(checks.get() + 1);
+            if w.lending["credit"].debt.is_zero() {
+                assert_eq!(w.lending["credit"].losses[0].amount, 20.into());
+                assert_eq!(w.balance("carol", "Q"), 1024.into());
+                return Err("injected ModelError after liquidation write-off and sale".into());
+            }
+            Ok(())
+        };
+        assert!(advance_with_check(&run.scenario, parent, previous, |_| Ok(()), &fault).is_err());
+        assert_eq!(checks.get(), 3);
+        assert_eq!(run, before);
+        run.step().unwrap();
+        assert_eq!(run.state.balance("carol", "Q"), 1024.into());
     }
 }
