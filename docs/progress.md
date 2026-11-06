@@ -29,8 +29,9 @@ liquidator, Own/Flash funding и SC-06 competition реализованы. До 
 findings. Отчёт — `docs/reviews/dec24-independent-review.md`; сохранены7 независимых
 тестов, включая768 integer cases и344 resource-boundary executions. **DEC-25** (§23.2.13), hooks CPMM с независимыми численными примерами,
 согласован владельцем 2026-11-06. M4e реализован и функционально проверен;
-отдельный read-only review hooks diff `145ea8a..d4a4709` разрешён владельцем
-и выполняется. Для M4f подготовлен Proposed DEC-26 (§23.2.14): scripted/random
+отдельный read-only review hooks diff `145ea8a..d4a4709` завершён без подтверждённых
+findings. Отчёт — `docs/reviews/dec25-independent-review.md`; сохранены13 независимых
+integration tests и unit fault injection. Для M4f подготовлен Proposed DEC-26 (§23.2.14): scripted/random
 user, target borrower и native oracle publisher; согласование ещё не получено.
 
 ## Что работает
@@ -83,16 +84,19 @@ LP shares, C/D/S/E, escrow, точный HF и запись oracle, фактич
 ## Фактическая проверка
 
 - `scripts/cargo.sh fmt --check` и Clippy всех targets с `-D warnings` — прошли.
-- `scripts/cargo.sh test --workspace --locked --offline` — **334 tests passed** в полном прогоне:
-  12 unit tests (включая fault injection), 19 acceptance, 20 composition, 19 credit,
+- `scripts/cargo.sh test --workspace --locked --offline` — **334 tests passed** в полном прогоне;
+  после переноса14 независимых DEC-25 tests все они прошли адресно (suite теперь348):
+  13 unit tests (включая fault injection), 19 acceptance, 20 composition, 19 credit,
   10 stable, 10 twap, 7 flash_liquidation, 14 book, 17 clmm, 11 heterogeneous,
   16 policies, 6 independent_dec20, 10 independent_dec21, 12 independent_dec22,
   18 scheduler, 26 bundles, 30 backrun, 16 independent_dec23,
   1 independent_dec23_boundaries, 12 liquidation_sale, 20 liquidator_policy,
-  7 independent_dec24, 21 hooks;
+  7 independent_dec24, 21 hooks, 13 independent_dec25;
   ignored=0. Независимые тесты сохраняют аналитические sweeps предыдущих reviews.
   После уточнения допустимости пустого набора hook bindings повторно прошли
   21 hook test и Clippy всех targets; release пересобран.
+  При переносе независимых тестов повторно прошли fmt и Clippy всех targets;
+  runtime не менялся.
 - `node --test web/wire.test.mjs` — канонические строки, диапазоны и точный
   decimal conversion прошли; JS экономические команды не проходят через Number.
 - `python3 scripts/check-ui.py` — пройден путь всех 46 presets, readonly
@@ -755,8 +759,22 @@ Browser проверял build `4bd7b91e71395b583a6febb2b88b1bb2269f0dd569975298
 Артефакты: `output/m4e-validated-final/`; логи полного прогона и браузера
 `/tmp/chainarium-m4e-{full-tests,browser}.log`, финальных адресных проверок
 `/tmp/chainarium-m4e-{hooks,clippy,release}-final.log`.
-Независимый review DEC-25 разрешён владельцем и выполняется на diff
-`145ea8a..d4a4709`; итог ещё не получен. Hooks ограничены CPMM; остальные
+Независимый review DEC-25 diff `145ea8a..d4a4709` завершён без подтверждённых
+P0–P3 findings: `docs/reviews/dec25-independent-review.md`. Reviewer независимо
+выполнил baseline334 suite и14 собственных tests:3545 прямых block executions,
+101 execution quotes,8 arbitrage runs,4 Own/Flash liquidator runs (16 candidates),
+6 backrun+Greedy runs (60 candidates),6 demo export/replay checks и fault injection
+после второй успешной hook tx. Категории не складываются в общее число executions:
+policy runs включают свои probes, а restore — replay.
+Тесты сохранены в `tests/independent_dec25.rs` и test-only
+`src/engine/independent_dec25_fault.rs`; при переносе изменены только форматирование,
+имя test module и вводный comment. Все14 адресно прошли в основном checkout,
+fmt/Clippy также прошли; runtime не менялся. Логи переноса:
+`/tmp/chainarium-dec25-retained-{tests,fault,clippy}.log`.
+Review не является exhaustive/formal proof; deepest LiquidateAndSell+flash+hook
+tree и все смешанные non-CPMM пути не перебраны заново независимой matrix.
+Browser/HTTP walkthrough reviewer не запускал; browser46 acceptance выше выполнена
+автором. Hooks ограничены CPMM; остальные
 роли M4, MTM/эксперименты/explorer и performance/user-task gates M5 остаются открытыми.
 
 ### Fixtures и границы доказательства
@@ -769,7 +787,7 @@ Browser проверял build `4bd7b91e71395b583a6febb2b88b1bb2269f0dd569975298
 | Liquidation/loss | exact waterfall, partial close, dust, min_collateral, fee-preserving rollback, 256 deterministic boundary cases | Нет recovery/treasury; вывод equity запрещён |
 | Deposit shares | zero mint, minima, cash shortage без burn, last exit, bootstrap с E | Bankrupt проверен на invariant-valid defensive snapshot, не заявлен достижимым из genesis этого positive-payment preset |
 | Oracle | unauthorized/source/pair/future/duplicate/out-of-order; возраст 60/61; safe stale operations; consumer trace | External/native spot/TWAP; bounded history и однократное floor проверены |
-| Hooks | exact pre-implementation reference, resource/node/depth/capability boundaries, composed search/payout/rollback, ModelError | CPMM only; отдельный независимый review ещё не выполнен |
+| Hooks | exact pre-implementation reference, resource/node/depth/capability boundaries, composed search/payout/rollback, ModelError; независимый DEC-25 review без findings | CPMM only; область и ограничения в docs/reviews/dec25-independent-review.md |
 | Checkpoint/export | replay/resume/fork/tamper, протоколы, LP/MM schedules/decisions | M4b groups, M4c trigger/search и M4d preview/trials/inflight snapshots проверены |
 | UI | реальные balances/trace, 46 presets, desktop/mobile, exact HTTP wire | Прототип; полная приёмка M5 не закрыта |
 
@@ -819,7 +837,8 @@ latency UI и полные workloads M5 ещё не измерены/не при
    DEC-24 (§23.2.12) с численными ожиданиями; M4d реализован,
    независимый review нового среза завершён без подтверждённых findings.
    Для hooks принят DEC-25 (§23.2.13), M4e реализован и функционально проверен;
-   разрешённый отдельный независимый review этого среза выполняется.
+   отдельный независимый review этого среза завершён без подтверждённых findings;
+   отчёт и14 дополнительных tests сохранены.
    Для user/random/borrower/oracle ролей подготовлен Proposed DEC-26 (§23.2.14),
    независимые численные ожидания — `docs/reviews/baseline-agents-reference.py`/`.json`.
    Reference ChaCha12 совпал с12 существующими DEC-10 draws; новые политики

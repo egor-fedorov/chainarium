@@ -2,6 +2,8 @@ mod book_calls;
 mod clmm_calls;
 mod credit_calls;
 mod hook_calls;
+#[cfg(test)]
+mod independent_dec25_fault;
 mod liquidation_calls;
 mod oracle_calls;
 mod route_calls;
