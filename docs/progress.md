@@ -42,9 +42,9 @@ LP shares, C/D/S/E, escrow, точный HF и запись oracle, фактич
 ## Фактическая проверка
 
 - `scripts/cargo.sh fmt --check` и Clippy всех targets с `-D warnings` — прошли.
-- `scripts/cargo.sh test --workspace --locked --offline` — **101 tests passed**:
-  4 unit fault-injection, 19 acceptance, 19 composition, 18 credit, 10 stable,
-  10 twap, 7 flash_liquidation, 14 book; ignored=0.
+- `scripts/cargo.sh test --workspace --locked --offline` — **117 tests passed**:
+  5 unit fault-injection, 19 acceptance, 19 composition, 18 credit, 10 stable,
+  10 twap, 7 flash_liquidation, 14 book, 15 clmm; ignored=0.
 - `node --test web/wire.test.mjs` — канонические строки, диапазоны и точный
   decimal conversion прошли; JS экономические команды не проходят через Number.
 - `python3 scripts/check-ui.py` — пройден путь всех одиннадцати presets, readonly
@@ -230,6 +230,22 @@ UI показывает levels/FIFO queue, locked amounts, gross/fee/net и ка
 Browser прошёл все 11 presets и read-only quote success/FOK, checkpoint и mobile.
 Снимки `output/m3-book-quote.png`, `output/m3-book-fills.png`,
 `output/m3-book-mobile.png`; desktop/mobile просмотрены.
+
+### M3b: CLMM core, интерфейс в работе
+
+DEC-19 реализован в ядре: точный Q96 tick math в bounds±32768, позиции,
+пересечения, Q128 fee growth, burn/collect, surplus и явный partial input.
+Пинованные ожидания совпали: 1000 X →996 Q; burn5984 X/3991 Q, collect2 X,
+остаток2 X/1 Q. Три диапазона дают15755 Q за16000 X с crossings−100/−200.
+
+15 CLMM tests проверяют обе стороны, exact boundary, gap при L=0,
+fees до crossing, отсутствие старых fees у нового LP, частичный burn,
+collect frequency, minima/auth/no-output, capacity1024/2048, U256/domain,
+readonly/stale quote, checkpoint каждой границы и rollback. Sweep192 обменов
+с fees0/30/300/9999 bps сохраняет tokens и обеспечение claims.
+Injected ModelError отменяет crossings/growth вместе с блоком. Вся Rust suite:
+117 passed, fmt/Clippy прошли. UI/CLI демо-путь M3b ещё не проверен;
+два JSON-сценария уже исполняются core/replay tests. Полная M3b не объявляется принятой.
 
 ### Fixtures и границы доказательства
 

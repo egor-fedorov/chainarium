@@ -20,3 +20,5 @@ pub mod inspection;
 pub mod twap;
 
 pub mod book;
+
+pub mod clmm;

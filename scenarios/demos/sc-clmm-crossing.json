@@ -1,0 +1,351 @@
+{
+  "schema_version": "chainarium-scenario-m1-v1",
+  "model_versions": [
+    "native-execution-v1",
+    "native-cost-v1",
+    "cpmm-v1",
+    "scheduler-m1-v1",
+    "chacha12-v1",
+    "clmm-native-v1"
+  ],
+  "name": "CLMM · Пересечения диапазонов и partial fill",
+  "seed": "42",
+  "assets": {
+    "X": {
+      "decimals": 0
+    },
+    "Q": {
+      "decimals": 0
+    }
+  },
+  "accounts": {
+    "alice": {
+      "nonce": "0",
+      "balances": {
+        "X": "100000",
+        "Q": "100000"
+      }
+    },
+    "bob": {
+      "nonce": "0",
+      "balances": {
+        "X": "100000",
+        "Q": "100000"
+      }
+    },
+    "carol": {
+      "nonce": "0",
+      "balances": {
+        "X": "100000",
+        "Q": "100000"
+      }
+    },
+    "trader": {
+      "nonce": "0",
+      "balances": {
+        "X": "100000",
+        "Q": "100000"
+      }
+    },
+    "clmm-account": {
+      "nonce": "0",
+      "balances": {
+        "X": "0",
+        "Q": "0"
+      }
+    },
+    "builder": {
+      "nonce": "0",
+      "balances": {
+        "X": "0",
+        "Q": "0"
+      }
+    }
+  },
+  "protocols": {},
+  "agents": {
+    "alice": {
+      "controlled_accounts": [
+        "alice"
+      ]
+    },
+    "bob": {
+      "controlled_accounts": [
+        "bob"
+      ]
+    },
+    "carol": {
+      "controlled_accounts": [
+        "carol"
+      ]
+    },
+    "trader": {
+      "controlled_accounts": [
+        "trader"
+      ]
+    }
+  },
+  "chain": {
+    "id": "lab-1",
+    "fee_asset": "Q",
+    "fee_account": "builder",
+    "block_limit": "10000",
+    "interval": "1"
+  },
+  "blocks": [
+    [
+      {
+        "id": "range-1",
+        "agent": "alice",
+        "sender": "alice",
+        "chain": "lab-1",
+        "nonce": "0",
+        "limit": "1000",
+        "price": "0",
+        "deadline": "1000",
+        "program": [
+          {
+            "type": "MintPosition",
+            "pool": "clmm",
+            "lower": -100,
+            "upper": 100,
+            "liquidity": "1000000",
+            "max_x": "100000",
+            "max_q": "100000"
+          }
+        ]
+      },
+      {
+        "id": "range-2",
+        "agent": "bob",
+        "sender": "bob",
+        "chain": "lab-1",
+        "nonce": "0",
+        "limit": "1000",
+        "price": "0",
+        "deadline": "1000",
+        "program": [
+          {
+            "type": "MintPosition",
+            "pool": "clmm",
+            "lower": -200,
+            "upper": -100,
+            "liquidity": "2000000",
+            "max_x": "100000",
+            "max_q": "100000"
+          }
+        ]
+      },
+      {
+        "id": "range-3",
+        "agent": "carol",
+        "sender": "carol",
+        "chain": "lab-1",
+        "nonce": "0",
+        "limit": "1000",
+        "price": "0",
+        "deadline": "1000",
+        "program": [
+          {
+            "type": "MintPosition",
+            "pool": "clmm",
+            "lower": -300,
+            "upper": -200,
+            "liquidity": "3000000",
+            "max_x": "100000",
+            "max_q": "100000"
+          }
+        ]
+      }
+    ],
+    [
+      {
+        "id": "cross-two-ticks",
+        "agent": "trader",
+        "sender": "trader",
+        "chain": "lab-1",
+        "nonce": "0",
+        "limit": "1000",
+        "price": "0",
+        "deadline": "1000",
+        "program": [
+          {
+            "type": "ClmmSwap",
+            "pool": "clmm",
+            "asset_in": "X",
+            "amount": "16000",
+            "sqrt_price_limit": "78048667378190047991986677221",
+            "min_out": "15755",
+            "allow_partial": false
+          }
+        ]
+      }
+    ],
+    [
+      {
+        "id": "reject-partial",
+        "agent": "trader",
+        "sender": "trader",
+        "chain": "lab-1",
+        "nonce": "1",
+        "limit": "1000",
+        "price": "0",
+        "deadline": "1000",
+        "program": [
+          {
+            "type": "ClmmSwap",
+            "pool": "clmm",
+            "asset_in": "Q",
+            "amount": "50000",
+            "sqrt_price_limit": "79625275426524748796330556127",
+            "min_out": "1",
+            "allow_partial": false
+          }
+        ]
+      },
+      {
+        "id": "allow-partial",
+        "agent": "trader",
+        "sender": "trader",
+        "chain": "lab-1",
+        "nonce": "2",
+        "limit": "1000",
+        "price": "0",
+        "deadline": "1000",
+        "program": [
+          {
+            "type": "ClmmSwap",
+            "pool": "clmm",
+            "asset_in": "Q",
+            "amount": "50000",
+            "sqrt_price_limit": "79625275426524748796330556127",
+            "min_out": "1",
+            "allow_partial": true
+          }
+        ]
+      },
+      {
+        "id": "collect-first-LP",
+        "agent": "alice",
+        "sender": "alice",
+        "chain": "lab-1",
+        "nonce": "1",
+        "limit": "1000",
+        "price": "0",
+        "deadline": "1000",
+        "program": [
+          {
+            "type": "CollectPosition",
+            "pool": "clmm",
+            "position_id": "1"
+          }
+        ]
+      },
+      {
+        "id": "collect-second-LP",
+        "agent": "bob",
+        "sender": "bob",
+        "chain": "lab-1",
+        "nonce": "1",
+        "limit": "1000",
+        "price": "0",
+        "deadline": "1000",
+        "program": [
+          {
+            "type": "CollectPosition",
+            "pool": "clmm",
+            "position_id": "2"
+          }
+        ]
+      },
+      {
+        "id": "collect-third-LP",
+        "agent": "carol",
+        "sender": "carol",
+        "chain": "lab-1",
+        "nonce": "1",
+        "limit": "1000",
+        "price": "0",
+        "deadline": "1000",
+        "program": [
+          {
+            "type": "CollectPosition",
+            "pool": "clmm",
+            "position_id": "3"
+          }
+        ]
+      }
+    ],
+    [
+      {
+        "id": "burn-first",
+        "agent": "alice",
+        "sender": "alice",
+        "chain": "lab-1",
+        "nonce": "2",
+        "limit": "1000",
+        "price": "0",
+        "deadline": "1000",
+        "program": [
+          {
+            "type": "BurnPosition",
+            "pool": "clmm",
+            "position_id": "1",
+            "liquidity": "1000000",
+            "min_x": "0",
+            "min_q": "0"
+          }
+        ]
+      },
+      {
+        "id": "burn-second",
+        "agent": "bob",
+        "sender": "bob",
+        "chain": "lab-1",
+        "nonce": "2",
+        "limit": "1000",
+        "price": "0",
+        "deadline": "1000",
+        "program": [
+          {
+            "type": "BurnPosition",
+            "pool": "clmm",
+            "position_id": "2",
+            "liquidity": "2000000",
+            "min_x": "0",
+            "min_q": "0"
+          }
+        ]
+      },
+      {
+        "id": "burn-third",
+        "agent": "carol",
+        "sender": "carol",
+        "chain": "lab-1",
+        "nonce": "2",
+        "limit": "1000",
+        "price": "0",
+        "deadline": "1000",
+        "program": [
+          {
+            "type": "BurnPosition",
+            "pool": "clmm",
+            "position_id": "3",
+            "liquidity": "3000000",
+            "min_x": "0",
+            "min_q": "0"
+          }
+        ]
+      }
+    ]
+  ],
+  "clmm_pools": {
+    "clmm": {
+      "account": "clmm-account",
+      "x": "X",
+      "q": "Q",
+      "fee_bps": 30,
+      "initial_sqrt": "79228162514264337593543950336"
+    }
+  }
+}

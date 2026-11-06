@@ -1,4 +1,5 @@
 mod book_calls;
+mod clmm_calls;
 mod credit_calls;
 mod oracle_calls;
 use crate::{Amount, model::*};
@@ -96,6 +97,12 @@ impl World {
                     .collect(),
             ),
             price_history: Arc::new(BTreeMap::new()),
+            clmm: Arc::new(
+                s.clmm_pools
+                    .iter()
+                    .map(|(id, c)| Ok((id.clone(), crate::clmm::State::new(c)?)))
+                    .collect::<Result<_, String>>()?,
+            ),
             books: Arc::new(
                 s.books
                     .keys()
@@ -205,6 +212,7 @@ impl World {
         crate::credit::invariant(s, self)?;
         crate::twap::invariant(s, self)?;
         crate::book::invariant(s, self)?;
+        crate::clmm::invariant(s, self)?;
         for (owner, spenders) in self.allowances.iter() {
             if !s.accounts.contains_key(owner) || s.protected(owner) {
                 return Err("allowance owner invariant".into());
@@ -329,6 +337,10 @@ impl Context<'_> {
         let event_start = self.events.len();
         let trace_index = self.trace.len();
         let callee = match c {
+            Call::MintPosition { pool, .. }
+            | Call::BurnPosition { pool, .. }
+            | Call::CollectPosition { pool, .. }
+            | Call::ClmmSwap { pool, .. } => pool.clone(),
             Call::PlaceOrder { book, .. } | Call::CancelOrder { book, .. } => book.clone(),
             Call::SwapExactIn { pool, .. }
             | Call::SwapOutput { pool, .. }
@@ -349,6 +361,7 @@ impl Context<'_> {
             _ => self.tx.sender.clone(),
         };
         self.trace.push(Trace {
+            clmm: None,
             book: None,
             twap: None,
             source_updates: vec![],
@@ -734,6 +747,10 @@ impl Context<'_> {
             | Call::Repay { .. }
             | Call::Liquidate { .. } => self.credit_call(w, c),
             Call::PlaceOrder { .. } | Call::CancelOrder { .. } => self.book_call(w, c),
+            Call::MintPosition { .. }
+            | Call::BurnPosition { .. }
+            | Call::CollectPosition { .. }
+            | Call::ClmmSwap { .. } => self.clmm_call(w, c),
             Call::PublishOracle { .. } | Call::PublishSpot { .. } | Call::PublishTwap { .. } => {
                 self.oracle_call(w, c)
             }
@@ -913,6 +930,25 @@ fn build_with_check(
 #[cfg(test)]
 mod tests {
     use super::*;
+    #[test]
+    fn model_error_discards_clmm_crossings_and_fee_growth() {
+        let s = Scenario::parse(include_bytes!(
+            "../../../scenarios/demos/sc-clmm-crossing.json"
+        ))
+        .unwrap();
+        let initial = World::genesis(&s).unwrap();
+        let parent = build_block(&s, &initial, &s.blocks[0]).unwrap().state;
+        let before = parent.clone();
+        let mut checked = false;
+        let result = build_with_check(&s, &parent, &s.blocks[1], |attempt| {
+            checked = true;
+            assert_eq!(attempt.clmm["clmm"].liquidity, 3000000.into());
+            assert!(!attempt.clmm["clmm"].fee_growth[0].is_zero());
+            Err("injected ModelError after CLMM crossing".into())
+        });
+        assert!(checked && result.is_err());
+        assert_eq!(parent, before);
+    }
     #[test]
     fn model_error_discards_book_escrow_index_and_order_sequence() {
         let s =

@@ -75,6 +75,33 @@ pub struct Transaction {
 #[derive(Clone, Debug, Serialize, Deserialize, PartialEq, Eq)]
 #[serde(tag = "type", deny_unknown_fields)]
 pub enum Call {
+    MintPosition {
+        pool: String,
+        lower: i32,
+        upper: i32,
+        liquidity: Amount,
+        max_x: Amount,
+        max_q: Amount,
+    },
+    BurnPosition {
+        pool: String,
+        position_id: Amount,
+        liquidity: Amount,
+        min_x: Amount,
+        min_q: Amount,
+    },
+    CollectPosition {
+        pool: String,
+        position_id: Amount,
+    },
+    ClmmSwap {
+        pool: String,
+        asset_in: String,
+        amount: Amount,
+        sqrt_price_limit: Amount,
+        min_out: Amount,
+        allow_partial: bool,
+    },
     PlaceOrder {
         book: String,
         side: crate::book::Side,
@@ -218,6 +245,10 @@ impl Call {
             Self::Transfer { .. } => "Transfer",
             Self::Approve { .. } => "Approve",
             Self::TransferFrom { .. } => "TransferFrom",
+            Self::MintPosition { .. } => "MintPosition",
+            Self::BurnPosition { .. } => "BurnPosition",
+            Self::CollectPosition { .. } => "CollectPosition",
+            Self::ClmmSwap { .. } => "ClmmSwap",
             Self::PlaceOrder { .. } => "PlaceOrder",
             Self::CancelOrder { .. } => "CancelOrder",
             Self::SwapExactIn { .. } => "SwapExactIn",
@@ -257,6 +288,8 @@ pub struct Scenario {
     #[serde(default, skip_serializing_if = "BTreeMap::is_empty")]
     pub books: BTreeMap<String, crate::book::Config>,
     #[serde(default, skip_serializing_if = "BTreeMap::is_empty")]
+    pub clmm_pools: BTreeMap<String, crate::clmm::Config>,
+    #[serde(default, skip_serializing_if = "BTreeMap::is_empty")]
     pub stable_pools: BTreeMap<String, crate::stable::StablePool>,
     #[serde(default, skip_serializing_if = "BTreeMap::is_empty")]
     pub flash_providers: BTreeMap<String, FlashProvider>,
@@ -294,6 +327,7 @@ impl Scenario {
     pub fn protected(&self, account: &str) -> bool {
         self.pools().any(|(_, p)| p.account == account)
             || self.books.values().any(|p| p.account == account)
+            || self.clmm_pools.values().any(|p| p.account == account)
             || self.flash_providers.values().any(|p| p.account == account)
             || self
                 .lending
@@ -312,6 +346,7 @@ impl Scenario {
                     && m != crate::stable::MODEL
                     && m != crate::twap::MODEL
                     && m != crate::book::MODEL
+                    && m != crate::clmm::MODEL
             })
             || self.model_versions.iter().collect::<BTreeSet<_>>().len()
                 != self.model_versions.len()
@@ -398,6 +433,7 @@ impl Scenario {
         crate::credit::validate(self, &mut protected)?;
         crate::twap::validate(self)?;
         crate::book::validate(self, &mut protected)?;
+        crate::clmm::validate(self, &mut protected)?;
         for a in self.agents.values() {
             for id in &a.controlled_accounts {
                 if !self.accounts.contains_key(id) || self.protected(id) {
@@ -483,6 +519,18 @@ impl Scenario {
                     }
                 };
                 match call {
+                    Call::MintPosition { pool, .. }
+                    | Call::BurnPosition { pool, .. }
+                    | Call::CollectPosition { pool, .. }
+                    | Call::ClmmSwap { pool, .. } => {
+                        let cfg = s.clmm_pools.get(pool).ok_or("unknown CLMM pool")?;
+                        if let Call::ClmmSwap { asset_in, .. } = call
+                            && asset_in != &cfg.x
+                            && asset_in != &cfg.q
+                        {
+                            return Err("CLMM asset not in pool".into());
+                        }
+                    }
                     Call::PlaceOrder { book, .. } | Call::CancelOrder { book, .. } => {
                         if !s.books.contains_key(book) {
                             return Err("unknown order book".into());
@@ -653,6 +701,8 @@ pub struct World {
     pub price_history: Arc<BTreeMap<String, crate::twap::History>>,
     #[serde(default)]
     pub books: Arc<BTreeMap<String, crate::book::State>>,
+    #[serde(default)]
+    pub clmm: Arc<BTreeMap<String, crate::clmm::State>>,
 }
 #[derive(Clone, Debug, Serialize, Deserialize, PartialEq, Eq)]
 #[serde(deny_unknown_fields)]
@@ -666,6 +716,8 @@ pub struct Event {
 #[derive(Clone, Debug, Serialize, Deserialize, PartialEq, Eq)]
 #[serde(deny_unknown_fields)]
 pub struct Trace {
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub clmm: Option<crate::clmm::Trace>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub book: Option<crate::book::OrderTrace>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
