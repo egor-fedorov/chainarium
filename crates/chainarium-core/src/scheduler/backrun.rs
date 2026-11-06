@@ -235,7 +235,10 @@ impl Search<'_> {
                 .map_err(|e| e.to_string())?,
         );
         let id = format!("policy:backrun:{seed}");
-        let deadline = decision.at.checked_add(self.policy.lifetime)?;
+        let Ok(deadline) = decision.at.checked_add(self.policy.lifetime) else {
+            decision.reason = "DeadlineOverflow".into();
+            return Ok(());
+        };
         let mut worker = Worker {
             search: self,
             decision,

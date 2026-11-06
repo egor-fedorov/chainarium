@@ -132,6 +132,31 @@ fn own_nonce_capacity_covers_response_and_optional_payment_without_aborting_roun
         );
     }
 }
+
+#[test]
+fn unrepresentable_search_deadline_skips_without_saturating_or_aborting_victim() {
+    let max: Amount =
+        "115792089237316195423570985008687907853269984665640564039457584007913129639935"
+            .parse()
+            .unwrap();
+    for (headroom, selected) in [(0, false), (8, false), (9, true)] {
+        let mut s = fixture("public");
+        policy(&mut s).lifetime = max.checked_sub(headroom.into()).unwrap();
+        let r = finish(s);
+        let d = &search(&r).decisions[0];
+        assert_eq!(d.bundle.is_some(), selected);
+        if selected {
+            assert_eq!(d.bundle.as_ref().unwrap().deadline, max);
+        } else {
+            assert_eq!(d.reason, "DeadlineOverflow");
+        }
+        assert_eq!(r.blocks[0].receipts[0].tx_id, "victim");
+        assert_eq!(
+            r.state.balance("alice", "Q"),
+            if selected { 10011.into() } else { 10000.into() }
+        );
+    }
+}
 #[test]
 fn private_without_recipient_cannot_start_search() {
     let r = finish(fixture("private"));
