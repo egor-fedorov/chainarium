@@ -4,7 +4,7 @@
 Это не готовая v1.0. Независимый review M1–M3b завершён, три findings исправлены
 и перепроверены. Отдельный review M3c–M3d завершён без подтверждённых findings;
 область и ограничения сохранены в `docs/reviews/dec20-independent-review.md`.
-DEC-05–DEC-22 приняты владельцем.
+DEC-05–DEC-23 приняты владельцем.
 Общий partial-fill router, LP/MM-политики и heterogeneous arbitrage реализованы.
 Контракт M4a принят как **DEC-21** (§23.2.9) 2026-11-06;
 scheduler/mempool/basic builders реализованы и функционально проверены.
@@ -12,9 +12,9 @@ scheduler/mempool/basic builders реализованы и функционал�
 отчёт — `docs/reviews/dec21-independent-review.md`.
 M4b / DEC-22 реализован и функционально проверен в `7fc0007`;
 разрешённый владельцем независимый read-only review этого snapshot выполняется.
-Следующий контракт M4c — **Proposed DEC-23** (§23.2.11): поиск backrun,
+Следующий контракт M4c — **Accepted DEC-23** (§23.2.11): поиск backrun,
 ограниченное наблюдение и conditional net после bid. До реализации сохранены
-аналитические `docs/reviews/backrun-reference.py`/`.json`; согласование ожидается.
+аналитические `docs/reviews/backrun-reference.py`/`.json`; контракт согласован владельцем, реализация начата.
 
 ## Что работает
 
@@ -566,7 +566,7 @@ latency UI и полные workloads M5 ещё не измерены/не при
 4. M4a / DEC-21 функционально и независимо проверен. M4b / Accepted DEC-22
    реализован, численные ожидания совпали, все функциональные проверки прошли;
    отдельный read-only review diff `82e52c7..7fc0007` разрешён и выполняется.
-   Для следующего M4c подготовлен Proposed DEC-23 (§23.2.11), не реализован:
+   Для следующего M4c принят DEC-23 (§23.2.11), реализация начата:
    поиск backrun по видимой victim, sizes/route caps, bundle и net после fees/bid.
    Затем M4: liquidator policies, hooks и остальные роли;
    M5: MTM, эксперименты, полный explorer и приёмка. Новые существенные решения
