@@ -375,6 +375,7 @@ impl Scenario {
                     && m != crate::routing::heterogeneous::MODEL
                     && m != crate::policy::baselines::LP_MODEL
                     && m != crate::policy::baselines::MM_MODEL
+                    && m != crate::scheduler::backrun::MODEL
                     && !crate::scheduler::MODELS.contains(&m.as_str())
                     && !crate::scheduler::bundles::MODELS.contains(&m.as_str())
             })

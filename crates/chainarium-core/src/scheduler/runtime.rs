@@ -1,4 +1,5 @@
 use super::*;
+mod backrun_calls;
 mod bundle_calls;
 use crate::{Block, Rejected, engine, policy};
 
@@ -10,6 +11,7 @@ struct Round<'a> {
     trace: Vec<Trace>,
     metrics: Metrics,
     probes: Vec<bundles::Probe>,
+    search: backrun::Report,
     probe_check: &'a dyn Fn(&World) -> Result<(), String>,
     round: usize,
     cutoff: Amount,
@@ -233,6 +235,18 @@ impl Round<'_> {
             depth: k.depth,
         };
         let depth = k.depth;
+        let backrun_delay = self
+            .c
+            .backrun
+            .as_ref()
+            .and_then(|c| c.policies.get(agent))
+            .filter(|_| {
+                k.transaction.agent != agent
+                    && !self.s.agents[agent]
+                        .controlled_accounts
+                        .contains(&k.transaction.sender)
+            })
+            .map(|p| p.reaction_delay);
         let list = self.state.visible.entry(agent.into()).or_default();
         list.push(message);
         self.trim_visible(agent, event, at);
@@ -244,6 +258,26 @@ impl Round<'_> {
             "Visible",
             "authorized message delivery",
         );
+        if let Some(delay) = backrun_delay
+            && self
+                .state
+                .triggered
+                .entry(agent.into())
+                .or_default()
+                .insert(id.into())
+        {
+            self.enqueue(
+                at.checked_add(delay)?,
+                EventKind::BackrunReaction {
+                    tx_id: id.into(),
+                    agent: agent.into(),
+                    depth,
+                },
+                at,
+                Some(id),
+                Some(agent),
+            )?;
+        }
         if let Some(p) = self.c.reactive.get(agent)
             && p.rules.contains_key(id)
             && self
@@ -549,6 +583,7 @@ fn advance_with_check(
         trace: vec![],
         metrics: Metrics::default(),
         probes: vec![],
+        search: backrun::Report::default(),
         probe_check,
         round,
         cutoff,
@@ -634,9 +669,14 @@ fn advance_with_check(
         let at = event.due_at.max(parent.timestamp);
         r.metrics.events += 1;
         match &event.kind {
+            EventKind::BackrunReaction {
+                tx_id,
+                agent,
+                depth,
+            } => r.backrun_reaction(tx_id, agent, *depth, &event, at)?,
             EventKind::BundleEmission { index } => {
                 let e = &c.bundles.as_ref().ok_or("missing bundle config")?.emissions[*index];
-                r.submit_bundle(&e.bundle, &e.delivery, &event, at)?;
+                r.submit_bundle(&e.bundle, &e.delivery, &event, at, false)?;
             }
             EventKind::BundleBuilderDelivery { bundle_id } => {
                 r.admit_bundle(bundle_id, &event, at)?
@@ -674,6 +714,7 @@ fn advance_with_check(
         k.committed_status = k.status.clone();
     }
     block.scheduler = Some(Report {
+        search: c.backrun.as_ref().map(|_| r.search),
         probes: r.probes,
         trace: r.trace,
         metrics: r.metrics,
@@ -724,6 +765,7 @@ mod tests {
             trace: vec![],
             metrics: Metrics::default(),
             probes: vec![],
+            search: backrun::Report::default(),
             probe_check: &|_| Ok(()),
             round: 1,
             cutoff: 10.into(),
@@ -776,5 +818,34 @@ mod bundle_fault_tests {
         assert!(advance_with_check(&s, &parent, &previous, |_| Ok(()), &fault).is_err());
         assert!(checked.get());
         assert_eq!((parent, previous), before);
+    }
+}
+
+#[cfg(test)]
+mod search_fault_tests {
+    use super::*;
+    #[test]
+    fn model_error_in_prefix_response_or_payment_discards_entire_search_round() {
+        for fault_at in [1, 2, 4] {
+            let s = Scenario::parse(include_bytes!(
+                "../../../../scenarios/demos/sc-backrun-public.json"
+            ))
+            .unwrap();
+            let parent = World::genesis(&s).unwrap();
+            let previous = State::default();
+            let before = (parent.clone(), previous.clone());
+            let calls = std::cell::Cell::new(0);
+            let fault = |_w: &World| {
+                calls.set(calls.get() + 1);
+                if calls.get() == fault_at {
+                    Err("injected search ModelError".into())
+                } else {
+                    Ok(())
+                }
+            };
+            assert!(advance_with_check(&s, &parent, &previous, |_| Ok(()), &fault).is_err());
+            assert_eq!(calls.get(), fault_at);
+            assert_eq!((parent, previous), before);
+        }
     }
 }

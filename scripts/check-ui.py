@@ -1,4 +1,4 @@
-"""M1–M4b browser/API acceptance. Run against `chainarium serve 8080`. Requires Playwright + Chromium."""
+"""M1–M4c browser/API acceptance. Run against `chainarium serve 8080`. Requires Playwright + Chromium."""
 import json
 from pathlib import Path
 from playwright.sync_api import sync_playwright, expect
@@ -687,6 +687,53 @@ with sync_playwright() as p:
             page.locator('#play').click()
             expect(page.locator('#position')).to_contain_text(f'Исполнено {rounds} / {rounds}',timeout=10000)
         assert page.request.get('http://127.0.0.1:8080/api/run').json()==full
+    # DEC-23: conditional search is separate from canonical builder inclusion.
+    for name in ['public','private','delayed','fifo','competition','fees']:
+        page.locator('#preset').select_option('sc-backrun-'+name)
+        page.locator('#new').click()
+        expect(page.locator('#backrun-panel')).to_be_visible()
+        page.locator('#step').click()
+        expect(page.locator('#position')).to_contain_text('Исполнено 1 / 2')
+        first=page.request.get('http://127.0.0.1:8080/api/run').json()
+        report=first['blocks'][0]['scheduler']['search']
+        expected_alice={'public':'10011','private':'10000','delayed':'10000','fifo':'10000','competition':'10000','fees':'1017752'}[name]
+        expected_builder={'public':'5','private':'0','delayed':'0','fifo':'0','competition':'7','fees':'280'}[name]
+        assert first['state']['accounts']['alice']['balances']['Q']==expected_alice
+        assert first['state']['accounts']['builder']['balances']['Q']==expected_builder
+        expect(page.locator('#backrun-result')).to_contain_text('Расходы поиска не списаны')
+        if name=='private':
+            assert report['metrics']['candidates']==0 and not report['decisions']
+            expect(page.locator('#backrun-result')).to_contain_text('Поисковых реакций в этом блоке нет')
+        else:
+            expect(page.locator('#backrun-result')).to_contain_text('Условный net:')
+            for d in report['decisions']:
+                best=d['candidates'][d['selected']]
+                assert best['input']==('100000' if name=='fees' else '100')
+        if name=='competition':
+            assert first['state']['accounts']['carol']['balances']['Q']=='10009'
+            assert report['metrics']['candidates']==20
+            page.locator('#backrun-panel').screenshot(path='output/m4c-competition.png')
+        saved=page.request.get('http://127.0.0.1:8080/api/checkpoint').json()
+        page.locator('#blocks button[data-block="-1"]').click()
+        expect(page.locator('#backrun-result')).to_contain_text('Запустите блок')
+        assert page.request.get('http://127.0.0.1:8080/api/checkpoint').json()==saved
+        page.locator('#blocks button[data-block="0"]').click()
+        if name=='fees':
+            page.set_viewport_size({'width':390,'height':844})
+            assert page.evaluate('document.documentElement.scrollWidth <= innerWidth'), 'backrun mobile overflow'
+            page.locator('#backrun-panel').evaluate("el=>el.scrollIntoView({block:'start'})")
+            page.screenshot(path='output/m4c-fees-mobile.png')
+            page.set_viewport_size({'width':1440,'height':1100})
+            page.locator('#backrun-panel').screenshot(path='output/m4c-fees.png')
+        page.locator('#play').click()
+        expect(page.locator('#position')).to_contain_text('Исполнено 2 / 2',timeout=10000)
+        full=page.request.get('http://127.0.0.1:8080/api/run').json()
+        assert page.request.post('http://127.0.0.1:8080/api/restore',data=saved).ok
+        page.reload()
+        expect(page.locator('#preset')).to_have_value('sc-backrun-'+name)
+        page.locator('#play').click()
+        expect(page.locator('#position')).to_contain_text('Исполнено 2 / 2',timeout=10000)
+        assert page.request.get('http://127.0.0.1:8080/api/run').json()==full
     assert not errors, errors
     browser.close()
-print('PASS: browser run, trace, read-only viewing, checkpoint/resume, A/B, fork, exact U256 HTTP round-trip, mobile layout, LP, route policy, flash success/shortfall/rollback, credit interest/loss/redemption, exact oracle use, credit checkpoint replay, StableSwap curves/solver/LP/route/replay/depeg/mobile, TWAP 150/175/rollback/stale/readonly/checkpoint/mobile, flash liquidation real legs/loss/shortfall/rollback/checkpoint/mobile, order book levels/quote/fills/escrow/FOK/IOC/GTC/cancel/self-trade/rollback/replay/mobile, CLMM ranges/fees/surplus/crossings/partial/quote/rollback/replay/mobile, heterogeneous routes/limits/search/strict/residuals/readonly/rollback/replay/mobile, LP/MM policies/schedules/observation-delay/anchor-age/closed-cycle/stale-cancel/replay/mobile; M4 delivery/cutoff/Public/Private/late-response/nonce-gap/FIFO/FeePriority/readonly/checkpoint/mobile; bundles/greedy/paid-bid/allowed-and-forbidden-revert/visible-reference/private-isolation/diagnostic-probes/replay/mobile')
+print('PASS: browser run, trace, read-only viewing, checkpoint/resume, A/B, fork, exact U256 HTTP round-trip, mobile layout, LP, route policy, flash success/shortfall/rollback, credit interest/loss/redemption, exact oracle use, credit checkpoint replay, StableSwap curves/solver/LP/route/replay/depeg/mobile, TWAP 150/175/rollback/stale/readonly/checkpoint/mobile, flash liquidation real legs/loss/shortfall/rollback/checkpoint/mobile, order book levels/quote/fills/escrow/FOK/IOC/GTC/cancel/self-trade/rollback/replay/mobile, CLMM ranges/fees/surplus/crossings/partial/quote/rollback/replay/mobile, heterogeneous routes/limits/search/strict/residuals/readonly/rollback/replay/mobile, LP/MM policies/schedules/observation-delay/anchor-age/closed-cycle/stale-cancel/replay/mobile; M4 delivery/cutoff/Public/Private/late-response/nonce-gap/FIFO/FeePriority/readonly/checkpoint/mobile; bundles/greedy/paid-bid/allowed-and-forbidden-revert/visible-reference/private-isolation/diagnostic-probes/replay/mobile; backrun/public/private/grid/fees/bid/competition/fifo/delay/readonly/checkpoint/mobile')

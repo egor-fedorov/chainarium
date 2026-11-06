@@ -244,6 +244,23 @@ impl Run {
             }
             write("builder-probes.jsonl", probes.as_bytes())?;
         }
+        if self
+            .scenario
+            .scheduler
+            .as_ref()
+            .is_some_and(|c| c.backrun.is_some())
+        {
+            let mut search = String::new();
+            for block in &self.blocks {
+                if let Some(report) = block.scheduler.as_ref().and_then(|r| r.search.as_ref()) {
+                    search.push_str(&serde_json::to_string(&serde_json::json!({
+                        "block": block.number, "phase": "ConditionalSearchDiagnostic", "search": report,
+                    })).map_err(|e| e.to_string())?);
+                    search.push('\n');
+                }
+            }
+            write("search-probes.jsonl", search.as_bytes())?;
+        }
         write("events.jsonl", events.as_bytes())?;
         write("transactions.csv", csv.as_bytes())?;
         let mut report = format!(
@@ -262,6 +279,14 @@ impl Run {
             .is_some_and(|c| c.bundles.is_some())
         {
             report.push_str("\nBuilder candidates: `builder-probes.jsonl`. Only selected candidate receipts enter the canonical block. Probe fees are diagnostic, not additional payments. Score counts native fees from other senders and the executed designated bid once; balance delta is a separate field.\n");
+        }
+        if self
+            .scenario
+            .scheduler
+            .as_ref()
+            .is_some_and(|c| c.backrun.is_some())
+        {
+            report.push_str("\nBackrun decisions: `search-probes.jsonl`. Conditional net is measured after the authorized trigger and all own execution fees plus the bid. Search work is diagnostic; only builder-selected receipts affect the canonical ledger.\n");
         }
         write("report.md", report.as_bytes())
     }

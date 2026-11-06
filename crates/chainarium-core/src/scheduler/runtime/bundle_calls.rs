@@ -32,7 +32,12 @@ impl Round<'_> {
             };
         }
     }
-    fn resolve_bundle(&self, b: &g::Bundle, at: Amount) -> Result<g::Resolved, String> {
+    fn resolve_bundle(
+        &self,
+        b: &g::Bundle,
+        at: Amount,
+        policy: bool,
+    ) -> Result<g::Resolved, String> {
         let cfg = self.c.bundles.as_ref().ok_or("bundle config")?;
         if b.id.is_empty()
             || !self.s.agents.contains_key(&b.agent)
@@ -52,8 +57,9 @@ impl Round<'_> {
                     if transaction.agent != b.agent {
                         return Err("ForeignBundleAuthor".into());
                     }
-                    if transaction.id.starts_with("policy:")
-                        || transaction.id.starts_with("reactive:")
+                    if !policy
+                        && (transaction.id.starts_with("policy:")
+                            || transaction.id.starts_with("reactive:"))
                     {
                         return Err("ReservedMemberTxId".into());
                     }
@@ -141,6 +147,7 @@ impl Round<'_> {
         delivery: &Delivery,
         event: &Queued,
         at: Amount,
+        policy: bool,
     ) -> Result<(), String> {
         let fingerprint = crate::run::digest(&serde_json::to_vec(b).map_err(|e| e.to_string())?);
         if let Some(k) = self.state.bundles.get(&b.id) {
@@ -169,7 +176,7 @@ impl Round<'_> {
             );
             return Ok(());
         }
-        let resolved = self.resolve_bundle(b, at);
+        let resolved = self.resolve_bundle(b, at, policy);
         self.state.bundles.insert(
             b.id.clone(),
             g::KnownBundle {

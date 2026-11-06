@@ -1,6 +1,6 @@
 # Прогресс Chainarium — 2026-11-06
 
-Цель: весь v1.0 из §2.1. Текущий результат — **исполняемый прототип M1–M4b**.
+Цель: весь v1.0 из §2.1. Текущий результат — **исполняемый прототип M1–M4c**.
 Это не готовая v1.0. Независимый review M1–M3b завершён, три findings исправлены
 и перепроверены. Отдельный review M3c–M3d завершён без подтверждённых findings;
 область и ограничения сохранены в `docs/reviews/dec20-independent-review.md`.
@@ -14,9 +14,10 @@ M4b / DEC-22 реализован и функционально проверен
 независимый read-only review этого snapshot завершён без подтверждённых findings.
 Отчёт — `docs/reviews/dec22-independent-review.md`; сохранены 12 независимых
 тестов, включая 640 differential cases. DEC-23 в область review не входит.
-Следующий контракт M4c — **Accepted DEC-23** (§23.2.11): поиск backrun,
+M4c — **Accepted DEC-23** (§23.2.11): поиск backrun,
 ограниченное наблюдение и conditional net после bid. До реализации сохранены
-аналитические `docs/reviews/backrun-reference.py`/`.json`; контракт согласован владельцем, реализация начата.
+аналитические `docs/reviews/backrun-reference.py`/`.json`. Реализация и Rust/CLI/browser
+проверки завершены; независимый review M4c ещё не выполнялся.
 
 ## Что работает
 
@@ -53,7 +54,7 @@ fees/nonce/resource accounting и deterministic replay. Канонические
   arbitrage с фактической native fee. Одно намерение на AgentId, Hold/Skip/Submit,
   старое committed observation и повторная проверка включения.
 
-UI содержит двадцать восемь presets, play/pause/step, просмотр block→tx→call, балансы, сравнение котировок и трасса solver,
+UI содержит тридцать четыре presets, play/pause/step, просмотр block→tx→call, балансы, сравнение котировок и трасса solver,
 LP shares, C/D/S/E, escrow, точный HF и запись oracle, фактически использованную
 в конкретном вызове. Расчёт риска выполняет Rust; JS отображает готовые строки.
 Есть export/checkpoint/restore/fork и A/B параметров SC-01.
@@ -61,18 +62,19 @@ LP shares, C/D/S/E, escrow, точный HF и запись oracle, фактич
 ## Фактическая проверка
 
 - `scripts/cargo.sh fmt --check` и Clippy всех targets с `-D warnings` — прошли.
-- `scripts/cargo.sh test --workspace --locked --offline` — **211 tests passed**:
-  8 unit tests (включая fault injection), 19 acceptance, 20 composition, 19 credit,
+- `scripts/cargo.sh test --workspace --locked --offline` — **251 tests passed**:
+  9 unit tests (включая fault injection), 19 acceptance, 20 composition, 19 credit,
   10 stable, 10 twap, 7 flash_liquidation, 14 book, 17 clmm, 11 heterogeneous,
-  16 policies, 6 independent_dec20, 10 independent_dec21, 18 scheduler, 26 bundles;
+  16 policies, 6 independent_dec20, 10 independent_dec21, 12 independent_dec22,
+  18 scheduler, 26 bundles, 27 backrun;
   ignored=0. Независимые тесты сохраняют аналитические sweeps предыдущих reviews.
 - `node --test web/wire.test.mjs` — канонические строки, диапазоны и точный
   decimal conversion прошли; JS экономические команды не проходят через Number.
-- `python3 scripts/check-ui.py` — пройден путь всех двадцати восьми presets, readonly
+- `python3 scripts/check-ui.py` — пройден путь всех тридцати четырёх presets, readonly
   просмотр, trace, checkpoint/resume, fork/A-B, точные Amount/Price через HTTP,
   desktop/mobile; ошибок JavaScript и горизонтального overflow нет.
 - Release build и `git diff --check` — прошли.
-- CLI: все 28 demos исполнены. Оба StableSwap demos после checkpoint/resume
+- CLI: все 34 demos исполнены. Оба StableSwap demos после checkpoint/resume
   дают побайтно идентичные `run.json`. SC-05 checkpoint после блока 1 → resume:
   `run.json` побайтно совпадает с непрерывным запуском. В events JSONL начисление
   10 Q присутствует, отменённая liquidation не создаёт канонического write-off.
@@ -514,24 +516,88 @@ UI не называет пробные комиссии канонически�
 211 штатных tests, 12 независимых tests/640 differential cases и шесть
 CLI export/resume проверены reviewer. Ограничения —
 `docs/reviews/dec22-independent-review.md`; live browser reviewer не запускал.
-Поисковые backrun/liquidator
-политики, hooks, прочие роли, MTM и M5 остаются впереди. Caps ограничивают
+На границе M4b поисковые backrun/liquidator
+политики, hooks, прочие роли, MTM и M5 оставались впереди. Caps ограничивают
 модельную работу, но performance на совместных максимальных payload/history
 не доказана; G-16 не закрыт. Сценарный bundle сам по себе не является
 реализацией поискового searcher.
+
+### M4c / DEC-23 — поиск backrun по разрешённой victim
+
+Профиль `bounded-backrun-v1` и конфигурация явно выбираются вместе с event
+scheduler и bundles. Один агент использует одну policy. Новый trigger появляется
+только после разрешённой native delivery от другого агента/неуправляемого sender.
+Reaction delay, actual event time, depth/reaction/intent caps, busy nonce и
+trigger dedup соблюдаются. Вытесненное к моменту реакции сообщение даёт
+TriggerUnavailable; общий registry не становится источником скрытого payload.
+
+Контроллер создаёт временный parent+trigger через общий begin_block/executor.
+Policy получает собственный preview и публичные venues, без полного World,
+чужих счетов, pending mempool и будущих emissions. После успешного prefix
+каждый кандидат пробуется с одной и той же копии. Размеры сортируются, DFS идёт
+по VenueId; до8 inputs,3 hops,64 route trials и4096 venue checks за раунд.
+Member attempts ограничены256, полный response/payment tail резервируется
+до пробы. Бюджеты общие между searchers и отдельны от builder probes. При
+исчерпании общего бюджета новый prefix тоже не исполняется.
+
+ExecuteRoute RequireFull и финальный AssertTransactionNetGain учитывают
+фактическую fee ответа, bid и native fee последнего payment. Guard остаётся
+верным после изменения builder prefix. Baseline conditional net берётся после
+victim: её собственный перевод searcher не объявляется прибылью маршрута.
+Успешный кандидат выбирается по net, затем own used/input/path. Отправляется
+одна группа на текущий target block; опоздание не выпускает members отдельно.
+
+| Демо | Проверенный результат |
+| --- | --- |
+| public: inputs25/50/100/150/200, bid5, prices0 | 10 route candidates; выбран100 Q→90 X→116 Q; net11; Alice10011, builder5; units120/160/115 |
+| private без searcher | Нет реакций/поиска/groups, только victim; Alice10000 |
+| delayed: response outgoing delay2 | Найденный ответ прибывает11 после cutoff10, target1 истекает; Alice10000, own fees0 |
+| FIFO на том же orderflow | Ordinary victim включается раньше общей группы; поиск прогнозировал11, но canonical gain0 и own fees0 |
+| competition: bids5/7 | Два поиска по10 trials; Greedy выбирает7, Carol10009, Alice10000, builder7, victim ровно один раз |
+| fees: input100000, own price1 | 100000 Q→90909 X→118032 Q; fees160+115, bid5; net17752, Alice1017752, builder280 |
+
+27 integration tests и fault injection проверяют сетку/сортировку, fees/bid0,
+положительный guard, payment resource/fee reserve, prefix nonce/funding/failure,
+limits619/620, caps и release reservation, shared budgets, private recipients,
+old visible eviction, own-sender filter, BusyNonce и duplicate trigger.
+Проверены изменённый builder prefix с поздним guard revert, отдельный transfer
+victim, StableSwap metered solver fees, отказ CLMM/book partial results,
+checkpoint с queued reaction и tamper с пересчитанным checksum.
+ModelError внутри prefix, response и payment оставляет исходный World/scheduler
+без изменений. Всего251 Rust tests; после последнего уточнения pre-prefix cap
+и проверки payment fee reserve повторно прошли27 backrun tests и Clippy.
+
+CLI выполнил все34 demos. Для шести новых сценариев после checkpoint блока1
+побайтно совпали `run.json`, `events.jsonl`, `delivery.jsonl`,
+`builder-probes.jsonl`, новый `search-probes.jsonl` и `transactions.csv`.
+Артефакты: `output/m4c-validated/`. Build fingerprint:
+`7595e6132809d0ac95cb61f5611486915b65303760ed8b7f5ec5b967ff153001`.
+UI отображает доступный trigger, conditional net, input/path, search work,
+отдельный статус группы и actual receipts. Все34 browser presets прошли:
+read-only inspection/checkpoint/restore, desktop/mobile, JS errors0 и overflow0.
+Браузерная проверка выявила длинные TxIds в flex-строках transactions;
+исправлен перенос текста, затем весь UI suite повторно прошёл. Снимки
+`output/m4c-competition.png`, `output/m4c-fees.png`,
+`output/m4c-fees-mobile.png`; competition desktop и fees mobile просмотрены.
+
+Независимый review DEC-23 требуется отдельно. Flash-funded search, liquidator
+competition, прочие роли, hooks и M5 ещё не реализованы этим срезом. Ограничение
+числа проб не доказывает performance при максимальных payload/history; G-16
+остаётся открыт. Условный лучший ответ не обещает включения или глобального
+оптимума MEV и не заменяет будущие MTM/experiment metrics.
 
 ### Fixtures и границы доказательства
 
 | Проверка | Доказательство | Ограничение |
 | --- | --- | --- |
-| Ledger/auth/execution/block | acceptance + 5 injected ModelErrors после успешной tx, включая accrual/oracle | M4b функционально проверен; отдельный review впереди |
+| Ledger/auth/execution/block | acceptance + 5 injected ModelErrors после успешной tx, включая accrual/oracle | M4b независимо проверен; review M4c впереди |
 | CPMM/LP/router/flash | composition: rounding/minima/ownership/reentry/actual output/rollback; 500 CPMM invariant cases | Native models; совместимость с внешним deployment не заявлена |
 | Lending accounting | exact fixture, caps/HF/LTV/cash, aggregate rates, multiple escrow, fractional carry, no-holder income | Прямой долг, заранее зарегистрированные позиции, максимум 1024/reserve |
 | Liquidation/loss | exact waterfall, partial close, dust, min_collateral, fee-preserving rollback, 256 deterministic boundary cases | Нет recovery/treasury; вывод equity запрещён |
 | Deposit shares | zero mint, minima, cash shortage без burn, last exit, bootstrap с E | Bankrupt проверен на invariant-valid defensive snapshot, не заявлен достижимым из genesis этого positive-payment preset |
 | Oracle | unauthorized/source/pair/future/duplicate/out-of-order; возраст 60/61; safe stale operations; consumer trace | External/native spot/TWAP; bounded history и однократное floor проверены |
-| Checkpoint/export | replay/resume/fork/tamper, протоколы, LP/MM schedules/decisions | M4b group/overlap/bid/probe/queue snapshots проверены; новые policies потребуют своих fixtures |
-| UI | реальные balances/trace, 28 presets, desktop/mobile, exact HTTP wire | Прототип; полная приёмка M5 не закрыта |
+| Checkpoint/export | replay/resume/fork/tamper, протоколы, LP/MM schedules/decisions | M4b groups и M4c trigger/search snapshots проверены; будущие policies потребуют своих fixtures |
+| UI | реальные balances/trace, 34 presets, desktop/mobile, exact HTTP wire | Прототип; полная приёмка M5 не закрыта |
 
 Численные ожидания следуют §6/§8/§20 и принятым DEC; тесты не заменяют
 независимый review. Analytical sweep — детерминированная проверка инвариантов,
@@ -573,13 +639,14 @@ latency UI и полные workloads M5 ещё не измерены/не при
    реализован, численные ожидания совпали, все функциональные проверки прошли;
    отдельный read-only review diff `82e52c7..7fc0007` завершён без findings,
    его отчёт и 12 независимых тестов сохранены.
-   Для следующего M4c принят DEC-23 (§23.2.11), реализация начата:
-   поиск backrun по видимой victim, sizes/route caps, bundle и net после fees/bid.
+   M4c / DEC-23 (§23.2.11) реализован: поиск backrun по видимой victim,
+   sizes/route caps, bundle и net после fees/bid. Следующий шаг — независимый
+   read-only review этого среза; предыдущие разрешения его не охватывали.
    Затем M4: liquidator policies, hooks и остальные роли;
    M5: MTM, эксперименты, полный explorer и приёмка. Новые существенные решения
    требуют конкретных карточек и согласования по §23.7.
 5. Полные user-task/latency/performance budgets и независимое review должны
    быть выполнены до приёмки целевой v1.0. SC-06 с конкуренцией — этап M4.
 
-Изменения находятся в рабочем checkout. Среда не публиковалась, push и release
+Изменения находятся в рабочем checkout. Среда не публиковалась, push и публикация релизов
 не выполнялись. Ранее опубликованная конфигурация среды не изменялась повторно.

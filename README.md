@@ -1,12 +1,14 @@
 # Chainarium
 
 Локальная лаборатория DeFi с Rust-ядром. **v1.0 в разработке.**
-Сейчас исполняются M1–M4b: CPMM swaps/LP, маршруты, арбитражная политика
+Сейчас исполняются M1–M4c: CPMM swaps/LP, маршруты, арбитражная политика
 на собственных средствах, flash loans, lending, oracle, проценты и ликвидации, StableSwap, TWAP и flash-ликвидация,
 стакан GTC/IOC/FOK, CLMM и общий partial-fill router, rollback, fees/nonce и
 исчерпание ресурса. Добавлены event scheduler, mempool, Public/Private delivery,
 FIFO/Fixed/FeePriority и сценарный ответ на видимое сообщение. Bundles
-и ограниченный greedy builder выбирают группы с реальным bid и явными reverts. Полный объём и приёмка: [спецификация](docs/spec.md).
+и ограниченный greedy builder выбирают группы с реальным bid и явными reverts.
+Backrun policy ищет размер/маршрут по доставленной victim и отправляет bundle
+с проверкой net после собственных native fees и bid. Полный объём и приёмка: [спецификация](docs/spec.md).
 
 ## Запуск
 
@@ -35,12 +37,14 @@ scripts/cargo.sh run --locked --bin chainarium -- routes scenarios/demos/sc-03-h
 аналитический CSV и отчёт. M4 добавляет `delivery.jsonl` с scheduler diagnostics;
 `run.json` содержит per-block queue snapshots и метрики. Для M4b
 `builder-probes.jsonl` хранит выбор и диагностические пробы; только selected
-receipts входят в канонический блок. Для повторного запуска
+receipts входят в канонический блок. M4c добавляет `search-probes.jsonl`:
+разрешённый trigger, условные результаты поиска, выбранный размер и группа.
+Для повторного запуска
 выберите новое имя папки.
 Checkpoint восстанавливается только на committed-границе; checksum и повторное
 исполнение проверяют его целостность. CSV не является форматом восстановления.
 
-Доступны двадцать восемь presets в UI и CLI:
+Доступны тридцать четыре presets в UI и CLI:
 
 | Файл | Демонстрация |
 | --- | --- |
@@ -72,6 +76,12 @@ Checkpoint восстанавливается только на committed-гра
 | `scenarios/demos/sc-bundle-fee.json` | Те же входы: FeePriority выбирает ordinary price3 с fee345 Q |
 | `scenarios/demos/sc-bundle-visible.json` | Только уже видимая victim включается в bundle с ответом и bid5 Q; Alice net11 Q |
 | `scenarios/demos/sc-bundle-private.json` | Недоступный VisibleTxId отклоняется, private victim исполняется только самостоятельно |
+| `scenarios/demos/sc-backrun-public.json` | 5 размеров / 10 маршрутов: выбран100 Q→116 Q, net11 Q после bid5 |
+| `scenarios/demos/sc-backrun-private.json` | Private без searcher: поиск не запускается |
+| `scenarios/demos/sc-backrun-delayed.json` | Arrival11 пропускает целевой блок1; найденный ответ не включается |
+| `scenarios/demos/sc-backrun-fifo.json` | FIFO включает standalone victim раньше группы; searcher не платит |
+| `scenarios/demos/sc-backrun-competition.json` | Два searchers с bid5/7; Greedy выбирает bid7, winner net9 Q |
+| `scenarios/demos/sc-backrun-fees.json` | 100000 Q→118032 Q; fees160+115 и bid5, net17752 Q |
 
 В SC-05 аналитическая ставка 12.5% за модельную секунду и reserve factor 20%;
 это fixture, не рыночный прогноз. UI показывает C/D/S/E, отдельный залог,
@@ -131,9 +141,15 @@ checkpoint/resume, fork, A/B и мобильную верстку. Снимки 
   наблюдение и создают не более одного intent после пробного исполнения.
   Hold/Skip/Submit, фактическое включение и источник цены видны в UI.
   Heterogeneous arbitrage использует RequireFull и проверку прибыли на входе tx.
+- M4c: `bounded-backrun-v1` получает доставленный native trigger и parent observation.
+  Поиск ограничен 8 размерами, 3 hops, 64 route trials и 4096 venue checks за раунд.
+  Preview содержит только parent+trigger; каждый route trial начинается с его копии.
+  `RequireFull`, актуальный net guard и реальный payment защищают результат после
+  fees/bid. Private, опоздание, FIFO и конкуренция показывают границы включения.
+  Search и builder probes имеют отдельные метрики; поиск не списывает канонические fees.
 - M4a: включительный cutoff, детерминированные EventIds, bounded mempool/queues,
   Public/Private visibility, delayed OnVisibleProgram и FIFO/Fixed/FeePriority.
-  Поисковые backrun/liquidator policies и hooks — следующие срезы.
+  Backrun реализован в M4c; liquidator policies и hooks — следующие срезы.
   OnVisibleProgram исполняет явное правило, не оптимизирует стратегию.
 - M4b: bundle до 16 members, Own/VisibleTxId, target range, allowed reverts,
   реальный bid последним Transfer и непрерывное включение группы. Greedy делает
@@ -143,7 +159,7 @@ checkpoint/resume, fork, A/B и мобильную верстку. Снимки 
   FixedItems задаёт порядок типизированных candidate IDs; FeePriority группы
   использует minimum member price. Неуспешная проба не платит канонических fees.
 - Исследовательский MTM/PnL не рассчитывается; баланс не называется прибылью.
-- UI — прототип M1–M4b с двадцатью восемью presets. Полный explorer M5 впереди.
+- UI — прототип M1–M4c с тридцатью четырьмя presets. Полный explorer M5 впереди.
 - Критерии всей v1.0 не объявляются выполненными. Независимый review и следующие
   открытые экономические контракты фиксируются согласно §23–24 спецификации.
 
@@ -157,7 +173,9 @@ checkpoint/resume, fork, A/B и мобильную верстку. Снимки 
 без подтверждённых замечаний. В suite сохранены ещё 10 независимых тестов:
 360 расписаний / 2160 раундов и 42 случая exhaustion/fee-to-self.
 
-Независимый review DEC-22/M4b ещё предстоит; предыдущие reviews его не охватывают.
+Независимый [review DEC-22/M4b](docs/reviews/dec22-independent-review.md) завершён
+без подтверждённых findings; сохранены 12 тестов, включая 640 differential cases.
+Review DEC-23/M4c требуется отдельно.
 
 Фактические результаты и оставшиеся проверки: [журнал прогресса](docs/progress.md).
 Сценарий CLI ограничен 64 MiB, отдельная транзакция — 1 MiB. Web restore

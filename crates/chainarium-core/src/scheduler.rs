@@ -1,4 +1,5 @@
 //! Accepted DEC-21: deterministic delivery, restricted observations and bounded builders.
+pub mod backrun;
 pub mod bundles;
 mod runtime;
 use crate::{Amount, Call, Scenario, Transaction, World, routing::Observation};
@@ -108,12 +109,17 @@ pub struct Config {
     pub reactive: BTreeMap<String, ReactivePolicy>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub bundles: Option<bundles::Config>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub backrun: Option<backrun::Config>,
 }
 
 pub fn validate(s: &Scenario) -> Result<(), String> {
     let has = |m: &str| s.model_versions.iter().any(|v| v == m);
     let Some(c) = &s.scheduler else {
-        if !has("scheduler-m1-v1") || MODELS.iter().chain(bundles::MODELS.iter()).any(|m| has(m)) {
+        if has(backrun::MODEL)
+            || !has("scheduler-m1-v1")
+            || MODELS.iter().chain(bundles::MODELS.iter()).any(|m| has(m))
+        {
             return Err("scheduler profile/config mismatch".into());
         }
         return Ok(());
@@ -210,6 +216,7 @@ pub fn validate(s: &Scenario) -> Result<(), String> {
         }
     }
     bundles::validate_config(s, c)?;
+    backrun::validate(s, c)?;
     Ok(())
 }
 
@@ -251,6 +258,11 @@ pub struct Pending {
 #[derive(Clone, Debug, Serialize, Deserialize, PartialEq, Eq)]
 #[serde(tag = "type", deny_unknown_fields)]
 pub enum EventKind {
+    BackrunReaction {
+        tx_id: String,
+        agent: String,
+        depth: usize,
+    },
     BundleEmission {
         index: usize,
     },
@@ -463,6 +475,8 @@ pub struct Metrics {
 #[derive(Clone, Debug, Serialize, Deserialize, PartialEq, Eq)]
 #[serde(deny_unknown_fields)]
 pub struct Report {
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub search: Option<backrun::Report>,
     #[serde(default, skip_serializing_if = "Vec::is_empty")]
     pub probes: Vec<bundles::Probe>,
     pub trace: Vec<Trace>,
