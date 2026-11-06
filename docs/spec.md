@@ -2657,10 +2657,10 @@ UI показывает роль/цель/выборку/Skip, пробный и
 CLI/browser demos и независимый review §23.4 обязательны. Optional flash-funded
 arbitrage, MTM/experiments/full explorer и M5 gates остаются следующими срезами.
 
-### 23.2.15. Предлагаемый контракт M4g — Proposed DEC-27
+### 23.2.15. Принятый контракт M4g — Accepted DEC-27
 
-**DEC-27 / G-09/G-10, ограниченный flash-funded arbitrage.** Статус **Proposed**;
-согласование владельца и реализация новой policy ещё не выполнены.
+**DEC-27 / G-09/G-10, ограниченный flash-funded arbitrage.** Статус **Accepted**;
+владелец согласовал контракт в чате 2026-11-06 до реализации новой policy.
 Закрывает опциональный flash funding arbitrageur из §13 поверх уже принятых
 DEC-11/12/13/20/21/25. Профиль `bounded-flash-arbitrage-v1` работает только
 через event scheduler, конфигурация `scheduler.flash_arbitrage` содержит
@@ -2832,8 +2832,7 @@ openspec/                   # опционально, после решения 
 
 **Уже закрытые требования:** единый ledger; разделение origin/caller/callee и явная авторизация; точная передача atoms/цен без потери целых; native fee/nonce и ресурсный профиль `100 / 10 / 5 / 1` (§5–§6); изолированный collateral, уравнение `C + D = S + E`, распределение процентов и убытков, атомарность liquidation+writeoff (§8); возраст цены по observation time, полномочия publisher и validity oracle (§10); раздельные committed events/attempt trace и полные checkpoints (§15–§17). Выбор конкретного Rust crate или UI-транспорта обязан сохранить эти требования.
 
-**Состояние решений на 2026-11-06:** DEC-05–DEC-26 приняты; DEC-27 (§23.2.15)
-подготовлен как Proposed и ожидает согласования владельца. Для текущих
+**Состояние решений на 2026-11-06:** DEC-05–DEC-27 приняты владельцем. Для текущих
 профилей определены G-01/G-02, CPMM/LP часть G-03, прототип G-04,
 reference lending G-05, external oracle часть G-06, router budget часть G-09,
 базовый checkpoint G-10 и RNG часть G-15. Реализация/fixtures отражены в §20

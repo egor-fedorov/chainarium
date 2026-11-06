@@ -4,7 +4,7 @@
 Это не готовая v1.0. Независимый review M1–M3b завершён, три findings исправлены
 и перепроверены. Отдельный review M3c–M3d завершён без подтверждённых findings;
 область и ограничения сохранены в `docs/reviews/dec20-independent-review.md`.
-DEC-05–DEC-26 приняты владельцем.
+DEC-05–DEC-27 приняты владельцем.
 Общий partial-fill router, LP/MM-политики и heterogeneous arbitrage реализованы.
 Контракт M4a принят как **DEC-21** (§23.2.9) 2026-11-06;
 scheduler/mempool/basic builders реализованы и функционально проверены.
@@ -876,13 +876,13 @@ HTTP rejection обоих foreign-wallet fixtures с сохранением те
 Optional flash-funded arbitrage,
 MTM/experiments/full explorer и M5 performance/user-task gates остаются открытыми.
 
-### Подготовлен следующий срез M4g / Proposed DEC-27
+### Следующий срез M4g / Accepted DEC-27
 
 В `docs/spec.md` §23.2.15 записан конкретный контракт bounded flash arbitrage:
 один principal/provider, own native fee reserve, закрытые RequireFull пути,
 3 hops /64 trials /4096 venue checks, общий budget семейства, actual net после
-settlement/fees и явные submission outcomes. Статус **Proposed**, согласования
-владельца ещё нет; новая policy/controller/UI не реализованы.
+settlement/fees и явные submission outcomes. Статус **Accepted**: владелец согласовал контракт 2026-11-06 до реализации;
+новая policy/controller/UI ещё не реализованы.
 
 Независимый integer reference `docs/reviews/flash-arbitrage-reference.py`/`.json`
 содержит8 случаев. До реализации policy они сопоставлены с literal programs
