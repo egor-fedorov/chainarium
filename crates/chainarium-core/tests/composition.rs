@@ -420,6 +420,52 @@ fn vf_policy_simulation_is_readonly_and_checkpoint_replays_decisions() {
     assert_eq!(r, resumed);
 }
 #[test]
+fn policy_guard_excludes_transfers_received_before_its_transaction() {
+    let mut s =
+        Scenario::parse(include_bytes!("../../../scenarios/demos/sc-03-route.json")).unwrap();
+    let w = World::genesis(&s).unwrap();
+    s.blocks[0] = vec![Transaction {
+        id: "move-price-and-transfer".into(),
+        agent: "recipient".into(),
+        sender: "bob".into(),
+        chain: s.chain.id.clone(),
+        nonce: Amount::ZERO,
+        limit: 500.into(),
+        price: Amount::ZERO,
+        deadline: Amount::MAX,
+        program: vec![
+            Call::SwapExactIn {
+                pool: "cpmm".into(),
+                asset_in: "Q".into(),
+                amount: 200.into(),
+                min_out: 1.into(),
+            },
+            Call::Transfer {
+                to: "alice".into(),
+                asset: "Q".into(),
+                amount: 100.into(),
+            },
+        ],
+    }];
+    let before_policy = engine::build_block(&s, &w, &s.blocks[0]).unwrap().state;
+    let mut r = Run::new(s).unwrap();
+    r.step().unwrap();
+    let b = &r.blocks[0];
+    assert_eq!(b.decisions[0].expected_net_gain, Some(23.into()));
+    let receipt = b.receipts.last().unwrap();
+    assert_eq!(receipt.status, "ProtocolRevert");
+    assert_eq!(
+        receipt.error.as_deref(),
+        Some("net balance delta assertion")
+    );
+    assert!(receipt.events.is_empty());
+    assert_eq!(r.state.balance("alice", "Q"), 10100.into());
+    for account in ["pool", "pool-b", "bob"] {
+        assert_eq!(r.state.accounts[account], before_policy.accounts[account]);
+    }
+}
+
+#[test]
 fn vf_policy_accounts_for_execution_fees_and_absent_valuation() {
     let mut s = scenario();
     second_pool(&mut s);

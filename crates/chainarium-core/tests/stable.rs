@@ -390,7 +390,7 @@ fn vf_stable_route_actual_outputs_simulation_and_net_fee_guard() {
             .program
             .last()
             .unwrap(),
-        Call::AssertNetBalanceDelta { .. }
+        Call::AssertTransactionNetGain { .. }
     ));
     let mut resumed = Run::restore(&r.checkpoint().unwrap()).unwrap();
     r.finish().unwrap();

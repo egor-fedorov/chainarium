@@ -75,9 +75,8 @@ impl AgentPolicy for ArbitragePolicy {
             // The final guard projects actual fee/refund after all metered solver work.
             // It remains valid if earlier transactions change the iteration count.
             let mut program = route.calls(self.input, 1.into(), "");
-            program.push(Call::AssertNetBalanceDelta {
+            program.push(Call::AssertTransactionNetGain {
                 asset: self.asset.clone(),
-                baseline: initial,
                 minimum: self.min_profit,
             });
             let tx = Transaction {

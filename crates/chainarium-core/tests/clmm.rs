@@ -95,6 +95,89 @@ fn rollback(r: &Run, b: &Block) {
 }
 
 #[test]
+fn new_range_with_mixed_tick_history_has_signed_checkpoint_and_no_old_fees() {
+    let mut r = Run::new(scenario()).unwrap();
+    for (who, calls) in [
+        ("alice", vec![mint(0, 100, 1_000_000)]),
+        ("trader", vec![swap("Q", 6000, 200, true)]),
+        ("alice", vec![mint(-100, 0, 1_000_000)]),
+    ] {
+        let b = apply(&r, who, calls);
+        assert_eq!(b.receipts[0].status, "Success");
+        r.state = b.state;
+    }
+    let state = &r.state.clmm["clmm"];
+    let checkpoint = state.positions[&2.into()].last_inside[1];
+    assert!(checkpoint.negative);
+    assert_eq!(checkpoint.magnitude, state.fee_growth[1]);
+    let b = apply(&r, "alice", vec![collect(2)]);
+    assert_eq!(b.receipts[0].status, "Success");
+    assert_eq!(trace(&b).amounts, [Amount::ZERO; 2]);
+    r.state = b.state;
+    // Cross both ranges in the other direction, then collect and burn. The
+    // new position earns only X fees accumulated while it was active.
+    let b = apply(&r, "trader", vec![swap("X", 11000, -200, true)]);
+    assert_eq!(b.receipts[0].status, "Success");
+    r.state = b.state;
+    let b = apply(&r, "alice", vec![collect(2), burn(2, 1_000_000)]);
+    assert_eq!(b.receipts[0].status, "Success");
+    assert!(trace(&b).amounts[0] > Amount::ZERO);
+    assert_eq!(trace(&b).amounts[1], Amount::ZERO);
+    b.state.invariant(&r.scenario).unwrap();
+}
+
+#[test]
+fn mixed_mints_crossings_collects_and_burns_preserve_backing() {
+    let mut r = Run::new(scenario()).unwrap();
+    let mut seed = 721398u64;
+    let mut successes = 0;
+    for _ in 0..600 {
+        seed = seed.wrapping_mul(6364136223846793005).wrapping_add(1);
+        let choice = seed % 8;
+        let mut who = "alice";
+        let call = if choice < 3 {
+            let lower = ((seed >> 10) % 41) as i32 * 10 - 200;
+            let upper = lower + 10 + ((seed >> 25) % 25) as i32 * 10;
+            mint(lower, upper, (seed >> 40) % 1_000_000 + 1)
+        } else if choice < 5 && !r.state.clmm["clmm"].positions.is_empty() {
+            let positions = &r.state.clmm["clmm"].positions;
+            let (id, p) = positions
+                .iter()
+                .nth((seed >> 30) as usize % positions.len())
+                .unwrap();
+            if choice == 3 && !p.liquidity.is_zero() {
+                Call::BurnPosition {
+                    pool: "clmm".into(),
+                    position_id: *id,
+                    liquidity: p.liquidity,
+                    min_x: Amount::ZERO,
+                    min_q: Amount::ZERO,
+                }
+            } else {
+                Call::CollectPosition {
+                    pool: "clmm".into(),
+                    position_id: *id,
+                }
+            }
+        } else {
+            who = "trader";
+            let down = seed.is_multiple_of(2);
+            swap(
+                if down { "X" } else { "Q" },
+                (seed >> 30) % 10000 + 1,
+                if down { -300 } else { 500 },
+                true,
+            )
+        };
+        let b = apply(&r, who, vec![call]);
+        successes += usize::from(b.receipts[0].status == "Success");
+        b.state.invariant(&r.scenario).unwrap();
+        r.state = b.state;
+    }
+    assert!(successes > 300);
+}
+
+#[test]
 fn pinned_single_range_swap_burn_collect_and_surplus() {
     let fixture: serde_json::Value =
         serde_json::from_str(include_str!("../../../docs/reviews/clmm-reference.json")).unwrap();

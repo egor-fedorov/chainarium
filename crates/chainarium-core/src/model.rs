@@ -171,6 +171,10 @@ pub enum Call {
         minimum: Amount,
     },
     Supply {
+    AssertTransactionNetGain {
+        asset: String,
+        minimum: Amount,
+    },
         market: String,
         amount: Amount,
         min_shares: Amount,
@@ -266,6 +270,7 @@ impl Call {
             Self::Borrow { .. } => "Borrow",
             Self::Repay { .. } => "Repay",
             Self::Liquidate { .. } => "Liquidate",
+            Self::AssertTransactionNetGain { .. } => "AssertTransactionNetGain",
             Self::PublishOracle { .. } => "PublishOracle",
             Self::PublishSpot { .. } => "PublishSpot",
             Self::PublishTwap { .. } => "PublishTwap",
@@ -536,7 +541,8 @@ impl Scenario {
                             return Err("unknown order book".into());
                         }
                     }
-                    Call::AssertNetBalanceDelta { asset: a, .. } => {
+                    Call::AssertNetBalanceDelta { asset: a, .. }
+                    | Call::AssertTransactionNetGain { asset: a, .. } => {
                         // The refund projection is exact only as the final root call.
                         if depth != 1 || i + 1 != calls.len() || a != &s.chain.fee_asset {
                             return Err(

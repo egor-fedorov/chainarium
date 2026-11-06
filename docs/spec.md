@@ -1417,10 +1417,14 @@ minima, последний выход, rollback, реальный двухпло
 
 **Реализация M2e (2026-11-06).** Solver/LP/router и fixtures исполнены,
 результаты в `docs/progress.md`. Финальная проверка прибыли политики использует
-фактически списанные units: новый `AssertNetBalanceDelta` проецирует settlement
+фактически списанные units: `AssertTransactionNetGain` проецирует settlement
 по текущему used, price, refund и fee recipient. Валидация допускает его только
 последним root-вызовом и в fee asset. Это сохраняет требование DEC-12 о прибыли
 после комиссии при переменном числе итераций; профиль стоимости не изменён.
+По независимому review baseline для политики захватывается executor на входе
+транзакции до fee reserve, а не берётся из старого Observation. Иначе входящий
+перевод перед транзакцией мог скрыть убыток stale-маршрута.
+`AssertNetBalanceDelta` сохранён для явно заданного абсолютного baseline.
 
 ### 23.2.5. Контракт M2f — Accepted
 
@@ -1625,7 +1629,13 @@ tick outside=global для tick<=current_tick и 0 иначе. `inside=global-be
 где below=lower.outside при current_tick>=lower, иначе global−lower.outside;
 above=upper.outside при current_tick<upper, иначе global−upper.outside.
 Позиции начисляется `floor(L*(inside-last_inside)/2^128)`, затем checkpoint
-обновляется. Fraction при таком checkpoint не переносится: периодичность collect
+обновляется. `inside` и `last_inside` — signed координаты с checked U256
+модулем: границы могут быть инициализированы в разные моменты, поэтому
+абсолютный inside бывает отрицательным. Их разность для живой позиции должна
+быть неотрицательной; global/outside и начисленные tokens остаются checked U256.
+Это исправление представления формулы DEC-19 по независимому review, без wrap
+и без изменения распределения/округления fees.
+Fraction при таком checkpoint не переносится: периодичность collect
 может влиять на dust, это часть объявленного профиля. Новая позиция не получает
 старые fees; fee за шаг получают активные позиции до crossing.
 
@@ -1726,7 +1736,7 @@ Root output допускает дальнейшую ссылку `SwapOutput` с
 price-improvement refund стакана. `KeepResiduals` оставляет непотраченные tokens
 на счёте sender и продолжает только с output; UI перечисляет эти остатки.
 Они не оцениваются через spot и не скрываются в общем PnL. В этом срезе arbitrage
-policy использует RequireFull и финальный AssertNetBalanceDelta после фактических
+policy использует RequireFull и финальный AssertTransactionNetGain после фактических
 execution fees; незакрытый inventory не выдаётся за результат закрытого цикла.
 Поздний отказ/min_out/resource/flash shortfall откатывает все ноги, IDs и fees
 протоколов; native fee/nonce сохраняются по §6.

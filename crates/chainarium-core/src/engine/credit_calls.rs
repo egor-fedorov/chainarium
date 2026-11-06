@@ -89,6 +89,9 @@ impl Context<'_> {
                     return Err(Protocol("insufficient deposit shares".into()));
                 }
                 let amount = shares.mul_div(l.claims, l.total_shares, false)?;
+                if amount.is_zero() {
+                    return Err(Protocol("zero withdrawal assets".into()));
+                }
                 if amount < *min_assets {
                     return Err(Protocol("min_assets".into()));
                 }

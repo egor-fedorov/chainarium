@@ -17,11 +17,12 @@ pub struct Config {
 }
 #[derive(Clone, Copy, Debug, Default, Serialize, Deserialize, PartialEq, Eq)]
 #[serde(deny_unknown_fields)]
-pub struct SignedLiquidity {
+pub struct SignedAmount {
     pub negative: bool,
     pub magnitude: Amount,
 }
-impl SignedLiquidity {
+pub type SignedLiquidity = SignedAmount;
+impl SignedAmount {
     pub fn add(self, n: Amount, negative: bool) -> Result<Self, String> {
         let result = if self.negative == negative {
             Self {
@@ -67,7 +68,7 @@ pub struct Position {
     pub lower: i32,
     pub upper: i32,
     pub liquidity: Amount,
-    pub last_inside: [Amount; 2],
+    pub last_inside: [SignedAmount; 2],
     pub owed: [Amount; 2],
 }
 #[derive(Clone, Debug, Serialize, Deserialize, PartialEq, Eq)]
@@ -95,10 +96,10 @@ impl State {
             positions: BTreeMap::new(),
         })
     }
-    pub fn inside(&self, lower: i32, upper: i32) -> Result<[Amount; 2], String> {
+    pub fn inside(&self, lower: i32, upper: i32) -> Result<[SignedAmount; 2], String> {
         let lo = self.ticks.get(&lower).ok_or("missing CLMM lower tick")?;
         let hi = self.ticks.get(&upper).ok_or("missing CLMM upper tick")?;
-        let mut result = [Amount::ZERO; 2];
+        let mut result = [SignedAmount::default(); 2];
         for (i, value) in result.iter_mut().enumerate() {
             let below = if self.current_tick >= lower {
                 lo.outside[i]
@@ -110,7 +111,15 @@ impl State {
             } else {
                 self.fee_growth[i].checked_sub(hi.outside[i])?
             };
-            *value = self.fee_growth[i].checked_sub(below)?.checked_sub(above)?;
+            // Boundaries can have different initialization histories. Their
+            // inside coordinate may be negative; only its change for a live
+            // position is nonnegative growth. Never wrap this subtraction.
+            *value = SignedAmount {
+                negative: false,
+                magnitude: self.fee_growth[i],
+            }
+            .add(below, true)?
+            .add(above, true)?;
         }
         Ok(result)
     }
@@ -120,10 +129,12 @@ impl State {
         }
         let inside = self.inside(p.lower, p.upper)?;
         for (i, value) in inside.iter().enumerate() {
-            p.owed[i] = p.owed[i].checked_add(math::earned(
-                p.liquidity,
-                value.checked_sub(p.last_inside[i])?,
-            )?)?;
+            let previous = p.last_inside[i];
+            let delta = value.add(previous.magnitude, !previous.negative)?;
+            if delta.negative {
+                return Err("CLMM position growth decreased".into());
+            }
+            p.owed[i] = p.owed[i].checked_add(math::earned(p.liquidity, delta.magnitude)?)?;
         }
         p.last_inside = inside;
         Ok(())
@@ -306,6 +317,9 @@ pub fn invariant(s: &Scenario, w: &World) -> Result<(), String> {
                 || p.upper > math::MAX_TICK
                 || p.lower >= p.upper
                 || (p.liquidity.is_zero() && p.owed.iter().all(|n| n.is_zero()))
+                || p.last_inside
+                    .iter()
+                    .any(|g| g.negative && g.magnitude.is_zero())
             {
                 return Err("CLMM position invariant".into());
             }

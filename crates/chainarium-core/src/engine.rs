@@ -279,6 +279,7 @@ struct Context<'a> {
     s: &'a Scenario,
     tx: &'a Transaction,
     used: Amount,
+    entry_fee_balance: Amount,
     events: Vec<Event>,
     trace: Vec<Trace>,
     charges: Vec<Charge>,
@@ -705,11 +706,12 @@ impl Context<'_> {
                 self.active_flash.remove(provider);
                 result
             }
-            Call::AssertNetBalanceDelta {
-                asset,
-                baseline,
-                minimum,
-            } => {
+            Call::AssertNetBalanceDelta { asset, minimum, .. }
+            | Call::AssertTransactionNetGain { asset, minimum } => {
+                let baseline = match c {
+                    Call::AssertNetBalanceDelta { baseline, .. } => *baseline,
+                    _ => self.entry_fee_balance,
+                };
                 let refund = self
                     .tx
                     .limit
@@ -820,6 +822,7 @@ fn execute(s: &Scenario, w: &mut World, tx: &Transaction) -> Result<Receipt, Str
         .get_mut(&tx.sender)
         .ok_or("missing sender")?
         .nonce = tx.nonce.checked_add(1.into())?;
+    let entry_fee_balance = w.balance(&tx.sender, &s.chain.fee_asset);
     let envelope = w.clone();
     let mut ctx = Context {
         s,
@@ -830,6 +833,7 @@ fn execute(s: &Scenario, w: &mut World, tx: &Transaction) -> Result<Receipt, Str
         charges: vec![],
         outputs: BTreeMap::new(),
         active_flash: BTreeSet::new(),
+        entry_fee_balance,
     };
     let outcome = ctx.charge(100).and_then(|()| {
         for (i, c) in tx.program.iter().enumerate() {

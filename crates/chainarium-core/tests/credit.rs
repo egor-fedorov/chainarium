@@ -167,6 +167,42 @@ fn tuple(s: &Scenario, w: &World) -> (Amount, Amount, Amount, Amount) {
     )
 }
 #[test]
+fn post_loss_dust_withdrawal_does_not_burn_shares_for_zero_assets() {
+    let s = Scenario::parse(include_bytes!("../../../scenarios/demos/sc-05-credit.json")).unwrap();
+    let mut r = Run::new(s).unwrap();
+    r.step().unwrap();
+    r.step().unwrap();
+    assert_eq!(
+        (
+            r.state.lending["credit"].claims,
+            r.state.lending["credit"].total_shares
+        ),
+        (60.into(), 75.into())
+    );
+    let mut request = tx(
+        "dust-withdrawal",
+        "alice",
+        0,
+        vec![Call::Withdraw {
+            market: "credit".into(),
+            shares: 1.into(),
+            min_assets: Amount::ZERO,
+        }],
+    );
+    request.nonce = r.state.accounts["alice"].nonce;
+    let b = engine::build_block(&r.scenario, &r.state, &[request]).unwrap();
+    assert_eq!(b.receipts[0].status, "ProtocolRevert");
+    assert_eq!(
+        b.receipts[0].error.as_deref(),
+        Some("zero withdrawal assets")
+    );
+    let control = engine::build_block(&r.scenario, &r.state, &[]).unwrap();
+    assert_eq!(b.state.lending, control.state.lending);
+    assert_eq!(b.state.balance("alice", "Q"), r.state.balance("alice", "Q"));
+    assert!(b.receipts[0].events.is_empty());
+}
+
+#[test]
 fn vf_lend_account_interest_loss_and_redemption_exact() {
     let mut r = funded();
     assert_eq!(
