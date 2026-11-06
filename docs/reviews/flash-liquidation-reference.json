@@ -1,0 +1,15 @@
+{
+  "principal": "60",
+  "collateral": "6",
+  "sale_output": "84",
+  "stable_continuous_output": "83.896139443303558927347184597431426300629695769750806323979541648654963779272987162721482028112853776151170301",
+  "stable_output": "83",
+  "exit_output": "76",
+  "flash_due": "61",
+  "surplus": "15",
+  "debt_before": "90",
+  "repaid": "60",
+  "loss": "30",
+  "equity_loss": "2",
+  "depositor_loss": "28"
+}

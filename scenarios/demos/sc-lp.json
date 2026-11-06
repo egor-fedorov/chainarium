@@ -1,0 +1,151 @@
+{
+  "schema_version": "chainarium-scenario-m1-v1",
+  "model_versions": [
+    "native-execution-v1",
+    "native-cost-v1",
+    "cpmm-v1",
+    "scheduler-m1-v1",
+    "chacha12-v1",
+    "cpmm-lp-v1",
+    "bounded-route-v1",
+    "strict-flash-provider-v1"
+  ],
+  "name": "LP \u00b7 mint, burn \u0438 \u043e\u0442\u043a\u0430\u0442",
+  "seed": "42",
+  "assets": {
+    "X": {
+      "decimals": 0
+    },
+    "Q": {
+      "decimals": 0
+    }
+  },
+  "accounts": {
+    "alice": {
+      "balances": {
+        "X": "1000",
+        "Q": "10000"
+      },
+      "nonce": "0"
+    },
+    "bob": {
+      "balances": {
+        "X": "0",
+        "Q": "1000"
+      },
+      "nonce": "0"
+    },
+    "builder": {
+      "balances": {
+        "X": "0",
+        "Q": "0"
+      },
+      "nonce": "0"
+    },
+    "pool": {
+      "balances": {
+        "X": "1000",
+        "Q": "1000"
+      },
+      "nonce": "0"
+    }
+  },
+  "protocols": {
+    "cpmm": {
+      "account": "pool",
+      "x": "X",
+      "y": "Q",
+      "fee_bps": 30,
+      "owner": "alice"
+    }
+  },
+  "agents": {
+    "trader": {
+      "controlled_accounts": [
+        "alice"
+      ]
+    },
+    "recipient": {
+      "controlled_accounts": [
+        "bob"
+      ]
+    }
+  },
+  "chain": {
+    "id": "lab-1",
+    "fee_asset": "Q",
+    "fee_account": "builder",
+    "block_limit": "10000",
+    "interval": "12"
+  },
+  "blocks": [
+    [
+      {
+        "id": "lp-mint",
+        "agent": "trader",
+        "sender": "alice",
+        "chain": "lab-1",
+        "nonce": "0",
+        "limit": "1000",
+        "price": "0",
+        "deadline": "10000",
+        "program": [
+          {
+            "type": "AddLiquidity",
+            "pool": "cpmm",
+            "max_x": "100",
+            "max_y": "120",
+            "min_shares": "100"
+          }
+        ]
+      }
+    ],
+    [
+      {
+        "id": "lp-burn",
+        "agent": "trader",
+        "sender": "alice",
+        "chain": "lab-1",
+        "nonce": "1",
+        "limit": "1000",
+        "price": "0",
+        "deadline": "10000",
+        "program": [
+          {
+            "type": "RemoveLiquidity",
+            "pool": "cpmm",
+            "shares": "25",
+            "min_x": "25",
+            "min_y": "25"
+          }
+        ]
+      }
+    ],
+    [
+      {
+        "id": "lp-late-failure",
+        "agent": "trader",
+        "sender": "alice",
+        "chain": "lab-1",
+        "nonce": "2",
+        "limit": "1000",
+        "price": "0",
+        "deadline": "10000",
+        "program": [
+          {
+            "type": "AddLiquidity",
+            "pool": "cpmm",
+            "max_x": "100",
+            "max_y": "100",
+            "min_shares": "1"
+          },
+          {
+            "type": "AssertCondition",
+            "condition": false,
+            "message": "\u041e\u0442\u043a\u0430\u0437 \u043f\u043e\u0441\u043b\u0435 mint: shares \u0438 \u043f\u0435\u0440\u0435\u0432\u043e\u0434\u044b \u043e\u0442\u043c\u0435\u043d\u0435\u043d\u044b"
+          }
+        ]
+      }
+    ]
+  ]
+}

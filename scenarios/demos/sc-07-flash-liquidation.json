@@ -1,0 +1,526 @@
+{
+  "schema_version": "chainarium-scenario-m1-v1",
+  "model_versions": [
+    "native-execution-v1",
+    "native-cost-v1",
+    "cpmm-v1",
+    "scheduler-m1-v1",
+    "chacha12-v1",
+    "isolated-collateral-lending-v1",
+    "oracle-observation-v1",
+    "cpmm-lp-v1",
+    "bounded-route-v1",
+    "strict-flash-provider-v1",
+    "stableswap-2-v1",
+    "native-twap-v1"
+  ],
+  "name": "SC-07 · Flash-ликвидация через три площадки",
+  "seed": "42",
+  "assets": {
+    "X": {
+      "decimals": 0
+    },
+    "Q": {
+      "decimals": 0
+    },
+    "R": {
+      "decimals": 0
+    }
+  },
+  "accounts": {
+    "alice": {
+      "nonce": "0",
+      "balances": {
+        "X": "7",
+        "Q": "100",
+        "R": "0"
+      }
+    },
+    "bob": {
+      "nonce": "0",
+      "balances": {
+        "Q": "0",
+        "X": "6"
+      }
+    },
+    "carol": {
+      "nonce": "0",
+      "balances": {
+        "X": "0",
+        "Q": "0",
+        "R": "0"
+      }
+    },
+    "oracle": {
+      "nonce": "0",
+      "balances": {
+        "Q": "0",
+        "X": "0"
+      }
+    },
+    "builder": {
+      "nonce": "0",
+      "balances": {
+        "Q": "0",
+        "X": "0"
+      }
+    },
+    "reserve": {
+      "nonce": "0",
+      "balances": {
+        "Q": "0",
+        "X": "0"
+      }
+    },
+    "escrow-bob": {
+      "nonce": "0",
+      "balances": {
+        "Q": "0",
+        "X": "0"
+      }
+    },
+    "lp": {
+      "nonce": "0",
+      "balances": {
+        "X": "0",
+        "Q": "0",
+        "R": "0"
+      }
+    },
+    "oracle-pool": {
+      "nonce": "0",
+      "balances": {
+        "X": "20",
+        "Q": "400",
+        "R": "0"
+      }
+    },
+    "sale-pool": {
+      "nonce": "0",
+      "balances": {
+        "X": "100",
+        "Q": "1500",
+        "R": "0"
+      }
+    },
+    "stable-account": {
+      "nonce": "0",
+      "balances": {
+        "X": "0",
+        "Q": "1000",
+        "R": "1000"
+      }
+    },
+    "exit-pool": {
+      "nonce": "0",
+      "balances": {
+        "X": "0",
+        "Q": "1000",
+        "R": "1000"
+      }
+    },
+    "flash": {
+      "nonce": "0",
+      "balances": {
+        "X": "0",
+        "Q": "10000",
+        "R": "0"
+      }
+    }
+  },
+  "protocols": {
+    "oracle-pool": {
+      "account": "oracle-pool",
+      "x": "X",
+      "y": "Q",
+      "fee_bps": 0,
+      "owner": "lp"
+    },
+    "sale": {
+      "account": "sale-pool",
+      "x": "X",
+      "y": "Q",
+      "fee_bps": 30,
+      "owner": "lp"
+    },
+    "exit": {
+      "account": "exit-pool",
+      "x": "Q",
+      "y": "R",
+      "fee_bps": 30,
+      "owner": "lp"
+    }
+  },
+  "agents": {
+    "alice": {
+      "controlled_accounts": [
+        "alice"
+      ]
+    },
+    "bob": {
+      "controlled_accounts": [
+        "bob"
+      ]
+    },
+    "carol": {
+      "controlled_accounts": [
+        "carol"
+      ]
+    },
+    "oracle": {
+      "controlled_accounts": [
+        "oracle"
+      ]
+    },
+    "lp": {
+      "controlled_accounts": [
+        "lp"
+      ]
+    }
+  },
+  "chain": {
+    "id": "lab-1",
+    "fee_asset": "Q",
+    "fee_account": "builder",
+    "block_limit": "10000",
+    "interval": "1"
+  },
+  "blocks": [
+    [
+      {
+        "id": "supply-100",
+        "agent": "alice",
+        "sender": "alice",
+        "chain": "lab-1",
+        "nonce": "0",
+        "limit": "1000",
+        "price": "0",
+        "deadline": "1000",
+        "program": [
+          {
+            "type": "Supply",
+            "market": "credit",
+            "amount": "100",
+            "min_shares": "100"
+          }
+        ]
+      },
+      {
+        "id": "twap-20",
+        "agent": "oracle",
+        "sender": "oracle",
+        "chain": "lab-1",
+        "nonce": "0",
+        "limit": "1000",
+        "price": "0",
+        "deadline": "1000",
+        "program": [
+          {
+            "type": "PublishTwap",
+            "feed": "feed",
+            "end": "1",
+            "sequence": "1",
+            "update_id": "twap-1"
+          },
+          {
+            "type": "PublishTwap",
+            "feed": "r-q-twap",
+            "end": "1",
+            "sequence": "1",
+            "update_id": "rq-twap-1"
+          }
+        ]
+      },
+      {
+        "id": "borrow-80",
+        "agent": "bob",
+        "sender": "bob",
+        "chain": "lab-1",
+        "nonce": "0",
+        "limit": "1000",
+        "price": "0",
+        "deadline": "1000",
+        "program": [
+          {
+            "type": "DepositCollateral",
+            "market": "credit",
+            "amount": "6"
+          },
+          {
+            "type": "Borrow",
+            "market": "credit",
+            "amount": "80"
+          }
+        ]
+      },
+      {
+        "id": "price-20-to-11",
+        "agent": "alice",
+        "sender": "alice",
+        "chain": "lab-1",
+        "nonce": "1",
+        "limit": "1000",
+        "price": "0",
+        "deadline": "1000",
+        "program": [
+          {
+            "type": "SwapExactIn",
+            "pool": "oracle-pool",
+            "asset_in": "X",
+            "amount": "7",
+            "min_out": "103"
+          }
+        ]
+      }
+    ],
+    [
+      {
+        "id": "twap-11",
+        "agent": "oracle",
+        "sender": "oracle",
+        "chain": "lab-1",
+        "nonce": "1",
+        "limit": "1000",
+        "price": "0",
+        "deadline": "1000",
+        "program": [
+          {
+            "type": "PublishTwap",
+            "feed": "feed",
+            "end": "2",
+            "sequence": "2",
+            "update_id": "twap-2"
+          },
+          {
+            "type": "PublishTwap",
+            "feed": "r-q-twap",
+            "end": "2",
+            "sequence": "2",
+            "update_id": "rq-twap-2"
+          }
+        ]
+      },
+      {
+        "id": "flash-liquidation-shortfall",
+        "agent": "carol",
+        "sender": "carol",
+        "chain": "lab-1",
+        "nonce": "0",
+        "limit": "1000",
+        "price": "0",
+        "deadline": "1000",
+        "program": [
+          {
+            "type": "FlashLoan",
+            "provider": "flash",
+            "receiver": "carol",
+            "amount": "60",
+            "callback": [
+              {
+                "type": "Liquidate",
+                "market": "credit",
+                "borrower": "bob",
+                "amount": "60",
+                "min_collateral": "6"
+              },
+              {
+                "type": "SwapExactIn",
+                "pool": "oracle-pool",
+                "asset_in": "X",
+                "amount": "6",
+                "min_out": "1"
+              },
+              {
+                "type": "SwapOutput",
+                "pool": "stable",
+                "asset_in": "Q",
+                "output_of": "0.callback.1",
+                "min_out": "1"
+              },
+              {
+                "type": "SwapOutput",
+                "pool": "exit",
+                "asset_in": "R",
+                "output_of": "0.callback.2",
+                "min_out": "1"
+              }
+            ]
+          },
+          {
+            "type": "AssertNetBalanceDelta",
+            "asset": "Q",
+            "baseline": "0",
+            "minimum": "1"
+          }
+        ]
+      },
+      {
+        "id": "flash-liquidation-success",
+        "agent": "carol",
+        "sender": "carol",
+        "chain": "lab-1",
+        "nonce": "1",
+        "limit": "1000",
+        "price": "0",
+        "deadline": "1000",
+        "program": [
+          {
+            "type": "FlashLoan",
+            "provider": "flash",
+            "receiver": "carol",
+            "amount": "60",
+            "callback": [
+              {
+                "type": "Liquidate",
+                "market": "credit",
+                "borrower": "bob",
+                "amount": "60",
+                "min_collateral": "6"
+              },
+              {
+                "type": "SwapExactIn",
+                "pool": "sale",
+                "asset_in": "X",
+                "amount": "6",
+                "min_out": "1"
+              },
+              {
+                "type": "SwapOutput",
+                "pool": "stable",
+                "asset_in": "Q",
+                "output_of": "0.callback.1",
+                "min_out": "1"
+              },
+              {
+                "type": "SwapOutput",
+                "pool": "exit",
+                "asset_in": "R",
+                "output_of": "0.callback.2",
+                "min_out": "1"
+              }
+            ]
+          },
+          {
+            "type": "AssertNetBalanceDelta",
+            "asset": "Q",
+            "baseline": "0",
+            "minimum": "1"
+          }
+        ]
+      }
+    ],
+    [
+      {
+        "id": "redeem-25-shares",
+        "agent": "alice",
+        "sender": "alice",
+        "chain": "lab-1",
+        "nonce": "2",
+        "limit": "1000",
+        "price": "0",
+        "deadline": "1000",
+        "program": [
+          {
+            "type": "Withdraw",
+            "market": "credit",
+            "shares": "25",
+            "min_assets": "20"
+          }
+        ]
+      }
+    ]
+  ],
+  "feeds": {
+    "feed": {
+      "kind": {
+        "type": "NativeTwap",
+        "source": "oracle-price",
+        "window": "1"
+      },
+      "base_asset": "X",
+      "quote_asset": "Q",
+      "source_id": "oracle-price",
+      "publishers": [
+        "oracle"
+      ],
+      "initial": null
+    },
+    "r-q-twap": {
+      "kind": {
+        "type": "NativeTwap",
+        "source": "exit-price",
+        "window": "1"
+      },
+      "base_asset": "R",
+      "quote_asset": "Q",
+      "source_id": "exit-price",
+      "publishers": [
+        "oracle"
+      ],
+      "initial": null
+    }
+  },
+  "lending": {
+    "credit": {
+      "cash_account": "reserve",
+      "debt_asset": "Q",
+      "collateral_asset": "X",
+      "feed": "feed",
+      "ltv_bps": 7500,
+      "lt_bps": 8000,
+      "close_bps": 10000,
+      "bonus_bps": 1000,
+      "reserve_factor": "200000000000000000",
+      "supply_cap": "1000000",
+      "borrow_cap": "10000",
+      "max_age": "60",
+      "rate": {
+        "type": "Constant",
+        "rate": "125000000000000000"
+      },
+      "positions": {
+        "bob": "escrow-bob"
+      }
+    }
+  },
+  "stable_pools": {
+    "stable": {
+      "pool": {
+        "account": "stable-account",
+        "x": "Q",
+        "y": "R",
+        "fee_bps": 4,
+        "owner": "lp"
+      },
+      "amplification": 100,
+      "iteration_limit": 255
+    }
+  },
+  "flash_providers": {
+    "flash": {
+      "account": "flash",
+      "asset": "Q",
+      "fee_bps": 5
+    }
+  },
+  "price_sources": {
+    "oracle-price": {
+      "pool": "oracle-pool",
+      "base_asset": "X",
+      "quote_asset": "Q",
+      "history_capacity": 128
+    },
+    "sale-price": {
+      "pool": "sale",
+      "base_asset": "X",
+      "quote_asset": "Q",
+      "history_capacity": 128
+    },
+    "exit-price": {
+      "pool": "exit",
+      "base_asset": "R",
+      "quote_asset": "Q",
+      "history_capacity": 128
+    }
+  }
+}

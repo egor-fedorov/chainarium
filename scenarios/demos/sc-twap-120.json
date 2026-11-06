@@ -1,0 +1,243 @@
+{
+  "schema_version": "chainarium-scenario-m1-v1",
+  "model_versions": [
+    "native-execution-v1",
+    "native-cost-v1",
+    "cpmm-v1",
+    "scheduler-m1-v1",
+    "chacha12-v1",
+    "isolated-collateral-lending-v1",
+    "oracle-observation-v1",
+    "cpmm-lp-v1",
+    "bounded-route-v1",
+    "native-twap-v1"
+  ],
+  "name": "TWAP · Окно 120 s и веса времени",
+  "seed": "42",
+  "assets": {
+    "X": {
+      "decimals": 0
+    },
+    "Q": {
+      "decimals": 0
+    }
+  },
+  "accounts": {
+    "alice": {
+      "nonce": "0",
+      "balances": {
+        "X": "1000",
+        "Q": "100000"
+      }
+    },
+    "bob": {
+      "nonce": "0",
+      "balances": {
+        "X": "1",
+        "Q": "0"
+      }
+    },
+    "lp": {
+      "nonce": "0",
+      "balances": {
+        "X": "0",
+        "Q": "0"
+      }
+    },
+    "oracle": {
+      "nonce": "0",
+      "balances": {
+        "X": "0",
+        "Q": "0"
+      }
+    },
+    "builder": {
+      "nonce": "0",
+      "balances": {
+        "X": "0",
+        "Q": "0"
+      }
+    },
+    "pool": {
+      "nonce": "0",
+      "balances": {
+        "X": "4",
+        "Q": "400"
+      }
+    },
+    "reserve": {
+      "nonce": "0",
+      "balances": {
+        "X": "0",
+        "Q": "0"
+      }
+    },
+    "escrow-bob": {
+      "nonce": "0",
+      "balances": {
+        "X": "0",
+        "Q": "0"
+      }
+    }
+  },
+  "protocols": {
+    "cpmm": {
+      "account": "pool",
+      "x": "X",
+      "y": "Q",
+      "fee_bps": 0,
+      "owner": "lp"
+    }
+  },
+  "agents": {
+    "alice": {
+      "controlled_accounts": [
+        "alice"
+      ]
+    },
+    "bob": {
+      "controlled_accounts": [
+        "bob"
+      ]
+    },
+    "lp": {
+      "controlled_accounts": [
+        "lp"
+      ]
+    },
+    "oracle": {
+      "controlled_accounts": [
+        "oracle"
+      ]
+    }
+  },
+  "chain": {
+    "id": "lab-1",
+    "fee_asset": "Q",
+    "fee_account": "builder",
+    "block_limit": "10000",
+    "interval": "30"
+  },
+  "blocks": [
+    [
+      {
+        "id": "price-100-to-200",
+        "agent": "alice",
+        "sender": "alice",
+        "chain": "lab-1",
+        "nonce": "0",
+        "limit": "1000",
+        "price": "0",
+        "deadline": "10000",
+        "program": [
+          {
+            "type": "SwapExactIn",
+            "pool": "cpmm",
+            "asset_in": "Q",
+            "amount": "200",
+            "min_out": "1"
+          }
+        ]
+      },
+      {
+        "id": "spot-200",
+        "agent": "oracle",
+        "sender": "oracle",
+        "chain": "lab-1",
+        "nonce": "0",
+        "limit": "1000",
+        "price": "0",
+        "deadline": "10000",
+        "program": [
+          {
+            "type": "PublishSpot",
+            "feed": "spot",
+            "sequence": "1",
+            "update_id": "spot-1"
+          }
+        ]
+      }
+    ],
+    [
+      {
+        "id": "short-history",
+        "agent": "oracle",
+        "sender": "oracle",
+        "chain": "lab-1",
+        "nonce": "1",
+        "limit": "1000",
+        "price": "0",
+        "deadline": "10000",
+        "program": [
+          {
+            "type": "PublishTwap",
+            "feed": "twap",
+            "end": "60",
+            "sequence": "1",
+            "update_id": "twap-1"
+          }
+        ]
+      }
+    ],
+    [],
+    [
+      {
+        "id": "twap-175",
+        "agent": "oracle",
+        "sender": "oracle",
+        "chain": "lab-1",
+        "nonce": "2",
+        "limit": "1000",
+        "price": "0",
+        "deadline": "10000",
+        "program": [
+          {
+            "type": "PublishTwap",
+            "feed": "twap",
+            "end": "120",
+            "sequence": "1",
+            "update_id": "twap-1"
+          }
+        ]
+      }
+    ]
+  ],
+  "feeds": {
+    "spot": {
+      "kind": {
+        "type": "NativeSpot",
+        "source": "cpmm-price"
+      },
+      "base_asset": "X",
+      "quote_asset": "Q",
+      "source_id": "cpmm-price",
+      "publishers": [
+        "oracle"
+      ],
+      "initial": null
+    },
+    "twap": {
+      "kind": {
+        "type": "NativeTwap",
+        "source": "cpmm-price",
+        "window": "120"
+      },
+      "base_asset": "X",
+      "quote_asset": "Q",
+      "source_id": "cpmm-price",
+      "publishers": [
+        "oracle"
+      ],
+      "initial": null
+    }
+  },
+  "lending": {},
+  "price_sources": {
+    "cpmm-price": {
+      "pool": "cpmm",
+      "base_asset": "X",
+      "quote_asset": "Q",
+      "history_capacity": 128
+    }
+  }
+}

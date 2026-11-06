@@ -1,0 +1,283 @@
+# Прогресс Chainarium — 2026-11-06
+
+Цель: весь v1.0 из §2.1. Текущий результат — **исполняемый прототип M1–M3a**.
+Это не готовая v1.0; обязательный независимый review ещё не выполнен.
+DEC-05–DEC-18 приняты владельцем; M2a–M2g и M3a реализованы и проверены.
+M3a — стакан; DEC-19 для CLMM принят, реализация начата.
+Общий partial-fill router ещё не реализован.
+
+## Что работает
+
+Одно Rust-ядро обслуживает CLI и локальный web inspector. Реализованы точные
+U256/рациональные цены, ledger, copy-on-write savepoints, atomic block commit,
+fees/nonce/resource accounting и deterministic replay. Канонические события
+отделены от трассы отменённой попытки; просмотр UI не исполняет транзакции.
+
+- M1: CPMM exact-input swap, Transfer/Approve/TransferFrom, вложенные Sequence,
+  assertions, ресурс 100/10/5, late revert/exhaustion/ModelError.
+- M2a: proportional LP mint/burn, последний выход/bootstrap, маршруты до
+  3 hops / 64 полных кандидатов, реальные outputs, ограниченная arbitrage policy
+  на собственных средствах с Observation и simulation тем же executor.
+- M2b: отдельный flash reserve, ceil fee, callback authority, запрет reentry
+  одного provider, nesting разных providers, атомарный settlement/rollback.
+- M2c/M2d: изолированные collateral escrow, supply/withdraw shares, borrow,
+  repay за себя/другого, права oracle publisher, age/sequence/source validity,
+  block accrual с дробным переносом, constant/kink rates, liquidation, atomic
+  write-off E→S, история убытков и последующий вывод вкладчика.
+- M2e: stableswap-2-v1, нормализация, D/y solver, proportional LP, смешанный
+  маршрут и котировки; стоимость каждой итерации учитывается до вычисления.
+  Profit guard использует фактическую execution fee, включая solver work.
+- M2f: native spot и TWAP, точный интеграл/ограниченная история, публикация,
+  NotReady/gaps, freshness, read-only проекция и интеграция lending.
+- M2g: SC-07 объединяет flash/lending/CPMM/StableSwap/TWAP, включая убыток
+  и полный rollback недостаточной выручки. Реактивная liquidator policy — M4.
+- M3a: on-chain стакан, price-time, целые lot/tick, комиссии на каждый match,
+  GTC/IOC/FOK/cancel, защищённый escrow и read-only quote через executor.
+
+UI содержит одиннадцать presets, play/pause/step, просмотр block→tx→call, балансы, сравнение котировок и трасса solver,
+LP shares, C/D/S/E, escrow, точный HF и запись oracle, фактически использованную
+в конкретном вызове. Расчёт риска выполняет Rust; JS отображает готовые строки.
+Есть export/checkpoint/restore/fork и A/B параметров SC-01.
+
+## Фактическая проверка
+
+- `scripts/cargo.sh fmt --check` и Clippy всех targets с `-D warnings` — прошли.
+- `scripts/cargo.sh test --workspace --locked --offline` — **101 tests passed**:
+  4 unit fault-injection, 19 acceptance, 19 composition, 18 credit, 10 stable,
+  10 twap, 7 flash_liquidation, 14 book; ignored=0.
+- `node --test web/wire.test.mjs` — канонические строки, диапазоны и точный
+  decimal conversion прошли; JS экономические команды не проходят через Number.
+- `python3 scripts/check-ui.py` — пройден путь всех одиннадцати presets, readonly
+  просмотр, trace, checkpoint/resume, fork/A-B, точные Amount/Price через HTTP,
+  desktop/mobile; ошибок JavaScript и горизонтального overflow нет.
+- Release build и `git diff --check` — прошли.
+- CLI: все одиннадцать demos исполнены. Оба StableSwap demos после checkpoint/resume
+  дают побайтно идентичные `run.json`. SC-05 checkpoint после блока 1 → resume:
+  `run.json` побайтно совпадает с непрерывным запуском. В events JSONL начисление
+  10 Q присутствует, отменённая liquidation не создаёт канонического write-off.
+
+Артефакты: `output/m2cd-final/`; снимки `output/m2-credit-loss.png`,
+`output/m2-credit-rollback.png`, `output/m2-credit-mobile.png`. Desktop/mobile
+снимки просмотрены; исправлены скрытие ненужного AMM selector и восстановление
+выбранного preset после reload/restore. Export не перезаписывает папки.
+
+### SC-05: точная цепочка lending
+
+Начало: вклад Alice 100 Q, escrow Bob 6 X, borrow 80 Q при цене 20 Q/X,
+LTV=75%, LT=80%. Интервал 1 s, rate=0.125M, reserve factor=20%.
+Это аналитический fixture, не рыночные ставки.
+
+| Переход | C | D | S | E | T |
+| --- | ---: | ---: | ---: | ---: | ---: |
+| Supply/collateral/borrow, блок 1 | 20 | 80 | 100 | 0 | 100 |
+| Системное начисление +10, начало блока 2 | 20 | 90 | 108 | 2 | 100 |
+| Oracle 11 Q/X, liquidate 60 Q за 6 X и atomic write-off 30 | 80 | 0 | 80 | 0 | 100 |
+| Withdraw 25 shares → 20 Q, конец блока 2 | 60 | 0 | 60 | 0 | 75 |
+| Последние 75 shares → 60 Q, блок 3 | 0 | 0 | 0 | 0 | 0 |
+
+Промежуточное состояние `(80,30,108,2)` — проводка внутри атомарной liquidation,
+не отдельная committed-граница. Loss 30 поглощается E=2 и S=28. До успешной
+liquidation demo выполняет ту же операцию с поздним отказом: все transfers,
+losses и claims возвращаются, уже начисленный системный процент остаётся.
+После полного закрытия повторный Repay отклоняется без списания Q.
+
+### Остальные демо
+
+- SC-01: Success/ProtocolRevert/ResourceExhausted; units 120/130/120,
+  fees 240/260/240 Q, refunds 160/140/0. Финальный pool 1100 X / 910 Q,
+  Alice nonce=3, builder получает 740 Q.
+- LP: mint 100 shares, burn 25, следующий mint отменён. Финальные reserves
+  и total shares =1075; Alice 9925 Q / 925 X.
+- SC-03: policy использует 100 Q, получает 90 X → 123 Q, сохраняет старые X.
+  Ограниченный поиск и решение/ожидаемый gain записаны; лучшие маршруты вне
+  бюджета не обещаются. Отдельные тесты учитывают ненулевую execution fee.
+- SC-04: flash 100 Q, возврат 101 Q, остаток 22 Q; недоплата и поздний отказ
+  полностью возвращают состояние. Fee price=0 указан в учебных M2 presets.
+
+### M2e: StableSwap и смешанный маршрут
+
+Принятый DEC-16 реализован без изменения ожидаемых чисел. Аналитический эталон
+`docs/reviews/stableswap-reference.py` использует bisection continuous invariant
+и quadratic y; его закреплённый JSON совпал с повторным расчётом. Rust выводит:
+
+| Reserves Q/R | Decimals Q/R | Input Q | Output R atoms |
+| --- | --- | ---: | ---: |
+| 1000 / 1000 | 6 / 6 | 100 | 99860150 |
+| 100 / 10000 | 6 / 6 | 100 | 554752748 |
+| 1000 / 1000 | 6 / 8 | 100 | 9986015082 |
+
+A=100, fee=4 bps. Проверены normalized domain/U256, min-out/min-shares/min-assets,
+zero mint/output, ownership/protected account, полный LP exit/bootstrap,
+late rollback, отрицательный iteration limit case и естественное колебание
+integer solver на малых единицах. Несходимость даёт явный отказ; подставного D нет.
+180 детерминированных cases в обоих направлениях и с A=1/100/1000000 проверяют
+сохранение tokens и D с заявленной integer tolerance. Это native-модель;
+совместимость с конкретным Curve deployment не заявлена.
+
+В `sc-stable`: первый swap использует 129 units (9 solver iterations).
+Proportional mint/burn использует 140; цикл StableSwap→CPMM — 151;
+поздний отказ — 162; исчерпание — 111. Последние две попытки не меняют reserves
+и LP shares; nonce расходуется. После успешного цикла Alice имеет
+1935557132 Q atoms / 2099860150 R atoms (это балансы, не общий MTM/PnL).
+
+`AssertNetBalanceDelta` заменяет фиксированную оценку gas в guard политики:
+после всех solver-вызовов он проецирует точный fee/refund settlement. Разрешён
+только последним root-вызовом и в fee asset; вложенный/непоследний guard
+отвергается. Тесты CPMM policy с ненулевой fee и self fee recipient сохранены.
+
+UI/CLI показывают семь presets, текущие reserves обеих площадок, точные таблицы
+котировок, графическое сравнение и каждую итерацию D/y. Query API не меняет
+каноническое состояние. Browser проверил success/LP/mixed route/rollback,
+оба checkpoint paths, depeg и мобильную ширину. Снимки просмотрены.
+
+Артефакты: `output/m2e-final/` (семь demos и два byte-identical resumes),
+`output/m2-stable-curves.png`, `output/m2-stable-solver.png`,
+`output/m2-stable-depeg.png`, `output/m2-stable-mobile.png`.
+
+### M2f: TWAP, время и публикация
+
+DEC-17 реализован: точные рациональные сегменты/интеграл, 128 сегментов с
+rebase, gaps пустого пула и NotReady неполного окна. Genesis 100 Q/X,
+swap в t=30 даёт 200; W=60 даёт 150, W=120 — 175. Окна сопоставлены с
+независимой посекундной суммой. Проверены same-timestamp updates, 150 физических
+swaps/eviction, границы внутри сегмента, LP gap и однократное floor к 10^18.
+Недопустимый PriceOutOfRange сохраняет предыдущую настоящую публикацию.
+
+В `sc-twap` цена 600 из отменённой попытки не попадает в history. Повтор окна
+с end=60 в t=120 ещё допустим для borrow (age=60), в t=150 — stale (age=90).
+Repay остаётся допустим. Текущая read-only проекция 200 не заменяет опубликованные
+150; UI показывает обе цены, окно, сегменты и observation/publication time.
+Injected ModelError отменяет integral/publication вместе со всем блоком.
+
+### M2g: реальная flash-funded liquidation
+
+SC-07 использует TWAP X/Q с явно заданным W=1 s: 20 в первом блоке, 11 во
+втором. Отдельный TWAP R/Q также опубликован. Reference interest/factor и
+waterfall сохраняют числа §8.5. Liquidity venues: sale CPMM 100 X/1500 Q,
+StableSwap 1000 Q/1000 R (A100, fee4 bps), exit CPMM 1000 Q/1000 R (fee30 bps).
+Все активы имеют 0 decimals. До flash у Carol нет X/Q/R.
+
+| Действие | Реальный ledger-результат |
+| --- | --- |
+| Flash provider → Carol | 60 Q |
+| Liquidation | 60 Q в cash; 6 X из escrow; loss30 = equity2 + claims28 |
+| CPMM → StableSwap → CPMM | 6 X → 84 Q → 83 R → 76 Q |
+| Flash settlement | 61 Q; provider10000 → 10001 |
+| Закрытый цикл | Carol15 Q, X/R=0; execution price=0 явно задана |
+| Позже withdraw25 shares | Alice20 Q; C/D/S/E = 60/0/60/0, shares75 |
+
+Ожидания закреплены в `docs/reviews/flash-liquidation-reference.py/.json`;
+StableSwap quadratic reference даёт 83.896… R до целого output83.
+Первая попытка demo продаёт collateral дешевле через oracle CPMM:
+6 X → 54 Q → 53 R → 50 Q. Это меньше due61: весь flash scope, liquidation,
+writeoff и source changes отменяются. Независимая публикация TWAP и системный
+процент сохраняются. Failure219 units, success229; комиссии исполнения равны 0.
+
+Семь composed tests проверяют реальные transfers, недостаточный output,
+min-out, поздний отказ после settlement, каждый resource limit от 100 до 218,
+fee-preserving rollback, net guard с ненулевой fee и checkpoint на каждой
+границе. При цене 1 Q/unit guard отклоняет цикл: 15 Q не покрывают execution.
+UI дополнительно показывает C/D/S/E в сценариях с AMM.
+
+Артефакты M2f/M2g: `output/m2fg-final/` — все десять demos и три побайтно
+идентичных resumes; build `531d4803dd191abe4fc42a723604ea1e5ea6928983c3920f83ceb2680bca2f38`.
+Browser проверил все десять presets, snapshot viewing, trace, resume и mobile.
+Снимки `output/m2-twap-*.png`, `output/m2-composite-*.png`; просмотрены.
+Эксперименты выполнены до M3; следующий build намеренно изменит fingerprint.
+
+### M3a: стакан по DEC-18
+
+`native-book-v1` реализован на том же ledger/journal: до 16 стаканов, до 1024
+resting orders на каждый, ordered price/sequence indexes, защищённый escrow.
+Проверка инвариантов пересобирает index из order records и сопоставляет каждое
+обеспечение с реальным balance. Счётчик ID входит в rollback/checkpoint.
+
+Reference lot10 X, quote tick2 Q/lot, maker fee0, taker fee100 bps.
+Два maker: 2 lots по 50 ticks и 3 по 55. Независимые исходные ветки:
+
+| Операция | Наблюдение |
+| --- | --- |
+| Buy4 IOC | 40 X, gross420 Q, fee5 Q, резерв 448, возврат 23 |
+| Buy6 IOC | 50 X, gross530 Q, fee6 Q, резерв 672, возврат 136, 1 lot unfilled |
+| Buy6 FOK | Prefix виден в попытке; orders/fees/escrow/IDs полностью возвращены |
+| Buy6 GTC | 50 X, 1 lot resting/110 Q locked, возврат 26 Q |
+| Cancel остатка | Возврат 110 Q владельцу; неизвестный/чужой ID отклоняется |
+
+14 book tests включают эти числа, FIFO, обе стороны, SelfTrade, пустой IOC,
+zero-net sell из ceil fee, верхний резерв buy, fee recipient=taker, overflow,
+capacity1024, поздний отказ и все 52 resource limits от 100 до 151 для Buy4.
+Отдельная flat sorted-list модель совпала с indexed executor на 96 случаях:
+цены/объёмы, обе стороны, fees0/1/100/9999 bps и три TIF. Это differential
+проверка native-контракта, не заявленная совместимость со сторонней биржей и
+не независимый review. Дополнительный injected ModelError отменяет блок с
+новой заявкой/escrow/sequence. Read-only quote проверяет nonce/deadline/fee
+budget и точный state_ref; stale book исполняется заново, скрытого fill нет.
+
+SC-08 состоит из 6 блоков. Buy4 использует 152 units, FOK prefix147,
+late rollback162; empty IOC120 и refund exhaustion115. В конце открытых
+заявок/escrow нет, next_id10, treasury16 Q; Alice1980 Q/100 X,
+Bob1155 Q/10 X, Carol3849 Q/100 X. Это balances, не MTM/PnL.
+Execution price=0 явно задана учебным preset.
+
+UI показывает levels/FIFO queue, locked amounts, gross/fee/net и каждую
+отменённую попытку. Форма пробного ордера использует read-only snapshot и
+не меняет текущий запуск. Сценарий демонстрирует постановку/отмену шагами;
+общий интерактивный редактор и частичный router M3/M5 ещё не заявлены готовыми.
+
+Артефакты: `output/m3a-final/` —11 demos, четыре byte-identical resumes
+(стакан, SC-07, TWAP, StableSwap); build
+`28a4d3a246aa12cb38d6ae05b8828b374a28038ac6b950531283ee3f0e476061`.
+Browser прошёл все 11 presets и read-only quote success/FOK, checkpoint и mobile.
+Снимки `output/m3-book-quote.png`, `output/m3-book-fills.png`,
+`output/m3-book-mobile.png`; desktop/mobile просмотрены.
+
+### Fixtures и границы доказательства
+
+| Проверка | Доказательство | Ограничение |
+| --- | --- | --- |
+| Ledger/auth/execution/block | acceptance + 4 injected ModelErrors после успешной tx, включая accrual/oracle | Полного scheduler M4 ещё нет |
+| CPMM/LP/router/flash | composition: rounding/minima/ownership/reentry/actual output/rollback; 500 CPMM invariant cases | Native models; совместимость с внешним deployment не заявлена |
+| Lending accounting | exact fixture, caps/HF/LTV/cash, aggregate rates, multiple escrow, fractional carry, no-holder income | Прямой долг, заранее зарегистрированные позиции, максимум 1024/reserve |
+| Liquidation/loss | exact waterfall, partial close, dust, min_collateral, fee-preserving rollback, 256 deterministic boundary cases | Нет recovery/treasury; вывод equity запрещён |
+| Deposit shares | zero mint, minima, cash shortage без burn, last exit, bootstrap с E | Bankrupt проверен на invariant-valid defensive snapshot, не заявлен достижимым из genesis этого positive-payment preset |
+| Oracle | unauthorized/source/pair/future/duplicate/out-of-order; возраст 60/61; safe stale operations; consumer trace | External/native spot/TWAP; bounded history и однократное floor проверены |
+| Checkpoint/export | replay/resume/fork/tamper и кредитные states/receipts/system events | Состояние M1–M3a; queues/memory новых agents потребуют новых fixtures |
+| UI | реальные balances/trace, одиннадцать presets, desktop/mobile, exact HTTP wire | Прототип; полная приёмка M5 не закрыта |
+
+Численные ожидания следуют §6/§8/§20 и принятым DEC; тесты не заменяют
+независимый review. Analytical sweep — детерминированная проверка инвариантов,
+не сравнение с конкретной внешней реализацией.
+
+## Измерение M1
+
+Команда: `target/release/chainarium benchmark 1000`; Rust 1.99.1, Linux x86_64,
+AMD EPYC 9V74, среде доступны 5 vCPU; исполнение одним worker, release,
+полные traces. Нагрузка — 1000 блоков, 50 scripted senders, 4 CPMM,
+50 кандидатов/блок. Все 50000 swaps завершились успешно.
+Это масштабный CPMM-вариант M1, не имитация будущих торговых механизмов.
+
+- Исполнение: 1.730 s; 28904 tx/s.
+- Процесс вместе с подготовкой и сериализацией checkpoint: 2.787 s.
+- Peak RSS: 545520 KiB (532.7 MiB).
+- Checkpoint: 64141834 bytes.
+- Build fingerprint: `d0fa16d9c5c94302fd8c7b553da80060289980dbb99ff8b595588cc363a0142d`.
+
+Это baseline, **не утверждённые performance budgets**. G-16 остаётся открыт;
+latency UI и полные workloads M5 ещё не измерены/не приняты. Материалы текущей
+среды: `output/validation/`, `output/final-run/`, `output/m1-inspector.png`.
+
+## Что остаётся
+
+1. Независимый review в отдельном контексте по §23.4. Разрешение на отдельного
+   агента запрошено ранее, ответа на этот вопрос нет. Самопроверка не закрывает
+   этот критерий, а экономические согласования не считаются разрешением на агента.
+2. Следующий механизм M3 — CLMM: DEC-19 принят владельцем (§23.2.7),
+   точные ожидания до реализации сохранены. Реализация начата.
+3. M2f/M2g функционально проверены; независимый review остаётся обязательным.
+4. M3–M5: CLMM, стакан, partial fills, MEV/builders/bundles, hooks, остальные
+   политики agents, полный scheduler, MTM, эксперименты и explorer.
+5. Полные user-task/latency/performance budgets и независимое review должны
+   быть выполнены до приёмки целевой v1.0. SC-06 с конкуренцией — этап M4.
+
+Изменения находятся в рабочем checkout. Среда не публиковалась, push и release
+не выполнялись. Ранее опубликованная конфигурация среды не изменялась повторно.

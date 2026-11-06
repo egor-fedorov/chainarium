@@ -1,0 +1,473 @@
+{
+  "schema_version": "chainarium-scenario-m1-v1",
+  "model_versions": [
+    "native-execution-v1",
+    "native-cost-v1",
+    "cpmm-v1",
+    "scheduler-m1-v1",
+    "chacha12-v1",
+    "native-book-v1"
+  ],
+  "name": "SC-08 · Стакан, частичное исполнение и escrow",
+  "seed": "42",
+  "assets": {
+    "X": {
+      "decimals": 0
+    },
+    "Q": {
+      "decimals": 0
+    }
+  },
+  "accounts": {
+    "alice": {
+      "nonce": "0",
+      "balances": {
+        "X": "100",
+        "Q": "2000"
+      }
+    },
+    "bob": {
+      "nonce": "0",
+      "balances": {
+        "X": "110",
+        "Q": "0"
+      }
+    },
+    "carol": {
+      "nonce": "0",
+      "balances": {
+        "X": "0",
+        "Q": "5000"
+      }
+    },
+    "book-escrow": {
+      "nonce": "0",
+      "balances": {
+        "X": "0",
+        "Q": "0"
+      }
+    },
+    "treasury": {
+      "nonce": "0",
+      "balances": {
+        "X": "0",
+        "Q": "0"
+      }
+    },
+    "builder": {
+      "nonce": "0",
+      "balances": {
+        "X": "0",
+        "Q": "0"
+      }
+    }
+  },
+  "protocols": {},
+  "agents": {
+    "alice": {
+      "controlled_accounts": [
+        "alice"
+      ]
+    },
+    "bob": {
+      "controlled_accounts": [
+        "bob"
+      ]
+    },
+    "carol": {
+      "controlled_accounts": [
+        "carol"
+      ]
+    },
+    "treasury": {
+      "controlled_accounts": [
+        "treasury"
+      ]
+    }
+  },
+  "chain": {
+    "id": "lab-1",
+    "fee_asset": "Q",
+    "fee_account": "builder",
+    "block_limit": "10000",
+    "interval": "1"
+  },
+  "blocks": [
+    [
+      {
+        "id": "ask-A-2-at-50",
+        "agent": "alice",
+        "sender": "alice",
+        "chain": "lab-1",
+        "nonce": "0",
+        "limit": "1000",
+        "price": "0",
+        "deadline": "1000",
+        "program": [
+          {
+            "type": "PlaceOrder",
+            "book": "book",
+            "side": "Sell",
+            "lots": "2",
+            "price_ticks": "50",
+            "tif": "GTC"
+          }
+        ]
+      },
+      {
+        "id": "ask-B-3-at-55",
+        "agent": "bob",
+        "sender": "bob",
+        "chain": "lab-1",
+        "nonce": "0",
+        "limit": "1000",
+        "price": "0",
+        "deadline": "1000",
+        "program": [
+          {
+            "type": "PlaceOrder",
+            "book": "book",
+            "side": "Sell",
+            "lots": "3",
+            "price_ticks": "55",
+            "tif": "GTC"
+          }
+        ]
+      }
+    ],
+    [
+      {
+        "id": "FOK-6-revert",
+        "agent": "carol",
+        "sender": "carol",
+        "chain": "lab-1",
+        "nonce": "0",
+        "limit": "1000",
+        "price": "0",
+        "deadline": "1000",
+        "program": [
+          {
+            "type": "PlaceOrder",
+            "book": "book",
+            "side": "Buy",
+            "lots": "6",
+            "price_ticks": "55",
+            "tif": "FOK"
+          }
+        ]
+      },
+      {
+        "id": "late-fill-rollback",
+        "agent": "carol",
+        "sender": "carol",
+        "chain": "lab-1",
+        "nonce": "1",
+        "limit": "1000",
+        "price": "0",
+        "deadline": "1000",
+        "program": [
+          {
+            "type": "PlaceOrder",
+            "book": "book",
+            "side": "Buy",
+            "lots": "4",
+            "price_ticks": "55",
+            "tif": "IOC"
+          },
+          {
+            "type": "AssertCondition",
+            "condition": false,
+            "message": "Все fills и fees отменяются"
+          }
+        ]
+      },
+      {
+        "id": "IOC-4-spend-425",
+        "agent": "carol",
+        "sender": "carol",
+        "chain": "lab-1",
+        "nonce": "2",
+        "limit": "1000",
+        "price": "0",
+        "deadline": "1000",
+        "program": [
+          {
+            "type": "PlaceOrder",
+            "book": "book",
+            "side": "Buy",
+            "lots": "4",
+            "price_ticks": "55",
+            "tif": "IOC"
+          }
+        ]
+      }
+    ],
+    [
+      {
+        "id": "unauthorized-cancel",
+        "agent": "carol",
+        "sender": "carol",
+        "chain": "lab-1",
+        "nonce": "3",
+        "limit": "1000",
+        "price": "0",
+        "deadline": "1000",
+        "program": [
+          {
+            "type": "CancelOrder",
+            "book": "book",
+            "order_id": "2"
+          }
+        ]
+      },
+      {
+        "id": "cancel-last-ask",
+        "agent": "bob",
+        "sender": "bob",
+        "chain": "lab-1",
+        "nonce": "1",
+        "limit": "1000",
+        "price": "0",
+        "deadline": "1000",
+        "program": [
+          {
+            "type": "CancelOrder",
+            "book": "book",
+            "order_id": "2"
+          }
+        ]
+      },
+      {
+        "id": "rest-bid-6",
+        "agent": "alice",
+        "sender": "alice",
+        "chain": "lab-1",
+        "nonce": "1",
+        "limit": "1000",
+        "price": "0",
+        "deadline": "1000",
+        "program": [
+          {
+            "type": "PlaceOrder",
+            "book": "book",
+            "side": "Buy",
+            "lots": "6",
+            "price_ticks": "55",
+            "tif": "GTC"
+          }
+        ]
+      },
+      {
+        "id": "sell-2-net-217",
+        "agent": "bob",
+        "sender": "bob",
+        "chain": "lab-1",
+        "nonce": "2",
+        "limit": "1000",
+        "price": "0",
+        "deadline": "1000",
+        "program": [
+          {
+            "type": "PlaceOrder",
+            "book": "book",
+            "side": "Sell",
+            "lots": "2",
+            "price_ticks": "50",
+            "tif": "IOC"
+          }
+        ]
+      }
+    ],
+    [
+      {
+        "id": "ask-5-at-60",
+        "agent": "bob",
+        "sender": "bob",
+        "chain": "lab-1",
+        "nonce": "3",
+        "limit": "1000",
+        "price": "0",
+        "deadline": "1000",
+        "program": [
+          {
+            "type": "PlaceOrder",
+            "book": "book",
+            "side": "Sell",
+            "lots": "5",
+            "price_ticks": "60",
+            "tif": "GTC"
+          }
+        ]
+      },
+      {
+        "id": "buy-6-fill-5-rest-1",
+        "agent": "carol",
+        "sender": "carol",
+        "chain": "lab-1",
+        "nonce": "4",
+        "limit": "1000",
+        "price": "0",
+        "deadline": "1000",
+        "program": [
+          {
+            "type": "PlaceOrder",
+            "book": "book",
+            "side": "Buy",
+            "lots": "6",
+            "price_ticks": "60",
+            "tif": "GTC"
+          }
+        ]
+      }
+    ],
+    [
+      {
+        "id": "self-trade-revert",
+        "agent": "carol",
+        "sender": "carol",
+        "chain": "lab-1",
+        "nonce": "5",
+        "limit": "1000",
+        "price": "0",
+        "deadline": "1000",
+        "program": [
+          {
+            "type": "PlaceOrder",
+            "book": "book",
+            "side": "Sell",
+            "lots": "1",
+            "price_ticks": "55",
+            "tif": "IOC"
+          }
+        ]
+      },
+      {
+        "id": "sell-to-last-bid",
+        "agent": "bob",
+        "sender": "bob",
+        "chain": "lab-1",
+        "nonce": "4",
+        "limit": "1000",
+        "price": "0",
+        "deadline": "1000",
+        "program": [
+          {
+            "type": "PlaceOrder",
+            "book": "book",
+            "side": "Sell",
+            "lots": "1",
+            "price_ticks": "60",
+            "tif": "IOC"
+          }
+        ]
+      },
+      {
+        "id": "cancel-bid-refund-440",
+        "agent": "alice",
+        "sender": "alice",
+        "chain": "lab-1",
+        "nonce": "2",
+        "limit": "1000",
+        "price": "0",
+        "deadline": "1000",
+        "program": [
+          {
+            "type": "CancelOrder",
+            "book": "book",
+            "order_id": "4"
+          }
+        ]
+      },
+      {
+        "id": "cancel-closed-revert",
+        "agent": "bob",
+        "sender": "bob",
+        "chain": "lab-1",
+        "nonce": "5",
+        "limit": "1000",
+        "price": "0",
+        "deadline": "1000",
+        "program": [
+          {
+            "type": "CancelOrder",
+            "book": "book",
+            "order_id": "6"
+          }
+        ]
+      }
+    ],
+    [
+      {
+        "id": "empty-IOC-refund",
+        "agent": "bob",
+        "sender": "bob",
+        "chain": "lab-1",
+        "nonce": "6",
+        "limit": "1000",
+        "price": "0",
+        "deadline": "1000",
+        "program": [
+          {
+            "type": "PlaceOrder",
+            "book": "book",
+            "side": "Sell",
+            "lots": "1",
+            "price_ticks": "100",
+            "tif": "IOC"
+          }
+        ]
+      },
+      {
+        "id": "empty-FOK-revert",
+        "agent": "carol",
+        "sender": "carol",
+        "chain": "lab-1",
+        "nonce": "6",
+        "limit": "1000",
+        "price": "0",
+        "deadline": "1000",
+        "program": [
+          {
+            "type": "PlaceOrder",
+            "book": "book",
+            "side": "Buy",
+            "lots": "1",
+            "price_ticks": "55",
+            "tif": "FOK"
+          }
+        ]
+      },
+      {
+        "id": "reserve-refund-exhaustion",
+        "agent": "carol",
+        "sender": "carol",
+        "chain": "lab-1",
+        "nonce": "7",
+        "limit": "115",
+        "price": "0",
+        "deadline": "1000",
+        "program": [
+          {
+            "type": "PlaceOrder",
+            "book": "book",
+            "side": "Buy",
+            "lots": "1",
+            "price_ticks": "55",
+            "tif": "GTC"
+          }
+        ]
+      }
+    ]
+  ],
+  "books": {
+    "book": {
+      "account": "book-escrow",
+      "base_asset": "X",
+      "quote_asset": "Q",
+      "lot_atoms": "10",
+      "quote_tick_atoms": "2",
+      "taker_fee_bps": 100,
+      "fee_account": "treasury"
+    }
+  }
+}

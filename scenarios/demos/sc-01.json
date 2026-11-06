@@ -1,0 +1,152 @@
+{
+  "schema_version": "chainarium-scenario-m1-v1",
+  "model_versions": [
+    "native-execution-v1",
+    "native-cost-v1",
+    "cpmm-v1",
+    "scheduler-m1-v1",
+    "chacha12-v1"
+  ],
+  "name": "SC-01 \u00b7 swap, late failure and rollback",
+  "seed": "42",
+  "assets": {
+    "X": {
+      "decimals": 0
+    },
+    "Q": {
+      "decimals": 0
+    }
+  },
+  "accounts": {
+    "alice": {
+      "balances": {
+        "X": "1000",
+        "Q": "10000"
+      },
+      "nonce": "0"
+    },
+    "bob": {
+      "balances": {
+        "X": "0",
+        "Q": "1000"
+      },
+      "nonce": "0"
+    },
+    "builder": {
+      "balances": {
+        "X": "0",
+        "Q": "0"
+      },
+      "nonce": "0"
+    },
+    "pool": {
+      "balances": {
+        "X": "1000",
+        "Q": "1000"
+      },
+      "nonce": "0"
+    }
+  },
+  "protocols": {
+    "cpmm": {
+      "account": "pool",
+      "x": "X",
+      "y": "Q",
+      "fee_bps": 30,
+      "owner": "alice"
+    }
+  },
+  "agents": {
+    "trader": {
+      "controlled_accounts": [
+        "alice"
+      ]
+    },
+    "recipient": {
+      "controlled_accounts": [
+        "bob"
+      ]
+    }
+  },
+  "chain": {
+    "id": "lab-1",
+    "fee_asset": "Q",
+    "fee_account": "builder",
+    "block_limit": "10000",
+    "interval": "12"
+  },
+  "blocks": [
+    [
+      {
+        "id": "swap-success",
+        "agent": "trader",
+        "sender": "alice",
+        "chain": "lab-1",
+        "nonce": "0",
+        "limit": "200",
+        "price": "2",
+        "deadline": "10000",
+        "program": [
+          {
+            "type": "SwapExactIn",
+            "pool": "cpmm",
+            "asset_in": "X",
+            "amount": "100",
+            "min_out": "1"
+          }
+        ]
+      }
+    ],
+    [
+      {
+        "id": "swap-late-failure",
+        "agent": "trader",
+        "sender": "alice",
+        "chain": "lab-1",
+        "nonce": "1",
+        "limit": "200",
+        "price": "2",
+        "deadline": "10000",
+        "program": [
+          {
+            "type": "SwapExactIn",
+            "pool": "cpmm",
+            "asset_in": "X",
+            "amount": "100",
+            "min_out": "1"
+          },
+          {
+            "type": "AssertCondition",
+            "condition": false,
+            "message": "late failure: rollback the entire swap"
+          }
+        ]
+      }
+    ],
+    [
+      {
+        "id": "resource-exhaustion",
+        "agent": "trader",
+        "sender": "alice",
+        "chain": "lab-1",
+        "nonce": "2",
+        "limit": "120",
+        "price": "2",
+        "deadline": "10000",
+        "program": [
+          {
+            "type": "Transfer",
+            "to": "bob",
+            "asset": "X",
+            "amount": "10"
+          },
+          {
+            "type": "AssertCondition",
+            "condition": false,
+            "message": "late failure: rollback the entire swap"
+          }
+        ]
+      }
+    ]
+  ]
+}

@@ -1,0 +1,16 @@
+[package]
+name = "chainarium-cli"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+
+[[bin]]
+name = "chainarium"
+path = "src/main.rs"
+
+[dependencies]
+chainarium-core = { path = "../chainarium-core" }
+serde.workspace = true
+serde_json.workspace = true
+axum.workspace = true
+tokio.workspace = true

@@ -1,0 +1,171 @@
+{
+  "schema_version": "chainarium-scenario-m1-v1",
+  "model_versions": [
+    "native-execution-v1",
+    "native-cost-v1",
+    "cpmm-v1",
+    "scheduler-m1-v1",
+    "chacha12-v1",
+    "cpmm-lp-v1",
+    "bounded-route-v1",
+    "stableswap-2-v1"
+  ],
+  "name": "StableSwap · Сильный дисбаланс",
+  "seed": "42",
+  "assets": {
+    "Q": {
+      "decimals": 6
+    },
+    "R": {
+      "decimals": 6
+    }
+  },
+  "accounts": {
+    "alice": {
+      "nonce": "0",
+      "balances": {
+        "Q": "2000000000",
+        "R": "2000000000"
+      }
+    },
+    "lp": {
+      "nonce": "0",
+      "balances": {
+        "Q": "0",
+        "R": "0"
+      }
+    },
+    "builder": {
+      "nonce": "0",
+      "balances": {
+        "Q": "0",
+        "R": "0"
+      }
+    },
+    "stable-account": {
+      "nonce": "0",
+      "balances": {
+        "Q": "100000000",
+        "R": "10000000000"
+      }
+    },
+    "cpmm-account": {
+      "nonce": "0",
+      "balances": {
+        "Q": "1500000000",
+        "R": "1000000000"
+      }
+    }
+  },
+  "protocols": {
+    "cpmm": {
+      "account": "cpmm-account",
+      "x": "Q",
+      "y": "R",
+      "fee_bps": 30,
+      "owner": "lp"
+    }
+  },
+  "agents": {
+    "alice": {
+      "controlled_accounts": [
+        "alice"
+      ]
+    },
+    "lp": {
+      "controlled_accounts": [
+        "lp"
+      ]
+    }
+  },
+  "chain": {
+    "id": "lab-1",
+    "fee_asset": "Q",
+    "fee_account": "builder",
+    "block_limit": "10000",
+    "interval": "1"
+  },
+  "blocks": [
+    [
+      {
+        "id": "depeg-100Q-to-554.752748R",
+        "agent": "alice",
+        "sender": "alice",
+        "chain": "lab-1",
+        "nonce": "0",
+        "limit": "1000",
+        "price": "0",
+        "deadline": "1000",
+        "program": [
+          {
+            "type": "SwapExactIn",
+            "pool": "stable",
+            "asset_in": "Q",
+            "amount": "100000000",
+            "min_out": "554752748"
+          }
+        ]
+      }
+    ],
+    [
+      {
+        "id": "reverse-500R",
+        "agent": "alice",
+        "sender": "alice",
+        "chain": "lab-1",
+        "nonce": "1",
+        "limit": "1000",
+        "price": "0",
+        "deadline": "1000",
+        "program": [
+          {
+            "type": "SwapExactIn",
+            "pool": "stable",
+            "asset_in": "R",
+            "amount": "500000000",
+            "min_out": "1"
+          }
+        ]
+      }
+    ],
+    [
+      {
+        "id": "depeg-rollback",
+        "agent": "alice",
+        "sender": "alice",
+        "chain": "lab-1",
+        "nonce": "2",
+        "limit": "1000",
+        "price": "0",
+        "deadline": "1000",
+        "program": [
+          {
+            "type": "SwapExactIn",
+            "pool": "stable",
+            "asset_in": "Q",
+            "amount": "100000000",
+            "min_out": "1"
+          },
+          {
+            "type": "AssertCondition",
+            "condition": false,
+            "message": "Цена попытки отменяется"
+          }
+        ]
+      }
+    ]
+  ],
+  "stable_pools": {
+    "stable": {
+      "pool": {
+        "account": "stable-account",
+        "x": "Q",
+        "y": "R",
+        "fee_bps": 4,
+        "owner": "lp"
+      },
+      "amplification": 100,
+      "iteration_limit": 255
+    }
+  }
+}

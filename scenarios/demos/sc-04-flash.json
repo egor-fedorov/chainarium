@@ -1,0 +1,207 @@
+{
+  "schema_version": "chainarium-scenario-m1-v1",
+  "model_versions": [
+    "native-execution-v1",
+    "native-cost-v1",
+    "cpmm-v1",
+    "scheduler-m1-v1",
+    "chacha12-v1",
+    "cpmm-lp-v1",
+    "bounded-route-v1",
+    "strict-flash-provider-v1"
+  ],
+  "name": "Flash \u00b7 \u0432\u043e\u0437\u0432\u0440\u0430\u0442, \u043d\u0435\u0434\u043e\u043f\u043b\u0430\u0442\u0430 \u0438 \u043f\u043e\u0437\u0434\u043d\u0438\u0439 \u043e\u0442\u043a\u0430\u0437",
+  "seed": "42",
+  "assets": {
+    "X": {
+      "decimals": 0
+    },
+    "Q": {
+      "decimals": 0
+    }
+  },
+  "accounts": {
+    "alice": {
+      "balances": {
+        "X": "1000",
+        "Q": "0"
+      },
+      "nonce": "0"
+    },
+    "bob": {
+      "balances": {
+        "X": "0",
+        "Q": "1000"
+      },
+      "nonce": "0"
+    },
+    "builder": {
+      "balances": {
+        "X": "0",
+        "Q": "0"
+      },
+      "nonce": "0"
+    },
+    "pool": {
+      "balances": {
+        "X": "1000",
+        "Q": "1000"
+      },
+      "nonce": "0"
+    },
+    "pool-b": {
+      "nonce": "0",
+      "balances": {
+        "X": "1000",
+        "Q": "1500"
+      }
+    },
+    "flash": {
+      "nonce": "0",
+      "balances": {
+        "Q": "10000"
+      }
+    }
+  },
+  "protocols": {
+    "cpmm": {
+      "account": "pool",
+      "x": "X",
+      "y": "Q",
+      "fee_bps": 30,
+      "owner": "alice"
+    },
+    "second": {
+      "account": "pool-b",
+      "x": "X",
+      "y": "Q",
+      "fee_bps": 30,
+      "owner": "alice"
+    }
+  },
+  "agents": {
+    "trader": {
+      "controlled_accounts": [
+        "alice"
+      ]
+    },
+    "recipient": {
+      "controlled_accounts": [
+        "bob"
+      ]
+    }
+  },
+  "chain": {
+    "id": "lab-1",
+    "fee_asset": "Q",
+    "fee_account": "builder",
+    "block_limit": "10000",
+    "interval": "12"
+  },
+  "blocks": [
+    [
+      {
+        "id": "flash-cycle-success",
+        "agent": "trader",
+        "sender": "alice",
+        "chain": "lab-1",
+        "nonce": "0",
+        "limit": "1000",
+        "price": "0",
+        "deadline": "10000",
+        "program": [
+          {
+            "type": "FlashLoan",
+            "provider": "flash",
+            "receiver": "alice",
+            "amount": "100",
+            "callback": [
+              {
+                "type": "SwapExactIn",
+                "pool": "cpmm",
+                "asset_in": "Q",
+                "amount": "100",
+                "min_out": "1"
+              },
+              {
+                "type": "SwapOutput",
+                "pool": "second",
+                "asset_in": "X",
+                "output_of": "0.callback.0",
+                "min_out": "1"
+              }
+            ]
+          },
+          {
+            "type": "AssertBalanceDelta",
+            "account": "alice",
+            "asset": "Q",
+            "baseline": "0",
+            "minimum": "22"
+          }
+        ]
+      }
+    ],
+    [
+      {
+        "id": "flash-shortfall",
+        "agent": "trader",
+        "sender": "alice",
+        "chain": "lab-1",
+        "nonce": "1",
+        "limit": "1000",
+        "price": "0",
+        "deadline": "10000",
+        "program": [
+          {
+            "type": "FlashLoan",
+            "provider": "flash",
+            "receiver": "alice",
+            "amount": "100",
+            "callback": [
+              {
+                "type": "Transfer",
+                "to": "bob",
+                "asset": "Q",
+                "amount": "100"
+              }
+            ]
+          }
+        ]
+      }
+    ],
+    [
+      {
+        "id": "flash-late-failure",
+        "agent": "trader",
+        "sender": "alice",
+        "chain": "lab-1",
+        "nonce": "2",
+        "limit": "1000",
+        "price": "0",
+        "deadline": "10000",
+        "program": [
+          {
+            "type": "FlashLoan",
+            "provider": "flash",
+            "receiver": "alice",
+            "amount": "100",
+            "callback": []
+          },
+          {
+            "type": "AssertCondition",
+            "condition": false,
+            "message": "\u041f\u043e\u0437\u0434\u043d\u0438\u0439 \u043e\u0442\u043a\u0430\u0437 \u043f\u043e\u0441\u043b\u0435 \u0432\u043e\u0437\u0432\u0440\u0430\u0442\u0430 \u0437\u0430\u0439\u043c\u0430: \u0432\u0441\u0451 \u043e\u0442\u043c\u0435\u043d\u0435\u043d\u043e"
+          }
+        ]
+      }
+    ]
+  ],
+  "flash_providers": {
+    "flash": {
+      "account": "flash",
+      "asset": "Q",
+      "fee_bps": 5
+    }
+  }
+}
