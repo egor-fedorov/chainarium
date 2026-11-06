@@ -4,10 +4,10 @@
 Это не готовая v1.0. Независимый review M1–M3b завершён, три findings исправлены
 и перепроверены. Отдельный review M3c–M3d завершён без подтверждённых findings;
 область и ограничения сохранены в `docs/reviews/dec20-independent-review.md`.
-DEC-05–DEC-20 приняты владельцем.
+DEC-05–DEC-21 приняты владельцем.
 Общий partial-fill router, LP/MM-политики и heterogeneous arbitrage реализованы.
-Следующий контракт M4a подготовлен как **Proposed DEC-21** (§23.2.9);
-новые правила ещё не согласованы и не реализованы.
+Контракт M4a принят как **DEC-21** (§23.2.9) 2026-11-06;
+реализация scheduler/mempool/basic builders начата.
 
 ## Что работает
 
@@ -410,11 +410,11 @@ latency UI и полные workloads M5 ещё не измерены/не при
    границы review — `docs/reviews/dec20-independent-review.md`.
 3. M2f/M2g входят в завершённый review M1–M3b; ограничения проверки указаны
    в его отчёте. Новые механизмы M4 потребуют отдельного review.
-4. Следующий срез M4a: **Proposed DEC-21** в `docs/spec.md` §23.2.9 —
+4. Следующий срез M4a: **Accepted DEC-21** в `docs/spec.md` §23.2.9 —
    event scheduler, bounded mempool, Public/Private delivery, базовые
    FIFO/Fixed/FeePriority builders и явный OnVisibleProgram. Численные ожидания
    `docs/reviews/scheduler-reference.py`/`.json` пересчитаны и совпали.
-   Реализация ожидает согласования владельца по §23.7.
+   Владелец согласовал контракт по §23.7; реализация начата.
    После него остаются bundles/greedy, поисковые backrun/liquidator policies,
    hooks и M5: MTM, эксперименты, полный explorer и приёмка.
 5. Полные user-task/latency/performance budgets и независимое review должны
