@@ -25,3 +25,5 @@ pub mod book;
 pub mod clmm;
 
 pub mod liquidation;
+
+pub mod hooks;

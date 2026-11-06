@@ -1,6 +1,7 @@
 mod book_calls;
 mod clmm_calls;
 mod credit_calls;
+mod hook_calls;
 mod liquidation_calls;
 mod oracle_calls;
 mod route_calls;
@@ -58,6 +59,11 @@ impl World {
             shares.insert(id.clone(), total);
         }
         let mut w = Self {
+            hooks: s
+                .hooks
+                .keys()
+                .map(|id| (id.clone(), crate::hooks::State::default()))
+                .collect(),
             accounts: Arc::new(s.accounts.clone()),
             allowances: Arc::new(BTreeMap::new()),
             lp_balances: Arc::new(
@@ -211,6 +217,7 @@ impl World {
                 cfg.parameters(s)?.normalized([x, y])?;
             }
         }
+        crate::hooks::invariant(s, self)?;
         crate::credit::invariant(s, self)?;
         crate::twap::invariant(s, self)?;
         crate::book::invariant(s, self)?;
@@ -238,6 +245,9 @@ pub fn quote(
     asset: &str,
     amount: Amount,
 ) -> Result<(String, Amount), String> {
+    if crate::hooks::binding(s, pool).is_some() {
+        return Err("HookRequiresExecution: use route quote with sender/resource/minima".into());
+    }
     let p = s.pool(pool).ok_or("unknown pool")?;
     let other = if asset == p.x {
         &p.y
@@ -369,6 +379,7 @@ impl Context<'_> {
             _ => self.tx.sender.clone(),
         };
         self.trace.push(Trace {
+            hook: None,
             liquidation: None,
             route: None,
             clmm: None,
@@ -438,6 +449,17 @@ impl Context<'_> {
             .get(pool)
             .map(|cfg| cfg.parameters(self.s))
             .transpose()?;
+        let action = crate::hooks::Action::Swap {
+            asset_in: asset_in.into(),
+            input: amount,
+            min_out,
+            base_fee: p.fee_bps,
+            effective_fee: p.fee_bps,
+            output: None,
+        };
+        let effective_fee = self
+            .run_hook(w, pool, crate::hooks::Point::BeforeSwap, action, path)?
+            .unwrap_or(p.fee_bps);
         let (asset_out, out) = if let Some(params) = stable.as_ref() {
             let other = if asset_in == p.x {
                 p.y.clone()
@@ -463,7 +485,20 @@ impl Context<'_> {
                 .extend(steps);
             (other, result?)
         } else {
-            quote(self.s, w, pool, asset_in, amount)?
+            let other = if asset_in == p.x {
+                p.y.clone()
+            } else if asset_in == p.y {
+                p.x.clone()
+            } else {
+                return Err(Protocol("asset not in pool".into()));
+            };
+            let output = cpmm_output(
+                w.balance(&p.account, asset_in),
+                w.balance(&p.account, &other),
+                amount,
+                effective_fee,
+            )?;
+            (other, output)
         };
         if out < min_out {
             return Err(Protocol("min_out".into()));
@@ -471,6 +506,20 @@ impl Context<'_> {
         let before = w.balance(&p.account, &p.x).big() * w.balance(&p.account, &p.y).big();
         self.transfer(w, &sender, &p.account, asset_in, amount)?;
         self.transfer(w, &p.account, &sender, &asset_out, out)?;
+        self.run_hook(
+            w,
+            pool,
+            crate::hooks::Point::AfterSwap,
+            crate::hooks::Action::Swap {
+                asset_in: asset_in.into(),
+                input: amount,
+                min_out,
+                base_fee: p.fee_bps,
+                effective_fee,
+                output: Some(out),
+            },
+            path,
+        )?;
         let after = w.balance(&p.account, &p.x).big() * w.balance(&p.account, &p.y).big();
         if stable.is_none() && after < before {
             return Err(Model("CPMM k decreased".into()));
@@ -562,6 +611,7 @@ impl Context<'_> {
                 max_y,
                 min_shares,
             } => {
+                self.liquidity_hook(w, c, crate::hooks::Point::BeforeLiquidity, None, path)?;
                 let p = self.s.pool(pool).ok_or("unknown pool")?.clone();
                 let total = *w
                     .shares
@@ -626,6 +676,17 @@ impl Context<'_> {
                     asset: format!("LP:{pool}"),
                     amount: m,
                 });
+                self.liquidity_hook(
+                    w,
+                    c,
+                    crate::hooks::Point::AfterLiquidity,
+                    Some(crate::hooks::LiquidityResult {
+                        x: dx,
+                        y: dy,
+                        shares: m,
+                    }),
+                    path,
+                )?;
                 Ok(())
             }
             Call::RemoveLiquidity {
@@ -634,6 +695,7 @@ impl Context<'_> {
                 min_x,
                 min_y,
             } => {
+                self.liquidity_hook(w, c, crate::hooks::Point::BeforeLiquidity, None, path)?;
                 let p = self.s.pool(pool).ok_or("unknown pool")?.clone();
                 let total = *w
                     .shares
@@ -665,6 +727,17 @@ impl Context<'_> {
                     asset: format!("LP:{pool}"),
                     amount: *shares,
                 });
+                self.liquidity_hook(
+                    w,
+                    c,
+                    crate::hooks::Point::AfterLiquidity,
+                    Some(crate::hooks::LiquidityResult {
+                        x: dx,
+                        y: dy,
+                        shares: *shares,
+                    }),
+                    path,
+                )?;
                 Ok(())
             }
             Call::FlashLoan {
@@ -1083,5 +1156,27 @@ mod tests {
         assert_eq!(parent, before);
         assert_eq!(parent.price_history["cpmm-price"].last_time, 30.into());
         assert!(parent.feeds["twap"].record.is_none());
+    }
+}
+
+#[cfg(test)]
+mod hook_fault_tests {
+    use super::*;
+    #[test]
+    fn model_error_after_hook_payout_discards_whole_block_including_prior_receipt() {
+        let s =
+            Scenario::parse(include_bytes!("../../../scenarios/demos/sc-hook-fee.json")).unwrap();
+        let parent = World::genesis(&s).unwrap();
+        let before = parent.clone();
+        let seen = std::cell::Cell::new(false);
+        let result = build_with_check(&s, &parent, &s.blocks[0], |w| {
+            seen.set(true);
+            assert_eq!(w.hooks["guard"].counter, 2.into());
+            assert_eq!(w.balance("hook", "Q"), 17.into());
+            assert_eq!(w.balance("alice", "Q"), 890.into());
+            Err("injected ModelError after hook payout".into())
+        });
+        assert!(seen.get() && result.is_err());
+        assert_eq!(parent, before);
     }
 }

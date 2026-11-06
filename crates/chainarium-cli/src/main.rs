@@ -92,6 +92,12 @@ async fn preset(ApiPath(id): ApiPath<String>) -> Result<impl IntoResponse, ApiEr
         "sc-scheduler-nonce" => include_str!("../../../scenarios/demos/sc-scheduler-nonce.json"),
         "sc-scheduler-fifo" => include_str!("../../../scenarios/demos/sc-scheduler-fifo.json"),
         "sc-scheduler-fee" => include_str!("../../../scenarios/demos/sc-scheduler-fee.json"),
+        "sc-hook-fee" => include_str!("../../../scenarios/demos/sc-hook-fee.json"),
+        "sc-hook-limit" => include_str!("../../../scenarios/demos/sc-hook-limit.json"),
+        "sc-hook-rollback" => include_str!("../../../scenarios/demos/sc-hook-rollback.json"),
+        "sc-hook-shortfall" => include_str!("../../../scenarios/demos/sc-hook-shortfall.json"),
+        "sc-hook-lp" => include_str!("../../../scenarios/demos/sc-hook-lp.json"),
+        "sc-hook-route" => include_str!("../../../scenarios/demos/sc-hook-route.json"),
         "sc-liquidator-own" => include_str!("../../../scenarios/demos/sc-liquidator-own.json"),
         "sc-liquidator-flash" => include_str!("../../../scenarios/demos/sc-liquidator-flash.json"),
         "sc-liquidator-fifo" => include_str!("../../../scenarios/demos/sc-liquidator-fifo.json"),
@@ -418,6 +424,15 @@ fn app() -> Router {
             }),
         )
         .route(
+            "/hooks.js",
+            get(|| async {
+                (
+                    [(header::CONTENT_TYPE, "text/javascript; charset=utf-8")],
+                    include_str!("../../../web/hooks.js"),
+                )
+            }),
+        )
+        .route(
             "/liquidators.js",
             get(|| async {
                 (
@@ -579,7 +594,7 @@ async fn command() -> Result<(), String> {
             let listener = tokio::net::TcpListener::bind((std::net::Ipv4Addr::LOCALHOST, port))
                 .await
                 .map_err(|e| e.to_string())?;
-            println!("Chainarium M1–M4d inspector listening on port {port}");
+            println!("Chainarium M1–M4e inspector listening on port {port}");
             axum::serve(listener, app())
                 .await
                 .map_err(|e| e.to_string())?;
@@ -681,7 +696,7 @@ async fn command() -> Result<(), String> {
             );
         }
         "--help" | "help" => println!(
-            "Chainarium M1–M4d (v1.0 in development)\n  run SCENARIO NEW_OUTPUT_DIR\n  routes SCENARIO BLOCKS QUERY_JSON\n  checkpoint SCENARIO BLOCKS NEW_FILE\n  resume CHECKPOINT NEW_OUTPUT_DIR\n  serve [PORT]\n  benchmark [BLOCKS]"
+            "Chainarium M1–M4e (v1.0 in development)\n  run SCENARIO NEW_OUTPUT_DIR\n  routes SCENARIO BLOCKS QUERY_JSON\n  checkpoint SCENARIO BLOCKS NEW_FILE\n  resume CHECKPOINT NEW_OUTPUT_DIR\n  serve [PORT]\n  benchmark [BLOCKS]"
         ),
         _ => return Err("unknown command; use --help".into()),
     }

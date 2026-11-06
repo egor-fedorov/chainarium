@@ -282,6 +282,20 @@ impl Run {
             }
             write("liquidator-probes.jsonl", search.as_bytes())?;
         }
+        if !self.scenario.hooks.is_empty() {
+            let mut attempts = String::new();
+            for b in &self.blocks {
+                for r in &b.receipts {
+                    for t in &r.trace {
+                        if t.hook.is_some() {
+                            attempts.push_str(&serde_json::to_string(&serde_json::json!({"block":b.number,"tx":r.tx_id,"phase":"HookAttemptDiagnostic","committed":r.status=="Success","trace":t})).map_err(|e|e.to_string())?);
+                            attempts.push('\n');
+                        }
+                    }
+                }
+            }
+            write("hook-attempts.jsonl", attempts.as_bytes())?;
+        }
         write("events.jsonl", events.as_bytes())?;
         write("transactions.csv", csv.as_bytes())?;
         let mut report = format!(
@@ -316,6 +330,9 @@ impl Run {
             .is_some_and(|c| c.liquidator.is_some())
         {
             report.push_str("\nLiquidator decisions: `liquidator-probes.jsonl`. Observations name the parent and common accrual preview. Conditional net includes flash settlement and native fees. Canonical receipts contain actual repayment, collateral seizure, and sale; an included losing attempt pays its native fee. Probe fees do not affect balances. Reserve C/D/S/E and write-offs remain in `run.json`.\n");
+        }
+        if !self.scenario.hooks.is_empty() {
+            report.push_str("\nHook points and instruction attempts: `hook-attempts.jsonl`; failed attempts are explicitly uncommitted. Canonical counter/fee effects and funded payouts appear in `events.jsonl`. Hook payouts are separate from swap/route output. Public hook configuration, counters and own balances are in `run.json`. Reading exports does not invoke hooks.\n");
         }
         write("report.md", report.as_bytes())
     }

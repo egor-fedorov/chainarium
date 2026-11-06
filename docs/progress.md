@@ -1,6 +1,6 @@
 # Прогресс Chainarium — 2026-11-06
 
-Цель: весь v1.0 из §2.1. Текущий результат — **исполняемый прототип M1–M4d**.
+Цель: весь v1.0 из §2.1. Текущий результат — **исполняемый прототип M1–M4e**.
 Это не готовая v1.0. Независимый review M1–M3b завершён, три findings исправлены
 и перепроверены. Отдельный review M3c–M3d завершён без подтверждённых findings;
 область и ограничения сохранены в `docs/reviews/dec20-independent-review.md`.
@@ -28,7 +28,8 @@ liquidator, Own/Flash funding и SC-06 competition реализованы. До 
 отдельный read-only review diff `72590bb..976a5cb` завершён без подтверждённых
 findings. Отчёт — `docs/reviews/dec24-independent-review.md`; сохранены7 независимых
 тестов, включая768 integer cases и344 resource-boundary executions. **DEC-25** (§23.2.13), hooks CPMM с независимыми численными примерами,
-согласован владельцем 2026-11-06. Реализация M4e начата.
+согласован владельцем 2026-11-06. M4e реализован и функционально проверен;
+отдельный независимый review hooks впереди.
 
 ## Что работает
 
@@ -64,8 +65,15 @@ fees/nonce/resource accounting и deterministic replay. Канонические
 - M3d: passive/scheduled CLMM LP, Fixed/PublicOracle book MM, heterogeneous
   arbitrage с фактической native fee. Одно намерение на AgentId, Hold/Skip/Submit,
   старое committed observation и повторная проверка включения.
+- M4a–M4d: scheduler, Public/Private delivery, mempool, builders, bundles с
+  реальным bid, bounded backrun и liquidator с Own/Flash funding; конкуренция
+  использует общий executor, включённые неудачи оплачиваются.
+- M4e: ограниченные CPMM hooks вокруг swap/LP, dynamic fee/input limit,
+  собственные counter/cash и выплаты sender; общие caps, resource accounting
+  и rollback. Read-only наблюдение и execution quote не запускают effects
+  в каноническом состоянии.
 
-UI содержит сорок presets, play/pause/step, просмотр block→tx→call, балансы, сравнение котировок и трасса solver,
+UI содержит 46 presets, play/pause/step, просмотр block→tx→call, балансы, сравнение котировок и трасса solver,
 LP shares, C/D/S/E, escrow, точный HF и запись oracle, фактически использованную
 в конкретном вызове. Расчёт риска выполняет Rust; JS отображает готовые строки.
 Есть export/checkpoint/restore/fork и A/B параметров SC-01.
@@ -73,22 +81,25 @@ LP shares, C/D/S/E, escrow, точный HF и запись oracle, фактич
 ## Фактическая проверка
 
 - `scripts/cargo.sh fmt --check` и Clippy всех targets с `-D warnings` — прошли.
-- `scripts/cargo.sh test --workspace --locked --offline` — **305 tests passed** в полном прогоне; затем7 новых
-  независимых DEC-24 tests прошли адресно (в suite теперь312 тестов):
-  11 unit tests (включая fault injection), 19 acceptance, 20 composition, 19 credit,
+- `scripts/cargo.sh test --workspace --locked --offline` — **334 tests passed** в полном прогоне:
+  12 unit tests (включая fault injection), 19 acceptance, 20 composition, 19 credit,
   10 stable, 10 twap, 7 flash_liquidation, 14 book, 17 clmm, 11 heterogeneous,
   16 policies, 6 independent_dec20, 10 independent_dec21, 12 independent_dec22,
   18 scheduler, 26 bundles, 30 backrun, 16 independent_dec23,
-  1 independent_dec23_boundaries, 12 liquidation_sale, 20 liquidator_policy;
-  дополнительно7 independent_dec24;
+  1 independent_dec23_boundaries, 12 liquidation_sale, 20 liquidator_policy,
+  7 independent_dec24, 21 hooks;
   ignored=0. Независимые тесты сохраняют аналитические sweeps предыдущих reviews.
+  После уточнения допустимости пустого набора hook bindings повторно прошли
+  21 hook test и Clippy всех targets; release пересобран.
 - `node --test web/wire.test.mjs` — канонические строки, диапазоны и точный
   decimal conversion прошли; JS экономические команды не проходят через Number.
-- `python3 scripts/check-ui.py` — пройден путь всех сорока presets, readonly
+- `python3 scripts/check-ui.py` — пройден путь всех 46 presets, readonly
   просмотр, trace, checkpoint/resume, fork/A-B, точные Amount/Price через HTTP,
   desktop/mobile; ошибок JavaScript и горизонтального overflow нет.
 - Release build и `git diff --check` — прошли.
-- CLI: все 40 demos исполнены. Оба StableSwap demos после checkpoint/resume
+- CLI: все 46 demos исполнены финальной release-сборкой. Для шести hook demos
+  checkpoint/resume дал побайтно одинаковые `run.json`, `events.jsonl`,
+  `hook-attempts.jsonl` и `transactions.csv`. Оба StableSwap demos после checkpoint/resume
   дают побайтно идентичные `run.json`. SC-05 checkpoint после блока 1 → resume:
   `run.json` побайтно совпадает с непрерывным запуском. В events JSONL начисление
   10 Q присутствует, отменённая liquidation не создаёт канонического write-off.
@@ -678,6 +689,73 @@ UI/CLI reviewer проверил статически; browser40 acceptance вы
 Это M4d, не вся M4 или v1.0: hooks, остальные роли, MTM/эксперименты/explorer и
 performance/user-task gates M5 остаются открытыми.
 
+### M4e / DEC-25 — CPMM hooks с ограниченными capabilities
+
+`bounded-pool-hooks-v1` задаёт до64 связей hook↔CPMM, отдельный защищённый account
+и counter. В Before/AfterSwap и Before/AfterLiquidity разрешено до16 typed
+instructions: fee по input, максимальный input, явный отказ, increment counter,
+выплата исходному sender из собственных средств. Проверяются capabilities,
+точка вызова, сумма выплат на точку и уникальность fee rule по направлению.
+Hook получает ограниченный context своего пула/состояния/вызова; доступа
+к чужим кошелькам, private pending, произвольным вызовам и reentry нет.
+
+Вход и каждая начатая инструкция стоят10 units, перевод5. Hook frames входят
+в общие1024 nodes/depth32, включая generated children route/flash/liquidation.
+Поздний отказ, нехватка hook cash, exhaustion, flash settlement и net guard
+отменяют counter, выплаты, swap/LP и composed effects вместе. Native fee/nonce
+включённой неудачи сохраняются; ModelError отменяет весь блок.
+
+Route использует реальный output swap отдельно от hook payout: выплата в input
+asset не становится refund или отрицательным consumption; выплата в output asset
+не увеличивает следующий budget. Heterogeneous arbitrage оценивает полный
+собственный net после native fee, включая обеспеченную награду. При hooks
+старый аналитический arbitrage требует перехода на общий execution search.
+Pure CPMM quote явно направляет пользователя к execution quote с sender и ресурсом.
+
+Числа `docs/reviews/hooks-reference.py`/`.json`, сохранённые до реализации,
+повторно совпали побайтно. Свежий fixture: pool1000 X/1000 Q, Alice1000 X/1000 Q,
+hook20 Q, counter0, native price1; threshold100, fee0/1000 bps, max_input200,
+два increments и payout3 Q:
+
+| Случай | Фактический результат |
+| --- | --- |
+| Swap50 | Output47 Q,195 units; Alice950 X/855 Q; hook17 Q,counter2 |
+| Swap100 | Output82 Q,195 units; Alice900 X/890 Q; hook17 Q,counter2 |
+| Контроль без hook | Output90 Q,120 units; Alice900 X/970 Q |
+| Input201 / min_out83 | Отказ140 /150 units; counter/cash/pool исходные |
+| Поздний assert / cash2 / limit194 | Отказ205 /195 /194 units; все hook/swap effects отменены |
+| LP add100 / remove100 | По175 units; Alice728→656 Q; counter2→4; hook17→14 Q |
+| Route X→Q→R | Output82 Q→75 R,225 units; payout3 Q остаётся отдельно |
+
+Новые21 integration tests и unit fault injection проверяют reference,
+192 resource/price boundaries, 16/17 instructions, 64/65 bindings, MAX counter,
+fee0/9999, empty programs/profile, authority/capability/spend defense, точные
+nodes/depth, повторные вызовы, SwapOutput/Flash, route payouts в обоих assets,
+greedy probes, backrun и liquidator search с обеспеченной наградой и late rollback.
+Проверены ограниченное observation, read-only quote с неизменными RNG/checkpoint,
+все шесть checkpoint paths и tampered state. Полный suite334 прошёл; после
+адресного уточнения пустого набора bindings повторно прошли21 hook tests,
+Clippy и release build. Других изменений runtime после полного прогона нет.
+
+UI показывает config/capabilities, counter/cash, receipt status/native fee,
+Before/After frames, effective fee, restricted context и отменённые effects.
+`hook-attempts.jsonl` отделяет диагностические frames с committed-флагом от
+канонических events. Все46 browser presets прошли, включая hook execution quote,
+read-only просмотр, checkpoint/resume и mobile. JS errors/overflow отсутствуют;
+`output/m4e-hook-fee.png` и `output/m4e-hook-rollback-mobile.png` просмотрены.
+Browser проверял build `4bd7b91e71395b583a6febb2b88b1bb2269f0dd5699752983d5eb04d2d5da3d3`;
+последующее уточнение validation пустых bindings не меняло UI или выполнение hooks.
+
+Финальный release fingerprint:
+`5b82feb8bda61eabf89f8623b1642ee8d538374b12d27e5d4ce3639dbb2ab4c3`.
+Все46 CLI demos исполнены этой сборкой; для6 hook demos checkpoint после блока1
+дал побайтно одинаковые run/events/hook-attempts/transactions exports.
+Артефакты: `output/m4e-validated-final/`; логи полного прогона и браузера
+`/tmp/chainarium-m4e-{full-tests,browser}.log`, финальных адресных проверок
+`/tmp/chainarium-m4e-{hooks,clippy,release}-final.log`.
+Независимый review DEC-25 ещё не выполнен. Hooks ограничены CPMM; остальные
+роли M4, MTM/эксперименты/explorer и performance/user-task gates M5 остаются открытыми.
+
 ### Fixtures и границы доказательства
 
 | Проверка | Доказательство | Ограничение |
@@ -688,8 +766,9 @@ performance/user-task gates M5 остаются открытыми.
 | Liquidation/loss | exact waterfall, partial close, dust, min_collateral, fee-preserving rollback, 256 deterministic boundary cases | Нет recovery/treasury; вывод equity запрещён |
 | Deposit shares | zero mint, minima, cash shortage без burn, last exit, bootstrap с E | Bankrupt проверен на invariant-valid defensive snapshot, не заявлен достижимым из genesis этого positive-payment preset |
 | Oracle | unauthorized/source/pair/future/duplicate/out-of-order; возраст 60/61; safe stale operations; consumer trace | External/native spot/TWAP; bounded history и однократное floor проверены |
+| Hooks | exact pre-implementation reference, resource/node/depth/capability boundaries, composed search/payout/rollback, ModelError | CPMM only; отдельный независимый review ещё не выполнен |
 | Checkpoint/export | replay/resume/fork/tamper, протоколы, LP/MM schedules/decisions | M4b groups, M4c trigger/search и M4d preview/trials/inflight snapshots проверены |
-| UI | реальные balances/trace, 40 presets, desktop/mobile, exact HTTP wire | Прототип; полная приёмка M5 не закрыта |
+| UI | реальные balances/trace, 46 presets, desktop/mobile, exact HTTP wire | Прототип; полная приёмка M5 не закрыта |
 
 Численные ожидания следуют §6/§8/§20 и принятым DEC; тесты не заменяют
 независимый review. Analytical sweep — детерминированная проверка инвариантов,
@@ -736,8 +815,9 @@ latency UI и полные workloads M5 ещё не измерены/не при
    read-only review этого среза завершён; два P2 исправлены и перепроверены. Для M4d принят
    DEC-24 (§23.2.12) с численными ожиданиями; M4d реализован,
    независимый review нового среза завершён без подтверждённых findings.
-   Для hooks принят DEC-25 (§23.2.13), реализация M4e начата.
-   Затем M4: hooks и остальные роли;
+   Для hooks принят DEC-25 (§23.2.13), M4e реализован и функционально проверен;
+   нужен отдельный независимый review этого среза.
+   Затем M4: остальные user/random/borrower/oracle роли и optional arbitrage Flash;
    M5: MTM, эксперименты, полный explorer и приёмка. Новые существенные решения
    требуют конкретных карточек и согласования по §23.7.
 5. Полные user-task/latency/performance budgets и независимое review должны

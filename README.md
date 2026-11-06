@@ -1,7 +1,7 @@
 # Chainarium
 
 Локальная лаборатория DeFi с Rust-ядром. **v1.0 в разработке.**
-Сейчас исполняются M1–M4d: CPMM swaps/LP, маршруты, арбитражная политика
+Сейчас исполняются M1–M4e: CPMM swaps/LP, маршруты, арбитражная политика
 на собственных средствах, flash loans, lending, oracle, проценты и ликвидации, StableSwap, TWAP и flash-ликвидация,
 стакан GTC/IOC/FOK, CLMM и общий partial-fill router, rollback, fees/nonce и
 исчерпание ресурса. Добавлены event scheduler, mempool, Public/Private delivery,
@@ -10,7 +10,9 @@ FIFO/Fixed/FeePriority и сценарный ответ на видимое со
 Backrun policy ищет размер/маршрут по доставленной victim и отправляет bundle
 с проверкой net после собственных native fees и bid. Liquidator выбирает target,
 погашение и маршрут с Own/Flash funding; продаёт фактически полученный залог.
-Конкуренты используют общий scheduler и оплачивают включённые попытки. Полный объём и приёмка: [спецификация](docs/spec.md).
+Конкуренты используют общий scheduler и оплачивают включённые попытки. Hooks
+вокруг CPMM swap/LP меняют fee, ограничивают input и платят из собственного account;
+их counter и transfers входят в общий rollback. Полный объём и приёмка: [спецификация](docs/spec.md).
 
 ## Запуск
 
@@ -43,12 +45,14 @@ receipts входят в канонический блок. M4c добавляе
 разрешённый trigger, условные результаты поиска, выбранный размер и группа.
 M4d добавляет `liquidator-probes.jsonl` с разрешёнными targets, accrual preview,
 пробами и выбранным intent. Фактические paid/seized/sale сохранены в receipt.
+M4e добавляет `hook-attempts.jsonl`: точки/инструкции и явный committed-флаг;
+канонические hook effects и обеспеченные выплаты находятся в events JSONL.
 Для повторного запуска
 выберите новое имя папки.
 Checkpoint восстанавливается только на committed-границе; checksum и повторное
 исполнение проверяют его целостность. CSV не является форматом восстановления.
 
-Доступны сорок presets в UI и CLI:
+Доступны сорок шесть presets в UI и CLI:
 
 | Файл | Демонстрация |
 | --- | --- |
@@ -92,6 +96,12 @@ Checkpoint восстанавливается только на committed-гра
 | `scenarios/demos/sc-liquidator-fee.json` | Carol net24565 Q; Alice NoDebt и fee120 Q; builder460 Q |
 | `scenarios/demos/sc-liquidator-stale.json` | Возраст цены10 s при max_age9 на preview: Skip, заём остаётся |
 | `scenarios/demos/sc-liquidator-delayed.json` | Arrival31 после cutoff30; BusyNonce, включение в блок4 |
+| `scenarios/demos/sc-hook-fee.json` | Dynamic fee1000 bps: 100 X→82 Q, payout3 Q, native195 Q, counter2 |
+| `scenarios/demos/sc-hook-limit.json` | Input201>200: отказ140 units; следующий input100 проходит |
+| `scenarios/demos/sc-hook-rollback.json` | Поздний отказ: fee205 Q сохранена, counter/payout/swap отменены |
+| `scenarios/demos/sc-hook-shortfall.json` | Hook cash2 Q не покрывает payout3; полный rollback, fee195 Q |
+| `scenarios/demos/sc-hook-lp.json` | Add/remove100 shares, по175 units; counter4, payout6 Q |
+| `scenarios/demos/sc-hook-route.json` | 100 X→82 Q→75 R; payout3 Q остаётся отдельно, native225 units |
 
 В SC-05 аналитическая ставка 12.5% за модельную секунду и reserve factor 20%;
 это fixture, не рыночный прогноз. UI показывает C/D/S/E, отдельный залог,
@@ -159,7 +169,7 @@ checkpoint/resume, fork, A/B и мобильную верстку. Снимки 
   Search и builder probes имеют отдельные метрики; поиск не списывает канонические fees.
 - M4a: включительный cutoff, детерминированные EventIds, bounded mempool/queues,
   Public/Private visibility, delayed OnVisibleProgram и FIFO/Fixed/FeePriority.
-  Backrun реализован в M4c; liquidator policies — в M4d; hooks впереди.
+  Backrun реализован в M4c; liquidator policies — в M4d; hooks CPMM — в M4e.
   OnVisibleProgram исполняет явное правило, не оптимизирует стратегию.
 - M4b: bundle до 16 members, Own/VisibleTxId, target range, allowed reverts,
   реальный bid последним Transfer и непрерывное включение группы. Greedy делает
@@ -174,8 +184,15 @@ checkpoint/resume, fork, A/B и мобильную верстку. Снимки 
   До16 targets,64 полных проб и4096 venue checks за раунд; один intent на policy.
   Own/Flash, native reserve, settlement, guard и конкуренция проходят общий executor.
   Late failure откатывает sale/liquidation/write-off; included revert сохраняет fee/nonce.
+- M4e: `bounded-pool-hooks-v1` — до64 CPMM bindings и16 инструкций на точку.
+  Before/AfterSwap и Before/AfterLiquidity имеют явные capabilities: fee по input,
+  max input/reject, local counter и PaySender только из hook account. Каждая точка
+  и инструкция стоят10 units, ledger transfer ещё5. Все children входят в общие
+  node/depth caps. Другие venue families hooks пока не принимают.
+  Payout не включается в route output; arbitrage net использует полный balance delta.
+  Для hooks нужна execution quote; чистая base-fee кривая ею не считается.
 - Исследовательский MTM/PnL не рассчитывается; баланс не называется прибылью.
-- UI — прототип M1–M4d с сорока presets. Полный explorer M5 впереди.
+- UI — прототип M1–M4e с сорока шестью presets. Полный explorer M5 впереди.
 - Критерии всей v1.0 не объявляются выполненными. Независимый review и следующие
   открытые экономические контракты фиксируются согласно §23–24 спецификации.
 
@@ -197,7 +214,7 @@ checkpoint/resume, fork, A/B и мобильную верстку. Снимки 
 [Review DEC-24/M4d](docs/reviews/dec24-independent-review.md) завершён без
 подтверждённых findings. Сохранены7 независимых tests:768 денежных сценариев,
 344 resource boundaries, node/depth, Fixed/Greedy, U256 и checkpoint/replay.
-Для hooks принят DEC-25; реализация M4e начата.
+Hooks DEC-25/M4e реализованы; отдельный независимый review нового среза впереди.
 
 Фактические результаты и оставшиеся проверки: [журнал прогресса](docs/progress.md).
 Сценарий CLI ограничен 64 MiB, отдельная транзакция — 1 MiB. Web restore

@@ -111,8 +111,12 @@ impl AgentPolicy for ArbitragePolicy {
                 asset: self.asset.clone(),
                 minimum: self.min_profit,
             };
+            let balances = std::cell::RefCell::new(std::collections::BTreeMap::new());
             let search = h::search_with_tail(obs, chain, &query, &[guard], &|tx| {
                 let sim = simulate(tx)?;
+                balances
+                    .borrow_mut()
+                    .insert(tx.id.clone(), sim.final_balance);
                 Ok(match sim.receipt {
                     Some(receipt) => Trial::Executed(Box::new(receipt)),
                     None => Trial::Rejected(
@@ -127,13 +131,16 @@ impl AgentPolicy for ArbitragePolicy {
                 let Some(route) = candidate.result() else {
                     continue;
                 };
-                let receipt = candidate.receipt.as_ref().unwrap();
-                let fee = if self.account == chain.fee_account {
-                    Amount::ZERO
-                } else {
-                    receipt.fee
+                let Some(gain) = balances
+                    .borrow()
+                    .get(&candidate.transaction.id)
+                    .and_then(|final_balance| final_balance.checked_sub(initial).ok())
+                else {
+                    continue;
                 };
-                let gain = route.output.checked_sub(self.input)?.checked_sub(fee)?;
+                if gain < self.min_profit {
+                    continue;
+                }
                 if decision.expected_net_gain.is_none_or(|old| gain > old) {
                     decision.action = DecisionAction::Submit;
                     decision.executed_route = Some(route.clone());

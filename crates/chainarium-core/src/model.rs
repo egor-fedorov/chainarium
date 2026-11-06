@@ -300,6 +300,8 @@ impl Call {
 #[derive(Clone, Debug, Serialize, Deserialize, PartialEq, Eq)]
 #[serde(deny_unknown_fields)]
 pub struct Scenario {
+    #[serde(default, skip_serializing_if = "BTreeMap::is_empty")]
+    pub hooks: BTreeMap<String, crate::hooks::Config>,
     pub schema_version: String,
     pub model_versions: Vec<String>,
     pub name: String,
@@ -358,7 +360,8 @@ impl Scenario {
             .or_else(|| self.stable_pools.get(id).map(|p| &p.pool))
     }
     pub fn protected(&self, account: &str) -> bool {
-        self.pools().any(|(_, p)| p.account == account)
+        self.hooks.values().any(|h| h.account == account)
+            || self.pools().any(|(_, p)| p.account == account)
             || self.books.values().any(|p| p.account == account)
             || self.clmm_pools.values().any(|p| p.account == account)
             || self.flash_providers.values().any(|p| p.account == account)
@@ -386,6 +389,7 @@ impl Scenario {
                     && m != crate::policy::baselines::MM_MODEL
                     && m != crate::policy::liquidator::MODEL
                     && m != crate::liquidation::MODEL
+                    && m != crate::hooks::MODEL
                     && m != crate::scheduler::backrun::MODEL
                     && !crate::scheduler::MODELS.contains(&m.as_str())
                     && !crate::scheduler::bundles::MODELS.contains(&m.as_str())
@@ -476,6 +480,7 @@ impl Scenario {
         crate::twap::validate(self)?;
         crate::book::validate(self, &mut protected)?;
         crate::clmm::validate(self, &mut protected)?;
+        crate::hooks::validate(self, &mut protected)?;
         for a in self.agents.values() {
             for id in &a.controlled_accounts {
                 if !self.accounts.contains_key(id) || self.protected(id) {
@@ -668,6 +673,27 @@ impl Scenario {
                     _ => {}
                 }
                 match call {
+                    Call::SwapExactIn { pool, .. } | Call::SwapOutput { pool, .. } => {
+                        crate::hooks::count_children(s, pool, true, depth, n)?
+                    }
+                    Call::AddLiquidity { pool, .. } | Call::RemoveLiquidity { pool, .. } => {
+                        crate::hooks::count_children(s, pool, false, depth, n)?
+                    }
+                    Call::ExecuteRoute { hops, .. } | Call::LiquidateAndSell { hops, .. } => {
+                        let nested = if matches!(call, Call::LiquidateAndSell { .. }) {
+                            2
+                        } else {
+                            1
+                        };
+                        for hop in hops {
+                            if let crate::routing::heterogeneous::VenueHop::Amm { venue } = hop {
+                                crate::hooks::count_children(s, venue, true, depth + nested, n)?;
+                            }
+                        }
+                    }
+                    _ => {}
+                }
+                match call {
                     Call::Sequence { calls } => check(s, calls, depth + 1, n, &path, outputs)?,
                     Call::LiquidateAndSell {
                         market,
@@ -775,6 +801,8 @@ impl Scenario {
 #[derive(Clone, Debug, Serialize, Deserialize, PartialEq, Eq)]
 #[serde(deny_unknown_fields)]
 pub struct World {
+    #[serde(default, skip_serializing_if = "BTreeMap::is_empty")]
+    pub hooks: BTreeMap<String, crate::hooks::State>,
     pub accounts: Arc<BTreeMap<String, Account>>,
     pub allowances: Arc<Allowances>,
     pub shares: BTreeMap<String, Amount>,
@@ -802,6 +830,8 @@ pub struct Event {
 #[derive(Clone, Debug, Serialize, Deserialize, PartialEq, Eq)]
 #[serde(deny_unknown_fields)]
 pub struct Trace {
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub hook: Option<crate::hooks::Trace>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub liquidation: Option<crate::liquidation::SaleResult>,
     #[serde(default, skip_serializing_if = "Option::is_none")]

@@ -1,0 +1,181 @@
+{
+  "schema_version": "chainarium-scenario-m1-v1",
+  "model_versions": [
+    "native-execution-v1",
+    "native-cost-v1",
+    "cpmm-v1",
+    "scheduler-m1-v1",
+    "chacha12-v1",
+    "bounded-pool-hooks-v1",
+    "cpmm-lp-v1",
+    "heterogeneous-route-v1"
+  ],
+  "name": "M4 · Hook · Маршрут и отдельная выплата",
+  "seed": "42",
+  "assets": {
+    "X": {
+      "decimals": 0
+    },
+    "Q": {
+      "decimals": 0
+    },
+    "R": {
+      "decimals": 0
+    }
+  },
+  "accounts": {
+    "alice": {
+      "balances": {
+        "X": "1000",
+        "Q": "1000"
+      },
+      "nonce": "0"
+    },
+    "bob": {
+      "balances": {
+        "X": "0",
+        "Q": "1000"
+      },
+      "nonce": "0"
+    },
+    "builder": {
+      "balances": {
+        "X": "0",
+        "Q": "0"
+      },
+      "nonce": "0"
+    },
+    "pool": {
+      "balances": {
+        "X": "1000",
+        "Q": "1000"
+      },
+      "nonce": "0"
+    },
+    "hook": {
+      "nonce": "0",
+      "balances": {
+        "Q": "20"
+      }
+    },
+    "second": {
+      "nonce": "0",
+      "balances": {
+        "Q": "1000",
+        "R": "1000"
+      }
+    }
+  },
+  "protocols": {
+    "cpmm": {
+      "account": "pool",
+      "x": "X",
+      "y": "Q",
+      "fee_bps": 0,
+      "owner": "bob"
+    },
+    "second": {
+      "account": "second",
+      "x": "Q",
+      "y": "R",
+      "fee_bps": 0,
+      "owner": "bob"
+    }
+  },
+  "agents": {
+    "alice": {
+      "controlled_accounts": [
+        "alice"
+      ]
+    },
+    "bob": {
+      "controlled_accounts": [
+        "bob"
+      ]
+    }
+  },
+  "chain": {
+    "id": "lab-1",
+    "fee_asset": "Q",
+    "fee_account": "builder",
+    "block_limit": "10000",
+    "interval": "12"
+  },
+  "blocks": [
+    [
+      {
+        "id": "hook-route",
+        "agent": "alice",
+        "sender": "alice",
+        "chain": "lab-1",
+        "nonce": "0",
+        "limit": "500",
+        "price": "1",
+        "deadline": "1000",
+        "program": [
+          {
+            "type": "ExecuteRoute",
+            "asset_in": "X",
+            "amount": "100",
+            "hops": [
+              {
+                "kind": "Amm",
+                "venue": "cpmm"
+              },
+              {
+                "kind": "Amm",
+                "venue": "second"
+              }
+            ],
+            "min_out": "75",
+            "residual_policy": "RequireFull"
+          }
+        ]
+      }
+    ],
+    []
+  ],
+  "hooks": {
+    "guard": {
+      "pool": "cpmm",
+      "account": "hook",
+      "capabilities": {
+        "swap_fee": true,
+        "reject": true,
+        "write_local": true,
+        "spend_own": {
+          "Q": "3"
+        }
+      },
+      "programs": {
+        "BeforeSwap": [
+          {
+            "type": "FeeByInput",
+            "asset_in": "X",
+            "threshold": "100",
+            "below_bps": 0,
+            "at_or_above_bps": 1000
+          },
+          {
+            "type": "MaxInput",
+            "asset_in": "X",
+            "maximum": "200"
+          },
+          {
+            "type": "IncrementCounter"
+          }
+        ],
+        "AfterSwap": [
+          {
+            "type": "IncrementCounter"
+          },
+          {
+            "type": "PaySender",
+            "asset": "Q",
+            "amount": "3"
+          }
+        ]
+      }
+    }
+  }
+}

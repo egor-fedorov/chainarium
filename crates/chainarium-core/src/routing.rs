@@ -7,6 +7,8 @@ use std::collections::{BTreeMap, BTreeSet};
 #[serde(deny_unknown_fields)]
 pub struct VenueView {
     #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub hook: Option<String>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
     pub stable: Option<crate::stable::Parameters>,
     pub id: String,
     pub x: String,
@@ -18,6 +20,8 @@ pub struct VenueView {
 #[derive(Clone, Debug, Serialize, Deserialize, PartialEq, Eq)]
 #[serde(deny_unknown_fields)]
 pub struct Observation {
+    #[serde(default, skip_serializing_if = "BTreeMap::is_empty")]
+    pub hooks: BTreeMap<String, crate::hooks::PublicView>,
     pub account: String,
     pub block: Amount,
     pub timestamp: Amount,
@@ -37,6 +41,7 @@ impl Observation {
             return Err("protocol account cannot observe as an agent".into());
         }
         Ok(Self {
+            hooks: crate::hooks::views(s, w),
             account: account.into(),
             block: w.block,
             timestamp: w.timestamp,
@@ -90,6 +95,7 @@ impl Observation {
                 .pools()
                 .map(|(id, p)| {
                     Ok(VenueView {
+                        hook: crate::hooks::binding(s, id).map(|(id, _)| id.clone()),
                         stable: s
                             .stable_pools
                             .get(id)
@@ -179,7 +185,7 @@ pub fn search(observation: &Observation, asset_in: &str, asset_out: &str, input:
             }
             for index in 0..self.venues.len() {
                 let v = self.venues[index];
-                if self.visited.contains(&v.id) {
+                if v.hook.is_some() || self.visited.contains(&v.id) {
                     continue;
                 }
                 let (other, x, y) = if asset == v.x {

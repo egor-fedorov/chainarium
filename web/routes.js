@@ -1,3 +1,4 @@
+import {hookCard} from './hooks.js';
 import {atoms} from './wire.mjs';
 
 const $=s=>document.querySelector(s);
@@ -45,7 +46,7 @@ export function renderRoutes(run,state,api) {
    const q=await api('route-quote',{block:Number(state.block),query});
    if(pending!==token)return;
    const candidates=q.search.candidates;
-   $('#route-quote-result').innerHTML=`<p>Проверено кандидатов: ${esc(q.search.examined)} / 64${q.search.truncated?' · поиск ограничен бюджетом':''}</p><p class="hint">Порядок: больше конечного выхода, затем меньше ресурса, затем ID площадок. Остатки показаны отдельно.</p>`+(candidates.length?candidates.map((c,i)=>`<details ${i===0?'open':''}><summary>${i===0&&c.receipt?.status==='Success'?'Лучший выход · ':''}${c.hops.map(h=>esc(h.venue)).join(' → ')} · ${esc(c.receipt?.status??'Rejected')}</summary><p>${esc(c.admission_error??c.receipt?.error??'')} ${c.receipt?`${esc(c.receipt.used)} units · fee ${esc(c.receipt.fee)} ${esc(run.scenario.chain.fee_asset)}`:''}</p>${routeCard(c.receipt?.route_results?.['0'])}${c.receipt?.status!=='Success'?(c.receipt?.trace??[]).map(t=>routeCard(t.route)).join(''):''}</details>`).join(''):'<p>Пути с выбранными пределами не найдены.</p>')+`<p class="hint">Пробное исполнение · блок ${esc(q.block)}<br>State ref: <code>${esc(q.state_ref)}</code></p>`;
+   $('#route-quote-result').innerHTML=`<p>Проверено кандидатов: ${esc(q.search.examined)} / 64${q.search.truncated?' · поиск ограничен бюджетом':''}</p><p class="hint">Порядок: больше конечного выхода, затем меньше ресурса, затем ID площадок. Остатки показаны отдельно.</p>`+(candidates.length?candidates.map((c,i)=>`<details ${i===0?'open':''}><summary>${i===0&&c.receipt?.status==='Success'?'Лучший выход · ':''}${c.hops.map(h=>esc(h.venue)).join(' → ')} · ${esc(c.receipt?.status??'Rejected')}</summary><p>${esc(c.admission_error??c.receipt?.error??'')} ${c.receipt?`${esc(c.receipt.used)} units · fee ${esc(c.receipt.fee)} ${esc(run.scenario.chain.fee_asset)}`:''}</p>${routeCard(c.receipt?.route_results?.['0'])+(c.receipt?.trace??[]).filter(t=>t.hook&&!t.hook.instruction).map(t=>hookCard(t.hook)).join('')}${c.receipt?.status!=='Success'?(c.receipt?.trace??[]).map(t=>routeCard(t.route)).join(''):''}</details>`).join(''):'<p>Пути с выбранными пределами не найдены.</p>')+`<p class="hint">Пробное исполнение · блок ${esc(q.block)}<br>State ref: <code>${esc(q.state_ref)}</code></p>`;
   }catch(e){if(pending===token)$('#route-quote-result').textContent=e.message;}
  };
 }

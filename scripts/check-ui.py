@@ -1,4 +1,4 @@
-"""M1–M4d browser/API acceptance. Run against `chainarium serve 8080`. Requires Playwright + Chromium."""
+"""M1–M4e browser/API acceptance. Run against `chainarium serve 8080`. Requires Playwright + Chromium."""
 import json
 from pathlib import Path
 from playwright.sync_api import sync_playwright, expect
@@ -793,6 +793,70 @@ with sync_playwright() as p:
         page.locator('#step').click()
         expect(page.locator('#position')).to_contain_text('Исполнено 4 / 4')
         assert page.request.get('http://127.0.0.1:8080/api/run').json()==full
+    # DEC-25: hook capabilities/state, actual payout, rollback and route output separation.
+    for name in ['fee','limit','rollback','shortfall','lp','route']:
+        page.locator('#preset').select_option('sc-hook-'+name)
+        page.locator('#new').click()
+        expect(page.locator('#position')).to_contain_text('Исполнено 0 / 2')
+        expect(page.locator('#hook-panel')).to_be_visible()
+        expect(page.locator('#hook-config')).to_contain_text('Counter: 0')
+        if name=='fee':
+            before_quote=page.request.get('http://127.0.0.1:8080/api/checkpoint').json()
+            page.locator('#route-owner').select_option('alice')
+            page.locator('#route-input').select_option('X')
+            page.locator('#route-output').select_option('Q')
+            page.locator('#route-amount').fill('100')
+            page.locator('#route-minimum').fill('1')
+            page.locator('#route-resource').fill('500')
+            page.locator('#route-price').fill('1')
+            page.locator('#route-quote-form button').click()
+            expect(page.locator('#route-quote-result')).to_contain_text('205 units')
+            expect(page.locator('#route-quote-result')).to_contain_text('82 Q')
+            expect(page.locator('#route-quote-result')).to_contain_text('Hook guard')
+            assert page.request.get('http://127.0.0.1:8080/api/checkpoint').json()==before_quote
+        page.locator('#step').click()
+        expect(page.locator('#position')).to_contain_text('Исполнено 1 / 2')
+        first=page.request.get('http://127.0.0.1:8080/api/run').json()
+        q=first['blocks'][0]['receipts'][0]
+        expected={'fee':('Success','195','890','2','17'),'limit':('ProtocolRevert','140','860','0','20'),'rollback':('ProtocolRevert','205','795','0','20'),'shortfall':('ProtocolRevert','195','805','0','2'),'lp':('Success','175','728','2','17'),'route':('Success','225','778','2','17')}[name]
+        assert (q['status'],q['used'],first['state']['accounts']['alice']['balances']['Q'],first['state']['hooks']['guard']['counter'],first['state']['accounts']['hook']['balances']['Q'])==expected
+        expect(page.locator('#hook-result')).to_contain_text(expected[0])
+        expect(page.locator('#hook-result')).to_contain_text(expected[1]+' units')
+        if expected[0]!='Success':
+            expect(page.locator('#hook-result')).to_contain_text('Hook effects этой попытки отменены')
+            assert not any(e['kind'].startswith('Hook') for e in q['events'])
+        else:
+            page.locator('#attempt').click()
+            index=next(i for i,t in enumerate(q['trace']) if t.get('hook'))
+            page.locator(f'#calls button[data-call="{index}"]').click()
+            expect(page.locator('#detail')).to_contain_text('Hook guard')
+            if name=='route':
+                assert q['route_results']['0']['hops'][1]['budget']=='82'
+                assert first['state']['accounts']['alice']['balances']['R']=='75'
+        if name=='fee':
+            page.locator('#hook-panel').screenshot(path='output/m4e-hook-fee.png')
+        if name=='rollback':
+            page.set_viewport_size({'width':390,'height':844})
+            assert page.evaluate('document.documentElement.scrollWidth <= innerWidth'), 'hook mobile overflow'
+            page.locator('#hook-panel').evaluate("el=>el.scrollIntoView({block:'start'})")
+            page.screenshot(path='output/m4e-hook-rollback-mobile.png')
+            page.set_viewport_size({'width':1440,'height':1100})
+        saved=page.request.get('http://127.0.0.1:8080/api/checkpoint').json()
+        page.locator('#blocks button[data-block="-1"]').click()
+        expect(page.locator('#hook-config')).to_contain_text('Counter: 0')
+        assert page.request.get('http://127.0.0.1:8080/api/checkpoint').json()==saved
+        page.locator('#step').click()
+        expect(page.locator('#position')).to_contain_text('Исполнено 2 / 2')
+        full=page.request.get('http://127.0.0.1:8080/api/run').json()
+        if name=='lp':
+            assert full['state']['accounts']['alice']['balances']['Q']=='656'
+            expect(page.locator('#hook-config')).to_contain_text('Counter: 4')
+        assert page.request.post('http://127.0.0.1:8080/api/restore',data=saved).ok
+        page.reload()
+        expect(page.locator('#preset')).to_have_value('sc-hook-'+name)
+        page.locator('#step').click()
+        expect(page.locator('#position')).to_contain_text('Исполнено 2 / 2')
+        assert page.request.get('http://127.0.0.1:8080/api/run').json()==full
     assert not errors, errors
     browser.close()
-print('PASS: browser run, trace, read-only viewing, checkpoint/resume, A/B, fork, exact U256 HTTP round-trip, mobile layout, LP, route policy, flash success/shortfall/rollback, credit interest/loss/redemption, exact oracle use, credit checkpoint replay, StableSwap curves/solver/LP/route/replay/depeg/mobile, TWAP 150/175/rollback/stale/readonly/checkpoint/mobile, flash liquidation real legs/loss/shortfall/rollback/checkpoint/mobile, order book levels/quote/fills/escrow/FOK/IOC/GTC/cancel/self-trade/rollback/replay/mobile, CLMM ranges/fees/surplus/crossings/partial/quote/rollback/replay/mobile, heterogeneous routes/limits/search/strict/residuals/readonly/rollback/replay/mobile, LP/MM policies/schedules/observation-delay/anchor-age/closed-cycle/stale-cancel/replay/mobile; M4 delivery/cutoff/Public/Private/late-response/nonce-gap/FIFO/FeePriority/readonly/checkpoint/mobile; bundles/greedy/paid-bid/allowed-and-forbidden-revert/visible-reference/private-isolation/diagnostic-probes/replay/mobile; backrun/public/private/grid/fees/bid/competition/fifo/delay/readonly/checkpoint/mobile; liquidator/Own/Flash/actual-seizure/paid-loser/FIFO/FeePriority/stale/delayed/readonly/checkpoint/mobile')
+print('PASS: browser run, trace, read-only viewing, checkpoint/resume, A/B, fork, exact U256 HTTP round-trip, mobile layout, LP, route policy, flash success/shortfall/rollback, credit interest/loss/redemption, exact oracle use, credit checkpoint replay, StableSwap curves/solver/LP/route/replay/depeg/mobile, TWAP 150/175/rollback/stale/readonly/checkpoint/mobile, flash liquidation real legs/loss/shortfall/rollback/checkpoint/mobile, order book levels/quote/fills/escrow/FOK/IOC/GTC/cancel/self-trade/rollback/replay/mobile, CLMM ranges/fees/surplus/crossings/partial/quote/rollback/replay/mobile, heterogeneous routes/limits/search/strict/residuals/readonly/rollback/replay/mobile, LP/MM policies/schedules/observation-delay/anchor-age/closed-cycle/stale-cancel/replay/mobile; M4 delivery/cutoff/Public/Private/late-response/nonce-gap/FIFO/FeePriority/readonly/checkpoint/mobile; bundles/greedy/paid-bid/allowed-and-forbidden-revert/visible-reference/private-isolation/diagnostic-probes/replay/mobile; backrun/public/private/grid/fees/bid/competition/fifo/delay/readonly/checkpoint/mobile; liquidator/Own/Flash/actual-seizure/paid-loser/FIFO/FeePriority/stale/delayed/readonly/checkpoint/mobile; hooks/dynamic-fee/input-limit/cash-shortfall/LP/route-output/payout/rollback/resource/readonly-quote/checkpoint/mobile')

@@ -46,17 +46,31 @@ impl Context<'_> {
             let before_in = w.balance(&self.tx.sender, &input);
             let before_out = w.balance(&self.tx.sender, &output_asset);
             let native = hop.native_call(self.s, &input, budget)?;
-            self.call(w, &native, format!("{path}.{index}"))?;
+            let hop_path = format!("{path}.{index}");
+            self.call(w, &native, hop_path.clone())?;
             // Native settlement includes book refunds and fee-to-self transfers.
             // Envelope reserve was already removed and its refund happens later.
-            let spent = before_in
-                .checked_sub(w.balance(&self.tx.sender, &input))
-                .map_err(Model)?;
+            let (spent, output) =
+                if matches!(hop, crate::routing::heterogeneous::VenueHop::Amm { .. }) {
+                    // A hook payout is separate inventory, never swap output or a refund.
+                    (
+                        budget,
+                        self.outputs
+                            .get(&hop_path)
+                            .ok_or_else(|| Model("missing AMM output".into()))?
+                            .1,
+                    )
+                } else {
+                    (
+                        before_in
+                            .checked_sub(w.balance(&self.tx.sender, &input))
+                            .map_err(Model)?,
+                        w.balance(&self.tx.sender, &output_asset)
+                            .checked_sub(before_out)
+                            .map_err(Model)?,
+                    )
+                };
             let unspent = budget.checked_sub(spent).map_err(Model)?;
-            let output = w
-                .balance(&self.tx.sender, &output_asset)
-                .checked_sub(before_out)
-                .map_err(Model)?;
             if index == 0 {
                 result.input_spent = spent;
                 result.input_unspent = unspent;
