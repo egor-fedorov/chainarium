@@ -1695,6 +1695,136 @@ minima/overflow, no-output, partial true/false, late/resource/ModelError rollbac
  readonly/replay. Аналитические ожидания crossing fixture фиксируются до кода
 исполнения; независимый review остаётся отдельным gate §23.4.
 
+### 23.2.8. Следующий контракт M3c/M3d — Proposed
+
+**DEC-20 / G-09, общий маршрут и LP/MM baseline.** Предложение для согласования
+владельцем; не принято и не реализовано. Объединяет уже принятые механизмы
+через явный partial-input контракт и добавляет ограниченные политики M3.
+Полный scheduler, private orderflow, searchers и builder остаются M4.
+
+**Маршрут.** `heterogeneous-route-v1`: команда `ExecuteRoute(asset_in,amount,
+hops,min_out,residual_policy)` исполняет от sender до 3 hops без повторения
+venue. CPMM/StableSwap используют существующий exact-input, CLMM — ClmmSwap,
+стакан — IOC. Каждый hop передаёт **только фактический output** следующему;
+старый inventory и остатки предыдущих hops не добавляются к его input.
+Book limit price и CLMM limit tick явно заданы в hop; для CPMM/StableSwap
+действует собственная math/fee модель. Пары и направление проверяются заново.
+Каждая нога требует положительный output; native IOC с нулевым fill остаётся
+допустим отдельно, но такой route отклоняется целиком. Финальный min_out
+проверяется по реально полученному конечному активу.
+
+Typed result хранит asset_in/out, input budget/spent/unspent, output и список
+residuals по активам. Источник этих сумм — исполнение и реальные ledger delta,
+не price quote и не разобранный текст trace. Для каждого IOC учитывается
+фактический fee recipient: fee, вернувшаяся самому taker, остаётся его реальным
+input residual либо увеличивает net output. Native envelope fee показывается
+отдельно; её reserve/refund не переименовываются в результат торговой ноги.
+Root output допускает дальнейшую ссылку `SwapOutput` с проверкой типа актива.
+
+**Два явных режима.** `RequireFull` отклоняет весь route, если хотя бы одна нога
+не использовала весь переданный budget. Это относится также к lot dust и
+price-improvement refund стакана. `KeepResiduals` оставляет непотраченные tokens
+на счёте sender и продолжает только с output; UI перечисляет эти остатки.
+Они не оцениваются через spot и не скрываются в общем PnL. В этом срезе arbitrage
+policy использует RequireFull и финальный AssertNetBalanceDelta после фактических
+execution fees; незакрытый inventory не выдаётся за результат закрытого цикла.
+Поздний отказ/min_out/resource/flash shortfall откатывает все ноги, IDs и fees
+протоколов; native fee/nonce сохраняются по §6.
+
+**Перевод budget в lots стакана.** Sell X использует
+`lots=floor(budget_X/lot_atoms)`. Buy Q использует
+`lots=floor(budget_Q/(limit_quote_per_lot+ceil(limit_quote_per_lot*fee_bps/10000)))`.
+Это консервативный bound из DEC-18: улучшение цены не разрешает тайно увеличивать
+lots или перебирать иной ордер. Ноль lots — явный отказ route. IOC исполняется
+по price-time на текущем состоянии; output и input spent определяются после
+его полного settlement/refund. Неисполненные lots и атомарный dust входят
+в unspent. Экономические правила самой заявки не меняются.
+
+**Поиск и стоимость.** До 3 hops и 64 полных кандидатов из DEC-12 сохраняются;
+дополнительно не более 64 полных пробных route executions на snapshot. Venue IDs
+обходятся в лексикографическом порядке. Целевой актив завершает путь; venue
+не повторяется, нулевая длина не считается циклом. Для участия CLMM/стакана
+в поиске требуются явно заданные directional limits в запросе/конфигурации
+политики; без них площадка не участвует, default из будущей цены не выбирается.
+Каждая проба использует тот же executor, бюджет ресурса, fee price и residual
+policy, что и полученный intent. Отказ/нехватка капитала/exhaustion не дают
+подставную котировку. Из успешных кандидатов выбирается максимальный output
+при одинаковом input budget, затем меньший used resource, затем venue path.
+Для KeepResiduals сравнивается именно target output под общим budget cap;
+список residuals всегда виден, это не сравнение MTM или net portfolio return.
+`truncated` обозначает ограничение поиска, а не доказанную глобальную оптимальность.
+
+ExecuteRoute — один программный узел (10 units), каждый native hop — отдельный
+дочерний вызов (10 плюс его transfers/iterations/matches). Динамические children
+учитываются в admission node/depth limits, максимум 3; экономические операции
+выполняет существующий journal. Поиск вне канонического исполнения не списывает
+реальные комиссии. Quote сохраняет state_ref; исполнение всегда перепроверяет
+состояние. Read-only UI/CLI показывают все четыре семейства и причины отказов.
+
+**LP baseline.** `scheduled-clmm-lp-v1` получает собственные balances/позиции,
+public pool state и номер наблюдаемого committed-блока. Конфигурация содержит
+pool/account, resource limit/price и до 1024 собственных событий вида
+`target_block → Target(lower,upper,L,max_x,max_q)` либо `Exit`.
+Это заранее заданный план действий агента, не доступ к будущей среде.
+В нужный следующий блок формируется один intent: для каждой наблюдаемой
+собственной позиции по ID сначала collect, затем burn всей ненулевой L;
+для Target — затем mint заданной новой позиции. Min outputs burn явно 0;
+mint защищён указанными max amounts. Не более 16 собственных позиций для одной
+операции; при превышении — Skip с причиной. Отсутствие события — Hold.
+Пассивный baseline — один Target в блоке 1, далее Hold, даже вне диапазона.
+Scheduled baseline — Target в блоке 1, Reposition в блоке 3, Exit в блоке 5. Ошибка пробного исполнения
+даёт Skip, без скрытого переноса события на другой блок или неявного retry.
+
+**Market-maker baseline.** `bounded-book-mm-v1` управляет всеми собственными
+resting orders выбранного стакана (не более 16). Явные параметры: account/book,
+lots на каждую сторону, spread_ticks>0, refresh_every>0, resource limit/price,
+anchor=`Fixed(ticks)` либо `PublicOracle(feed,max_age)`.
+Oracle должен соответствовать паре X/Q; используются только опубликованная
+запись и возраст в Observation. Для него
+`anchor_ticks=floor(price_Q_per_X * lot_atoms / quote_tick_atoms)` с точными
+рациональными intermediates до 1024 bits. Bid=anchor−spread, ask=anchor+spread;
+неположительный bid/overflow — Skip с причиной.
+
+Решение принимается, когда next_block кратен refresh_every. Если уже стоят
+ровно две собственные заявки заданных side/price/remaining_lots — Hold.
+Иначе один intent отменяет старые заявки по ID, затем ставит Buy GTC и Sell GTC
+заданных размеров. Обе стороны должны быть обеспечены; неуспешная simulation
+даёт Skip, частичной скрытой постановки нет. При missing/stale oracle агент
+отменяет существующие quotes без новых; если средств на execution fee нет,
+отказ отмены явно отражается в решении. Это GTC-политика, не post-only гарантия:
+изменившийся рынок может исполнить новую заявку как taker с обычной fee.
+Источник/возраст anchor и наблюдаемый блок записываются в Decision.
+
+**Общая граница политик.** Policy получает только собственное имущество и
+разрешённое public market/oracle observation, а не полный World, будущие блоки,
+reference valuation или private orderflow. Одна policy на AgentId; не более
+одного нового intent на агента за блок, после bounded read-only simulation.
+Используется существующий M1 порядок: решения по предыдущему committed state,
+policy candidates после scripted candidates; изменение рынка внутри блока
+не даёт мгновенной реакции. Планы, параметры, решения/Skip reasons и cursor
+блока воспроизводятся из checkpoint. Это не заменяет полный scheduler M4.
+
+**Ожидания до реализации.** Exact fixtures сохранены в
+`docs/reviews/heterogeneous-route-reference.json`. Их воспроизводит отдельный
+аналитический расчёт `docs/reviews/heterogeneous-route-reference.py`, который
+не импортирует Rust executor и не заменяет независимый review:
+
+| Fixture | Ожидаемое исполнение |
+| --- | --- |
+| Book sell: budget35 X, lot10, standing bid2 lots по100 Q/lot, taker fee100 bps; затем CPMM Q/R1000/1000 fee0 | Исполнено20 X →198 Q →165 R, residual15 X; KeepResiduals Success, RequireFull полный rollback |
+| Book buy: budget448 Q, asks2×100 и3×110 Q/lot, limit110, lot10, fee100 bps | 4 lots дают40 X; spent425 Q, residual23 Q; RequireFull отклоняет даже при полном исполнении выбранных4 lots |
+| CLMM из DEC-19: budget10000 X доtick−100; затем CPMM Q/R10000/10000 fee0 | Spent5029 X →4987 Q →3327 R, residual4971 X; RequireFull полный rollback |
+| Passive LP | Target блока1 создаёт L1000000 [-100,100) за4988 X/4988 Q; выход цены из диапазона не вызывает автоматический reposition |
+| MM: lot10 X, quote_tick2 Q/lot, lots2, spread5, fee100 bps; oracle10→12 Q/X | Anchor50→60: bid45/ask55 меняются на bid55/ask65 через реальные cancel/escrow. До шока bid lock180 Q + ask lock20 X; после reprice220 Q +20 X |
+
+Дополнительно проверить stale quote, отсутствие старого inventory в следующей
+ноге, fee recipient=sender, price-improvement dust, нулевой IOC/no-liquidity,
+min_out, budget truncation, смешанные пути всех семейств, late/resource/flash
+rollback и replay. Для политик — Hold/Skip, funding/nonce conflicts, public
+oracle freshness, delayed reaction, владение позициями, schedule и сохранение
+внешних RNG streams при разном числе simulation calls. Независимый review
+остаётся отдельным обязательным gate §23.4.
+
 ### 23.3. Вертикальные срезы и Definition of Done
 
 Работа дробится на сквозные сценарии **требование → состояние → действие → исполнение → тесты → trace → визуальное объяснение**. Новый компонент не считается завершённым по одному лишь trait, mock API или графическому экрану. На один срез — один проверяемый вопрос и минимальное число новых механизмов.
@@ -1765,7 +1895,9 @@ reference lending G-05, external oracle часть G-06, router budget част�
 базовый checkpoint G-10 и RNG часть G-15. Реализация/fixtures отражены в §20
 и `docs/progress.md`; это не заменяет независимый review. G-07 имеет
 принятый DEC-16 и аналитические ожидания; TWAP часть G-06 определена DEC-17,
-стакан G-08 — DEC-18, CLMM — DEC-19. Partial router, остальные механизмы и бюджеты остаются открытыми. Таблица ниже сохраняет
+стакан G-08 — DEC-18, CLMM — DEC-19. Для partial router и LP/MM baseline
+подготовлен Proposed DEC-20 (§23.2.8); согласования и реализации ещё нет.
+Остальные механизмы и бюджеты остаются открытыми. Таблица ниже сохраняет
 исходные условия gates и критерии их полной приёмки.
 
 | ID | Оставшееся решение | Что уже закреплено | Когда блокирует | Доказательство закрытия |

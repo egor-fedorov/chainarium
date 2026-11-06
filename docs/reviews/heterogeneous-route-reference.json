@@ -1,0 +1,71 @@
+{
+  "status": "pre-implementation expectations for Proposed DEC-20",
+  "book_sell_then_cpmm": {
+    "budget_X": "35",
+    "spent_X": "20",
+    "residual_X": "15",
+    "gross_Q": "200",
+    "fee_Q": "2",
+    "book_output_Q": "198",
+    "final_R": "165",
+    "cpmm_reserves_Q_R": [
+      "1000",
+      "1000"
+    ]
+  },
+  "book_buy_budget": {
+    "budget_Q": "448",
+    "lots": "4",
+    "gross_Q": "420",
+    "fee_Q": "5",
+    "spent_Q": "425",
+    "residual_Q": "23",
+    "output_X": "40"
+  },
+  "clmm_then_cpmm": {
+    "budget_X": "10000",
+    "spent_X": "5029",
+    "residual_X": "4971",
+    "clmm_output_Q": "4987",
+    "final_R": "3327",
+    "cpmm_reserves_Q_R": [
+      "10000",
+      "10000"
+    ]
+  },
+  "passive_clmm_lp": {
+    "target_block": "1",
+    "lower_tick": "-100",
+    "upper_tick": "100",
+    "liquidity": "1000000",
+    "mint_X": "4988",
+    "mint_Q": "4988",
+    "after_target": "Hold, including outside the range"
+  },
+  "market_maker_reprice": {
+    "lot_X": "10",
+    "quote_tick_Q": "2",
+    "lots_each_side": "2",
+    "spread_ticks": "5",
+    "initial_oracle_Q_per_X": "10",
+    "new_oracle_Q_per_X": "12",
+    "initial_anchor_ticks": "50",
+    "new_anchor_ticks": "60",
+    "initial_bid_ask_ticks": [
+      "45",
+      "55"
+    ],
+    "new_bid_ask_ticks": [
+      "55",
+      "65"
+    ],
+    "initial_locked_X_Q": [
+      "20",
+      "180"
+    ],
+    "new_locked_X_Q": [
+      "20",
+      "220"
+    ]
+  }
+}
