@@ -1,4 +1,5 @@
 use super::*;
+mod bundle_calls;
 use crate::{Block, Rejected, engine, policy};
 
 struct Round<'a> {
@@ -8,6 +9,8 @@ struct Round<'a> {
     state: State,
     trace: Vec<Trace>,
     metrics: Metrics,
+    probes: Vec<bundles::Probe>,
+    probe_check: &'a dyn Fn(&World) -> Result<(), String>,
     round: usize,
     cutoff: Amount,
     intents: BTreeMap<String, usize>,
@@ -74,7 +77,11 @@ impl Round<'_> {
         event: Option<&Queued>,
     ) -> Result<(), String> {
         let id = tx.id.clone();
-        if let Some(k) = self.state.known.get(&id) {
+        if let Some(k) = self.state.known.get(&id)
+            && (k.standalone
+                || k.transaction != tx
+                || matches!(k.status, Status::Included { .. } | Status::Rejected { .. }))
+        {
             let outcome = if k.transaction == tx {
                 "Duplicate"
             } else {
@@ -90,7 +97,7 @@ impl Round<'_> {
             );
             return Ok(());
         }
-        if self.state.known.len() >= self.c.limits.known {
+        if !self.state.known.contains_key(&id) && self.state.known.len() >= self.c.limits.known {
             self.note(
                 event,
                 at,
@@ -112,6 +119,7 @@ impl Round<'_> {
         self.state.known.insert(
             id.clone(),
             Known {
+                standalone: true,
                 transaction: tx,
                 delivery: delivery.clone(),
                 submitted_at: at,
@@ -150,6 +158,17 @@ impl Round<'_> {
         Ok(())
     }
     fn admission(&mut self, id: &str, event: &Queued, at: Amount) -> Result<(), String> {
+        if matches!(self.state.known[id].status, Status::Included { .. }) {
+            self.note(
+                Some(event),
+                at,
+                Some(id),
+                None,
+                "AlreadyIncluded",
+                "member already selected through a bundle; original receipt retained",
+            );
+            return Ok(());
+        }
         let tx = &self.state.known[id].transaction;
         let invalid = self
             .s
@@ -164,7 +183,9 @@ impl Round<'_> {
                     .and_then(|a| (tx.nonce < a.nonce).then(|| "StaleNonce".into()))
             })
             .or_else(|| {
-                (self.state.pending.len() >= self.c.limits.pending).then(|| "MempoolLimit".into())
+                (self.state.pending.len() + self.state.bundle_pending.len()
+                    >= self.c.limits.pending)
+                    .then(|| "MempoolLimit".into())
             });
         if let Some(reason) = invalid {
             self.reject(id, &reason);
@@ -213,22 +234,8 @@ impl Round<'_> {
         };
         let depth = k.depth;
         let list = self.state.visible.entry(agent.into()).or_default();
-        let evicted = if list.len() >= self.c.limits.visible {
-            Some(list.remove(0).transaction.id)
-        } else {
-            None
-        };
         list.push(message);
-        if let Some(old) = evicted {
-            self.note(
-                Some(event),
-                at,
-                Some(&old),
-                Some(agent),
-                "VisibleLimit",
-                "oldest delivered message evicted",
-            );
-        }
+        self.trim_visible(agent, event, at);
         self.note(
             Some(event),
             at,
@@ -330,6 +337,7 @@ impl Round<'_> {
         )
     }
     fn expire_visible(&mut self) {
+        self.expire_bundle_visible();
         let mut removed = vec![];
         for (agent, messages) in &mut self.state.visible {
             messages.retain(|m| {
@@ -402,6 +410,9 @@ impl Round<'_> {
         ids
     }
     fn build(&mut self) -> Result<Block, String> {
+        if self.c.bundles.is_some() {
+            return self.build_candidates();
+        }
         let mut block = engine::begin_block(self.s, self.parent)?;
         loop {
             self.prune(&mut block);
@@ -513,13 +524,14 @@ pub(crate) fn advance(
     parent: &World,
     previous: &State,
 ) -> Result<(Block, State), String> {
-    advance_with_check(s, parent, previous, |_| Ok(()))
+    advance_with_check(s, parent, previous, |_| Ok(()), &|_| Ok(()))
 }
 fn advance_with_check(
     s: &Scenario,
     parent: &World,
     previous: &State,
     check: impl FnOnce(&Block) -> Result<(), String>,
+    probe_check: &dyn Fn(&World) -> Result<(), String>,
 ) -> Result<(Block, State), String> {
     let c = s.scheduler.as_ref().ok_or("missing scheduler config")?;
     let round = parent
@@ -536,33 +548,50 @@ fn advance_with_check(
         state: previous.clone(),
         trace: vec![],
         metrics: Metrics::default(),
+        probes: vec![],
+        probe_check,
         round,
         cutoff,
         intents: BTreeMap::new(),
     };
     r.expire_visible();
-    let mut emissions: Vec<_> = c.emissions.iter().enumerate().collect();
-    emissions.sort_by_key(|(_, e)| (e.at, &e.producer_id, e.producer_sequence));
-    while let Some((index, e)) = emissions.get(r.state.emission_cursor) {
-        if e.at > cutoff {
+    let mut emissions: Vec<_> = c
+        .emissions
+        .iter()
+        .enumerate()
+        .map(|(i, e)| {
+            (
+                e.at,
+                &e.producer_id,
+                e.producer_sequence,
+                EventKind::Emission { index: i },
+                e.transaction.id.as_str(),
+                e.transaction.agent.as_str(),
+            )
+        })
+        .collect();
+    if let Some(cfg) = &c.bundles {
+        emissions.extend(cfg.emissions.iter().enumerate().map(|(i, e)| {
+            (
+                e.at,
+                &e.producer_id,
+                e.producer_sequence,
+                EventKind::BundleEmission { index: i },
+                e.bundle.id.as_str(),
+                e.bundle.agent.as_str(),
+            )
+        }));
+    }
+    emissions.sort_by_key(|e| (e.0, e.1, e.2));
+    while let Some(e) = emissions.get(r.state.emission_cursor) {
+        if e.0 > cutoff {
             break;
         }
-        r.enqueue(
-            e.at,
-            EventKind::Emission { index: *index },
-            parent.timestamp,
-            Some(&e.transaction.id),
-            Some(&e.transaction.agent),
-        )?;
+        r.enqueue(e.0, e.3.clone(), parent.timestamp, Some(e.4), Some(e.5))?;
         r.state.emission_cursor += 1;
     }
     let mut decisions = policy::decisions_unless(s, parent, &|agent, account, nonce| {
-        previous.known.values().any(|k| {
-            k.transaction.agent == agent
-                && k.transaction.sender == account
-                && k.transaction.nonce == nonce
-                && k.status.unfinished()
-        })
+        previous.busy(agent, account, nonce)
     })?;
     for d in &decisions {
         if let Some(tx) = &d.transaction {
@@ -605,6 +634,16 @@ fn advance_with_check(
         let at = event.due_at.max(parent.timestamp);
         r.metrics.events += 1;
         match &event.kind {
+            EventKind::BundleEmission { index } => {
+                let e = &c.bundles.as_ref().ok_or("missing bundle config")?.emissions[*index];
+                r.submit_bundle(&e.bundle, &e.delivery, &event, at)?;
+            }
+            EventKind::BundleBuilderDelivery { bundle_id } => {
+                r.admit_bundle(bundle_id, &event, at)?
+            }
+            EventKind::BundleAgentDelivery { bundle_id, agent } => {
+                r.deliver_bundle(bundle_id, agent, &event, at)?
+            }
             EventKind::Emission { index } => {
                 let e = &c.emissions[*index];
                 r.submit(
@@ -631,7 +670,11 @@ fn advance_with_check(
     for k in r.state.known.values_mut() {
         k.committed_status = k.status.clone();
     }
+    for k in r.state.bundles.values_mut() {
+        k.committed_status = k.status.clone();
+    }
     block.scheduler = Some(Report {
+        probes: r.probes,
         trace: r.trace,
         metrics: r.metrics,
         state: r.state.clone(),
@@ -651,11 +694,17 @@ mod tests {
         let parent = World::genesis(&s).unwrap();
         let state = State::default();
         let before = (parent.clone(), state.clone());
-        let result = advance_with_check(&s, &parent, &state, |b| {
-            assert_eq!(b.receipts.len(), 2);
-            assert_eq!(b.state.balance("alice", "Q"), 10016.into());
-            Err("injected invariant fault after all deliveries and executions".into())
-        });
+        let result = advance_with_check(
+            &s,
+            &parent,
+            &state,
+            |b| {
+                assert_eq!(b.receipts.len(), 2);
+                assert_eq!(b.state.balance("alice", "Q"), 10016.into());
+                Err("injected invariant fault after all deliveries and executions".into())
+            },
+            &|_| Ok(()),
+        );
         assert!(result.is_err());
         assert_eq!((parent, state), before);
     }
@@ -674,6 +723,8 @@ mod tests {
             state: State::default(),
             trace: vec![],
             metrics: Metrics::default(),
+            probes: vec![],
+            probe_check: &|_| Ok(()),
             round: 1,
             cutoff: 10.into(),
             intents: BTreeMap::new(),
@@ -698,5 +749,32 @@ mod tests {
         assert!(obs.messages.is_empty());
         assert_eq!(obs.market.block, Amount::ZERO);
         assert_eq!(obs.market.balances["Q"], 1000.into());
+    }
+}
+
+#[cfg(test)]
+mod bundle_fault_tests {
+    use super::*;
+    #[test]
+    fn model_error_in_bundle_probe_cannot_commit_prior_candidate_or_queue() {
+        let mut s = Scenario::parse(include_bytes!(
+            "../../../../scenarios/demos/sc-bundle-fee.json"
+        ))
+        .unwrap();
+        s.chain.block_limit = 1000.into();
+        let parent = World::genesis(&s).unwrap();
+        let previous = State::default();
+        let before = (parent.clone(), previous.clone());
+        let checked = std::cell::Cell::new(false);
+        let fault = |w: &World| {
+            checked.set(true);
+            // Ordinary tx already selected in the working prefix; first group member executed in its probe.
+            assert_eq!(w.balance("bob", "Q"), 21.into());
+            assert_eq!(w.balance("builder", "Q"), 460.into());
+            Err("injected ModelError inside bundle probe after successful prefix".into())
+        };
+        assert!(advance_with_check(&s, &parent, &previous, |_| Ok(()), &fault).is_err());
+        assert!(checked.get());
+        assert_eq!((parent, previous), before);
     }
 }

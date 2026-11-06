@@ -376,6 +376,7 @@ impl Scenario {
                     && m != crate::policy::baselines::LP_MODEL
                     && m != crate::policy::baselines::MM_MODEL
                     && !crate::scheduler::MODELS.contains(&m.as_str())
+                    && !crate::scheduler::bundles::MODELS.contains(&m.as_str())
             })
             || self.model_versions.iter().collect::<BTreeSet<_>>().len()
                 != self.model_versions.len()

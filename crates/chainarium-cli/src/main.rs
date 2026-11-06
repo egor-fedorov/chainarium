@@ -92,6 +92,12 @@ async fn preset(ApiPath(id): ApiPath<String>) -> Result<impl IntoResponse, ApiEr
         "sc-scheduler-nonce" => include_str!("../../../scenarios/demos/sc-scheduler-nonce.json"),
         "sc-scheduler-fifo" => include_str!("../../../scenarios/demos/sc-scheduler-fifo.json"),
         "sc-scheduler-fee" => include_str!("../../../scenarios/demos/sc-scheduler-fee.json"),
+        "sc-bundle-allowed" => include_str!("../../../scenarios/demos/sc-bundle-allowed.json"),
+        "sc-bundle-forbidden" => include_str!("../../../scenarios/demos/sc-bundle-forbidden.json"),
+        "sc-bundle-greedy" => include_str!("../../../scenarios/demos/sc-bundle-greedy.json"),
+        "sc-bundle-fee" => include_str!("../../../scenarios/demos/sc-bundle-fee.json"),
+        "sc-bundle-visible" => include_str!("../../../scenarios/demos/sc-bundle-visible.json"),
+        "sc-bundle-private" => include_str!("../../../scenarios/demos/sc-bundle-private.json"),
         "sc-01" => include_str!("../../../scenarios/demos/sc-01.json"),
         "sc-lp" => include_str!("../../../scenarios/demos/sc-lp.json"),
         "sc-03-route" => include_str!("../../../scenarios/demos/sc-03-route.json"),
@@ -396,6 +402,15 @@ fn app() -> Router {
             }),
         )
         .route(
+            "/bundles.js",
+            get(|| async {
+                (
+                    [(header::CONTENT_TYPE, "text/javascript; charset=utf-8")],
+                    include_str!("../../../web/bundles.js"),
+                )
+            }),
+        )
+        .route(
             "/scheduler.js",
             get(|| async {
                 (
@@ -539,7 +554,7 @@ async fn command() -> Result<(), String> {
             let listener = tokio::net::TcpListener::bind((std::net::Ipv4Addr::LOCALHOST, port))
                 .await
                 .map_err(|e| e.to_string())?;
-            println!("Chainarium M1–M4a inspector listening on port {port}");
+            println!("Chainarium M1–M4b inspector listening on port {port}");
             axum::serve(listener, app())
                 .await
                 .map_err(|e| e.to_string())?;
@@ -641,7 +656,7 @@ async fn command() -> Result<(), String> {
             );
         }
         "--help" | "help" => println!(
-            "Chainarium M1–M4a (v1.0 in development)\n  run SCENARIO NEW_OUTPUT_DIR\n  routes SCENARIO BLOCKS QUERY_JSON\n  checkpoint SCENARIO BLOCKS NEW_FILE\n  resume CHECKPOINT NEW_OUTPUT_DIR\n  serve [PORT]\n  benchmark [BLOCKS]"
+            "Chainarium M1–M4b (v1.0 in development)\n  run SCENARIO NEW_OUTPUT_DIR\n  routes SCENARIO BLOCKS QUERY_JSON\n  checkpoint SCENARIO BLOCKS NEW_FILE\n  resume CHECKPOINT NEW_OUTPUT_DIR\n  serve [PORT]\n  benchmark [BLOCKS]"
         ),
         _ => return Err("unknown command; use --help".into()),
     }

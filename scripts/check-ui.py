@@ -1,4 +1,4 @@
-"""M1–M4a browser/API acceptance. Run against `chainarium serve 8080`. Requires Playwright + Chromium."""
+"""M1–M4b browser/API acceptance. Run against `chainarium serve 8080`. Requires Playwright + Chromium."""
 import json
 from pathlib import Path
 from playwright.sync_api import sync_playwright, expect
@@ -628,6 +628,65 @@ with sync_playwright() as p:
         page.locator('#play').click()
         expect(page.locator('#position')).to_contain_text('Исполнено 3 / 3',timeout=10000)
         assert page.request.get('http://127.0.0.1:8080/api/run').json()==full
+    # DEC-22: actual selected groups versus unpaid diagnostic probes.
+    for name in ['allowed','forbidden','greedy','fee','visible','private']:
+        page.locator('#preset').select_option('sc-bundle-'+name)
+        page.locator('#new').click()
+        expect(page.locator('#bundle-panel')).to_be_visible()
+        expect(page.locator('#bundle-config')).to_contain_text('Score = native fees')
+        page.locator('#step').click()
+        first=page.request.get('http://127.0.0.1:8080/api/run').json()
+        groups=first['blocks'][0]['scheduler']['probes']
+        if name in ['allowed','greedy']:
+            expect(page.locator('#bundle-result')).to_contain_text('355 + 50')
+            expect(page.locator('#bundle-result')).to_contain_text('ProtocolRevert')
+            assert first['state']['accounts']['builder']['balances']['Q']=='405'
+            assert len(first['blocks'][0]['receipts'])==3
+            if name=='greedy':
+                page.locator('#bundle-panel').screenshot(path='output/m4b-greedy.png')
+        elif name=='forbidden':
+            assert first['blocks'][0]['receipts']==[]
+            assert first['state']['accounts']['builder']['balances']['Q']=='0'
+            assert not any(p['selected'] for p in groups)
+            expect(page.locator('#bundle-result')).to_contain_text('DisallowedRevert')
+            expect(page.locator('#bundle-result')).to_contain_text('не вошли в канонический блок')
+        elif name=='fee':
+            assert first['state']['accounts']['builder']['balances']['Q']=='345'
+            assert first['blocks'][0]['receipts'][0]['tx_id']=='ordinary'
+            expect(page.locator('#bundle-result')).to_contain_text('345 + 0')
+        elif name=='visible':
+            assert first['state']['accounts']['alice']['balances']['Q']=='10011'
+            assert first['state']['accounts']['builder']['balances']['Q']=='5'
+            assert [r['tx_id'] for r in first['blocks'][0]['receipts']]==['victim','response','payment']
+            expect(page.locator('#bundle-result')).to_contain_text('0 + 5')
+        else:
+            expect(page.locator('#bundle-result')).to_contain_text('UnknownVisibleTxId')
+            assert len(first['blocks'][0]['receipts'])==1
+            assert first['state']['accounts']['alice']['balances']['Q']=='10000'
+        saved=page.request.get('http://127.0.0.1:8080/api/checkpoint').json()
+        page.locator('#blocks button[data-block="-1"]').click()
+        expect(page.locator('#bundle-result')).to_contain_text('Запустите блок')
+        assert page.request.get('http://127.0.0.1:8080/api/checkpoint').json()==saved
+        page.locator('#blocks button[data-block="0"]').click()
+        if name=='forbidden':
+            page.set_viewport_size({'width':390,'height':844})
+            assert page.evaluate('document.documentElement.scrollWidth <= innerWidth'), 'bundle mobile overflow'
+            page.locator('#bundle-panel').evaluate("el=>el.scrollIntoView({block:'start'})")
+            page.screenshot(path='output/m4b-forbidden-mobile.png')
+            page.set_viewport_size({'width':1440,'height':1100})
+            page.locator('#bundle-panel').screenshot(path='output/m4b-forbidden.png')
+        rounds=first['scenario']['scheduler']['rounds']
+        if rounds>1:
+            page.locator('#play').click()
+            expect(page.locator('#position')).to_contain_text(f'Исполнено {rounds} / {rounds}',timeout=10000)
+        full=page.request.get('http://127.0.0.1:8080/api/run').json()
+        assert page.request.post('http://127.0.0.1:8080/api/restore',data=saved).ok
+        page.reload()
+        expect(page.locator('#preset')).to_have_value('sc-bundle-'+name)
+        if rounds>1:
+            page.locator('#play').click()
+            expect(page.locator('#position')).to_contain_text(f'Исполнено {rounds} / {rounds}',timeout=10000)
+        assert page.request.get('http://127.0.0.1:8080/api/run').json()==full
     assert not errors, errors
     browser.close()
-print('PASS: browser run, trace, read-only viewing, checkpoint/resume, A/B, fork, exact U256 HTTP round-trip, mobile layout, LP, route policy, flash success/shortfall/rollback, credit interest/loss/redemption, exact oracle use, credit checkpoint replay, StableSwap curves/solver/LP/route/replay/depeg/mobile, TWAP 150/175/rollback/stale/readonly/checkpoint/mobile, flash liquidation real legs/loss/shortfall/rollback/checkpoint/mobile, order book levels/quote/fills/escrow/FOK/IOC/GTC/cancel/self-trade/rollback/replay/mobile, CLMM ranges/fees/surplus/crossings/partial/quote/rollback/replay/mobile, heterogeneous routes/limits/search/strict/residuals/readonly/rollback/replay/mobile, LP/MM policies/schedules/observation-delay/anchor-age/closed-cycle/stale-cancel/replay/mobile; M4 delivery/cutoff/Public/Private/late-response/nonce-gap/FIFO/FeePriority/readonly/checkpoint/mobile')
+print('PASS: browser run, trace, read-only viewing, checkpoint/resume, A/B, fork, exact U256 HTTP round-trip, mobile layout, LP, route policy, flash success/shortfall/rollback, credit interest/loss/redemption, exact oracle use, credit checkpoint replay, StableSwap curves/solver/LP/route/replay/depeg/mobile, TWAP 150/175/rollback/stale/readonly/checkpoint/mobile, flash liquidation real legs/loss/shortfall/rollback/checkpoint/mobile, order book levels/quote/fills/escrow/FOK/IOC/GTC/cancel/self-trade/rollback/replay/mobile, CLMM ranges/fees/surplus/crossings/partial/quote/rollback/replay/mobile, heterogeneous routes/limits/search/strict/residuals/readonly/rollback/replay/mobile, LP/MM policies/schedules/observation-delay/anchor-age/closed-cycle/stale-cancel/replay/mobile; M4 delivery/cutoff/Public/Private/late-response/nonce-gap/FIFO/FeePriority/readonly/checkpoint/mobile; bundles/greedy/paid-bid/allowed-and-forbidden-revert/visible-reference/private-isolation/diagnostic-probes/replay/mobile')

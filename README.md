@@ -1,11 +1,12 @@
 # Chainarium
 
 Локальная лаборатория DeFi с Rust-ядром. **v1.0 в разработке.**
-Сейчас исполняются M1–M4a: CPMM swaps/LP, маршруты, арбитражная политика
+Сейчас исполняются M1–M4b: CPMM swaps/LP, маршруты, арбитражная политика
 на собственных средствах, flash loans, lending, oracle, проценты и ликвидации, StableSwap, TWAP и flash-ликвидация,
 стакан GTC/IOC/FOK, CLMM и общий partial-fill router, rollback, fees/nonce и
 исчерпание ресурса. Добавлены event scheduler, mempool, Public/Private delivery,
-FIFO/Fixed/FeePriority и сценарный ответ на видимое сообщение. Полный объём и приёмка: [спецификация](docs/spec.md).
+FIFO/Fixed/FeePriority и сценарный ответ на видимое сообщение. Bundles
+и ограниченный greedy builder выбирают группы с реальным bid и явными reverts. Полный объём и приёмка: [спецификация](docs/spec.md).
 
 ## Запуск
 
@@ -32,12 +33,14 @@ scripts/cargo.sh run --locked --bin chainarium -- routes scenarios/demos/sc-03-h
 
 Экспорт создаёт **новую** папку: manifest, scenario, run, checkpoint, events JSONL,
 аналитический CSV и отчёт. M4 добавляет `delivery.jsonl` с scheduler diagnostics;
-`run.json` содержит per-block queue snapshots и метрики. Для повторного запуска
+`run.json` содержит per-block queue snapshots и метрики. Для M4b
+`builder-probes.jsonl` хранит выбор и диагностические пробы; только selected
+receipts входят в канонический блок. Для повторного запуска
 выберите новое имя папки.
 Checkpoint восстанавливается только на committed-границе; checksum и повторное
 исполнение проверяют его целостность. CSV не является форматом восстановления.
 
-Доступны двадцать два presets в UI и CLI:
+Доступны двадцать восемь presets в UI и CLI:
 
 | Файл | Демонстрация |
 | --- | --- |
@@ -63,6 +66,12 @@ Checkpoint восстанавливается только на committed-гра
 | `scenarios/demos/sc-scheduler-nonce.json` | Nonce1 приходит раньше0; оба исполняются, fee230 Q |
 | `scenarios/demos/sc-scheduler-fifo.json` | Конфликт nonce0: ранний кандидат выигрывает, fee115 Q |
 | `scenarios/demos/sc-scheduler-fee.json` | Тот же конфликт: ставка2 выигрывает, fee230 Q |
+| `scenarios/demos/sc-bundle-allowed.json` | Разрешённый late revert: Alice575 Q, Bob20 Q, builder405 Q = fees355 + bid50 |
+| `scenarios/demos/sc-bundle-forbidden.json` | Запрещённый revert: группа не выбирается, нет канонических fees/nonce |
+| `scenarios/demos/sc-bundle-greedy.json` | Greedy выбирает bundle со score405 Q; ordinary далее не вмещается |
+| `scenarios/demos/sc-bundle-fee.json` | Те же входы: FeePriority выбирает ordinary price3 с fee345 Q |
+| `scenarios/demos/sc-bundle-visible.json` | Только уже видимая victim включается в bundle с ответом и bid5 Q; Alice net11 Q |
+| `scenarios/demos/sc-bundle-private.json` | Недоступный VisibleTxId отклоняется, private victim исполняется только самостоятельно |
 
 В SC-05 аналитическая ставка 12.5% за модельную секунду и reserve factor 20%;
 это fixture, не рыночный прогноз. UI показывает C/D/S/E, отдельный залог,
@@ -124,10 +133,17 @@ checkpoint/resume, fork, A/B и мобильную верстку. Снимки 
   Heterogeneous arbitrage использует RequireFull и проверку прибыли на входе tx.
 - M4a: включительный cutoff, детерминированные EventIds, bounded mempool/queues,
   Public/Private visibility, delayed OnVisibleProgram и FIFO/Fixed/FeePriority.
-  Поисковые backrun/liquidator policies, bundles, greedy и hooks — следующие срезы.
+  Поисковые backrun/liquidator policies и hooks — следующие срезы.
   OnVisibleProgram исполняет явное правило, не оптимизирует стратегию.
+- M4b: bundle до 16 members, Own/VisibleTxId, target range, allowed reverts,
+  реальный bid последним Transfer и непрерывное включение группы. Greedy делает
+  до 64 probes / 256 member attempts; score — paid native fees от других senders
+  плюс обозначенный исполненный bid. Self-fee и произвольный входящий перевод
+  не повышают score. Нет глобального оптимума или MTM-оценки этих решений.
+  FixedItems задаёт порядок типизированных candidate IDs; FeePriority группы
+  использует minimum member price. Неуспешная проба не платит канонических fees.
 - Исследовательский MTM/PnL не рассчитывается; баланс не называется прибылью.
-- UI — прототип M1–M4a с двадцатью двумя presets. Полный explorer M5 впереди.
+- UI — прототип M1–M4b с двадцатью восемью presets. Полный explorer M5 впереди.
 - Критерии всей v1.0 не объявляются выполненными. Независимый review и следующие
   открытые экономические контракты фиксируются согласно §23–24 спецификации.
 
@@ -140,6 +156,8 @@ checkpoint/resume, fork, A/B и мобильную верстку. Снимки 
 Независимый [review DEC-21/M4a](docs/reviews/dec21-independent-review.md) завершён
 без подтверждённых замечаний. В suite сохранены ещё 10 независимых тестов:
 360 расписаний / 2160 раундов и 42 случая exhaustion/fee-to-self.
+
+Независимый review DEC-22/M4b ещё предстоит; предыдущие reviews его не охватывают.
 
 Фактические результаты и оставшиеся проверки: [журнал прогресса](docs/progress.md).
 Сценарий CLI ограничен 64 MiB, отдельная транзакция — 1 MiB. Web restore

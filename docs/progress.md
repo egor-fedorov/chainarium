@@ -1,6 +1,6 @@
 # Прогресс Chainarium — 2026-11-06
 
-Цель: весь v1.0 из §2.1. Текущий результат — **исполняемый прототип M1–M4a**.
+Цель: весь v1.0 из §2.1. Текущий результат — **исполняемый прототип M1–M4b**.
 Это не готовая v1.0. Независимый review M1–M3b завершён, три findings исправлены
 и перепроверены. Отдельный review M3c–M3d завершён без подтверждённых findings;
 область и ограничения сохранены в `docs/reviews/dec20-independent-review.md`.
@@ -10,6 +10,7 @@ DEC-05–DEC-22 приняты владельцем.
 scheduler/mempool/basic builders реализованы и функционально проверены.
 Независимый review M4a завершён без подтверждённых замечаний;
 отчёт — `docs/reviews/dec21-independent-review.md`.
+M4b / DEC-22 реализован и функционально проверен; независимый review впереди.
 
 ## Что работает
 
@@ -46,7 +47,7 @@ fees/nonce/resource accounting и deterministic replay. Канонические
   arbitrage с фактической native fee. Одно намерение на AgentId, Hold/Skip/Submit,
   старое committed observation и повторная проверка включения.
 
-UI содержит двадцать два presets, play/pause/step, просмотр block→tx→call, балансы, сравнение котировок и трасса solver,
+UI содержит двадцать восемь presets, play/pause/step, просмотр block→tx→call, балансы, сравнение котировок и трасса solver,
 LP shares, C/D/S/E, escrow, точный HF и запись oracle, фактически использованную
 в конкретном вызове. Расчёт риска выполняет Rust; JS отображает готовые строки.
 Есть export/checkpoint/restore/fork и A/B параметров SC-01.
@@ -54,21 +55,18 @@ LP shares, C/D/S/E, escrow, точный HF и запись oracle, фактич
 ## Фактическая проверка
 
 - `scripts/cargo.sh fmt --check` и Clippy всех targets с `-D warnings` — прошли.
-- Основная suite `scripts/cargo.sh test --workspace --locked --offline` — **174 tests passed**:
-  7 unit tests (включая fault injection), 19 acceptance, 20 composition, 19 credit,
+- `scripts/cargo.sh test --workspace --locked --offline` — **211 tests passed**:
+  8 unit tests (включая fault injection), 19 acceptance, 20 composition, 19 credit,
   10 stable, 10 twap, 7 flash_liquidation, 14 book, 17 clmm, 11 heterogeneous,
-  16 policies, 6 independent_dec20, 18 scheduler; ignored=0.
-  Независимые DEC-20 tests сохраняют 4504 аналитических случая и LP/MM границы.
-- Ещё **10 independent_dec21 tests passed** в основном checkout после переноса
-  из отдельного review: 360 расписаний, 2160 раундов, 42 resource/fee boundary cases.
-  Всего в suite **184 tests**, все выполненные проверки прошли.
+  16 policies, 6 independent_dec20, 10 independent_dec21, 18 scheduler, 26 bundles;
+  ignored=0. Независимые тесты сохраняют аналитические sweeps предыдущих reviews.
 - `node --test web/wire.test.mjs` — канонические строки, диапазоны и точный
   decimal conversion прошли; JS экономические команды не проходят через Number.
-- `python3 scripts/check-ui.py` — пройден путь всех двадцати двух presets, readonly
+- `python3 scripts/check-ui.py` — пройден путь всех двадцати восьми presets, readonly
   просмотр, trace, checkpoint/resume, fork/A-B, точные Amount/Price через HTTP,
   desktop/mobile; ошибок JavaScript и горизонтального overflow нет.
 - Release build и `git diff --check` — прошли.
-- CLI: все шестнадцать demos исполнены. Оба StableSwap demos после checkpoint/resume
+- CLI: все 28 demos исполнены. Оба StableSwap demos после checkpoint/resume
   дают побайтно идентичные `run.json`. SC-05 checkpoint после блока 1 → resume:
   `run.json` побайтно совпадает с непрерывным запуском. В events JSONL начисление
   10 Q присутствует, отменённая liquidation не создаёт канонического write-off.
@@ -440,18 +438,90 @@ caps, cross-platform replay и будущие поисковые/обучаем�
 результата каждого demo совпали побайтно. Реализация ядра/UI после review
 не менялась; новый build fingerprint учитывает добавленный файл тестов.
 
+### M4b / DEC-22 — bundles, bid и ограниченный greedy builder
+
+`native-bundles-v1` и `bounded-greedy-v1` реализованы поверх event scheduler и
+общего executor. Config `scheduler.bundles` задаёт emissions и явные caps.
+CandidateId различает Transaction/Bundle; Own требует author=submitter, а
+VisibleTxId разрешается при отправке только из уже доставленных messages либо
+own outbox. Нет обращения к глобальному private registry. Resolved group
+закрепляет payload; неверная группа не оставляет частично зарегистрированные
+members. Ссылка может использовать разрешённый payload ранее доставленной
+группы; отдельных скрытых member deliveries и OnVisible triggers не создаётся.
+
+Native registry общий, но standalone delivery и bundle membership различаются.
+Отклонённая проба не удаляет общие members других групп. Выбранный TxId
+исполняется единожды; поздняя standalone delivery сохраняет исходный Included
+receipt. Terminal standalone rejection не обходится группой. Active own bundle
+учитывается busy guard; после закрытия группы guard освобождается.
+
+Bid>0 обеспечен последним обычным Transfer в fee asset на fee account, с
+управляемым плательщиком, отличным от builder. Payment не может быть разрешённым
+revert. Probe последовательно проверяет каждый declared limit, nonce, deadline
+и fee budget; списывает actual used. Allowed ProtocolRevert/ResourceExhausted
+сохраняет собственные fees/nonce и ранние успешные members. Невыбранная проба
+полностью остаётся диагностикой; ModelError отменяет весь рабочий раунд.
+Canonical prefix начинается с общих системных переходов один раз. Выбранный
+проверенный snapshot фиксируется без повторного исполнения/fee settlement.
+
+Greedy score = реально выплаченные native fees от других senders + designated
+bid; self-fee и обычное поступление не повышают score. Builder balance delta
+отдельно; отрицательный delta не выбирается. Tie-break: меньше actual used,
+затем FIFO. Полного поиска/оптимальности нет. FIFO/Fixed/FixedItems/FeePriority
+поддерживают те же группы; fee-key группы — minimum member price, не bid.
+Полная длина группы резервируется перед probe; фактически выполненные attempts
+расходуют общий бюджет, неиспользованная часть освобождается. Truncated и
+непроверенные candidates видны в результатах.
+
+| Fixture | Проверенный результат |
+| --- | --- |
+| Transfer20, Transfer10+allowed false assert, bid50; limits200/prices1 | Success/Revert/Success, units115/125/115; Alice575 Q, Bob20 Q, builder405 Q, nonce3 |
+| Тот же late revert запрещён | Нет канонических receipts/fees/nonce; прежние балансы |
+| Remaining439/440 при actual used355 | 439 не вмещает последний declared limit; 440 достаточно |
+| Ordinary fee345 против group fees355+bid50; block500 | Greedy выбирает group405; FeePriority — ordinary345; второй candidate далее не вмещается |
+| Visible victim + response + bid5, native price0 | Victim исполняется один раз; Alice10011 Q, builder5 Q; private victim не даёт разрешённой ссылки |
+| Ordinary Transfer100 builder с native fee115 | Builder delta215, score115; перевод не превращается в bid |
+| Fee recipient=sender, пустая программа price3 | Receipt fee300, builder delta0 и score0 |
+| 65 обычных candidates | Ровно64 probes, поздний более дорогой candidate не исследован; truncated=true |
+| 17 групп по16 общих members | Ровно256 member attempts, probe work29440 units; канонически одна группа, fees1840 Q, Bob16 Q |
+
+26 integration tests и новый unit fault injection покрывают эти числа, точный
+cap16/17, реальные пределы64/256, reserved-ID/auth/bid/byte caps, общий producer
+namespace, terminal/overlap/conflicting payloads, target/TTL/deadline/cutoff,
+private/future references, общий visible cap, отсутствие скрытых member
+triggers, busy guard, self-fee, отрицательный builder delta, checkpoint и
+ModelError внутри probe после уже успешного канонического префикса рабочего
+раунда. User amount overflow остаётся ProtocolRevert, не ModelError.
+Все 211 Rust tests и Clippy/fmt прошли.
+
+CLI исполнил 28 demos; шесть новых exports/resumes после блока1 побайтно совпали
+по `run.json`, `events.jsonl`, `delivery.jsonl`, `builder-probes.jsonl` и CSV.
+Артефакты: `output/m4b-final/`. Release fingerprint:
+`eb19a36ad83b8b72c4436ba0601055b9033d3807867838197a7740c8ee010886`.
+Browser прошёл все 28 presets, read-only inspection, restore и mobile без
+JS errors/overflow. Снимки `output/m4b-greedy.png`, `output/m4b-forbidden.png`,
+`output/m4b-forbidden-mobile.png`; greedy desktop и forbidden mobile просмотрены.
+UI не называет пробные комиссии каноническими, не показывает нулевой score
+вместо отсутствующей оценки budget-limited/незавершённой пробы.
+
+Независимый review DEC-22 требуется отдельно. Поисковые backrun/liquidator
+политики, hooks, прочие роли, MTM и M5 остаются впереди. Caps ограничивают
+модельную работу, но performance на совместных максимальных payload/history
+не доказана; G-16 не закрыт. Сценарный bundle сам по себе не является
+реализацией поискового searcher.
+
 ### Fixtures и границы доказательства
 
 | Проверка | Доказательство | Ограничение |
 | --- | --- | --- |
-| Ledger/auth/execution/block | acceptance + 5 injected ModelErrors после успешной tx, включая accrual/oracle | M4a проверен; bundles/greedy впереди |
+| Ledger/auth/execution/block | acceptance + 5 injected ModelErrors после успешной tx, включая accrual/oracle | M4b функционально проверен; отдельный review впереди |
 | CPMM/LP/router/flash | composition: rounding/minima/ownership/reentry/actual output/rollback; 500 CPMM invariant cases | Native models; совместимость с внешним deployment не заявлена |
 | Lending accounting | exact fixture, caps/HF/LTV/cash, aggregate rates, multiple escrow, fractional carry, no-holder income | Прямой долг, заранее зарегистрированные позиции, максимум 1024/reserve |
 | Liquidation/loss | exact waterfall, partial close, dust, min_collateral, fee-preserving rollback, 256 deterministic boundary cases | Нет recovery/treasury; вывод equity запрещён |
 | Deposit shares | zero mint, minima, cash shortage без burn, last exit, bootstrap с E | Bankrupt проверен на invariant-valid defensive snapshot, не заявлен достижимым из genesis этого positive-payment preset |
 | Oracle | unauthorized/source/pair/future/duplicate/out-of-order; возраст 60/61; safe stale operations; consumer trace | External/native spot/TWAP; bounded history и однократное floor проверены |
-| Checkpoint/export | replay/resume/fork/tamper, протоколы, LP/MM schedules/decisions | M4a queues/inflight/seen IDs проверены; bundles потребуют новых fixtures |
-| UI | реальные balances/trace, 22 presets, desktop/mobile, exact HTTP wire | Прототип; полная приёмка M5 не закрыта |
+| Checkpoint/export | replay/resume/fork/tamper, протоколы, LP/MM schedules/decisions | M4b group/overlap/bid/probe/queue snapshots проверены; новые policies потребуют своих fixtures |
+| UI | реальные balances/trace, 28 presets, desktop/mobile, exact HTTP wire | Прототип; полная приёмка M5 не закрыта |
 
 Численные ожидания следуют §6/§8/§20 и принятым DEC; тесты не заменяют
 независимый review. Analytical sweep — детерминированная проверка инвариантов,
@@ -489,14 +559,12 @@ latency UI и полные workloads M5 ещё не измерены/не при
    границы review — `docs/reviews/dec20-independent-review.md`.
 3. M2f/M2g входят в завершённый review M1–M3b; ограничения проверки указаны
    в его отчёте. Новые механизмы M4 потребуют отдельного review.
-4. M4a / DEC-21 реализован, функциональные проверки и независимый review
-   завершены; ограничения указаны в `docs/reviews/dec21-independent-review.md`.
-   Следующий контракт — **Accepted DEC-22** в `docs/spec.md` §23.2.10:
-   bundles/greedy с реальным bid, разрешёнными reverts, visibility и search budgets.
-   `bundle-reference.py`/`.json` фиксируют расчёты до реализации; владелец
-   согласовал DEC-22 по §23.7, реализация начата. Затем M4: поисковые backrun/liquidator policies, hooks;
-   M5: MTM, эксперименты, полный explorer и приёмка. Новые существенные
-   архитектурные решения требуют конкретных карточек и согласования по §23.7.
+4. M4a / DEC-21 функционально и независимо проверен. M4b / Accepted DEC-22
+   реализован, численные ожидания совпали, все функциональные проверки прошли;
+   следующий шаг — отдельный read-only review этого среза по §23.4.
+   Затем M4: поисковые backrun/liquidator policies, hooks и остальные роли;
+   M5: MTM, эксперименты, полный explorer и приёмка. Новые существенные решения
+   требуют конкретных карточек и согласования по §23.7.
 5. Полные user-task/latency/performance budgets и независимое review должны
    быть выполнены до приёмки целевой v1.0. SC-06 с конкуренцией — этап M4.
 

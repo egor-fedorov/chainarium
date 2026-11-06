@@ -222,6 +222,28 @@ impl Run {
             }
             write("delivery.jsonl", delivery.as_bytes())?;
         }
+        if self
+            .scenario
+            .scheduler
+            .as_ref()
+            .is_some_and(|c| c.bundles.is_some())
+        {
+            let mut probes = String::new();
+            for block in &self.blocks {
+                if let Some(report) = &block.scheduler {
+                    for probe in &report.probes {
+                        probes.push_str(
+                            &serde_json::to_string(
+                                &serde_json::json!({"block":block.number,"probe":probe}),
+                            )
+                            .map_err(|e| e.to_string())?,
+                        );
+                        probes.push('\n');
+                    }
+                }
+            }
+            write("builder-probes.jsonl", probes.as_bytes())?;
+        }
         write("events.jsonl", events.as_bytes())?;
         write("transactions.csv", csv.as_bytes())?;
         let mut report = format!(
@@ -231,7 +253,15 @@ impl Run {
             self.blocks.iter().map(|b| b.receipts.len()).sum::<usize>()
         );
         if let Some(state) = &self.scheduler {
-            report.push_str(&format!("\nScheduler: {} pending entries, {} in-flight events, {} known TxIds.\n\nDelivery, visibility, admission, ordering and cap outcomes: `delivery.jsonl`. Per-block metrics and queue snapshots: `run.json`. Canonical financial events: `events.jsonl`.\n",state.pending.len(),state.queue.len(),state.known.len()));
+            report.push_str(&format!("\nScheduler: {} pending entries, {} in-flight events, {} known TxIds.\n\nDelivery, visibility, admission, ordering and cap outcomes: `delivery.jsonl`. Per-block metrics and queue snapshots: `run.json`. Canonical financial events: `events.jsonl`.\n",state.pending.len()+state.bundle_pending.len(),state.queue.len(),state.known.len()));
+        }
+        if self
+            .scenario
+            .scheduler
+            .as_ref()
+            .is_some_and(|c| c.bundles.is_some())
+        {
+            report.push_str("\nBuilder candidates: `builder-probes.jsonl`. Only selected candidate receipts enter the canonical block. Probe fees are diagnostic, not additional payments. Score counts native fees from other senders and the executed designated bid once; balance delta is a separate field.\n");
         }
         write("report.md", report.as_bytes())
     }

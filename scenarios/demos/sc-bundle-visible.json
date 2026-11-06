@@ -1,0 +1,277 @@
+{
+  "schema_version": "chainarium-scenario-m1-v1",
+  "model_versions": [
+    "native-execution-v1",
+    "native-cost-v1",
+    "cpmm-v1",
+    "chacha12-v1",
+    "cpmm-lp-v1",
+    "bounded-route-v1",
+    "strict-flash-provider-v1",
+    "event-scheduler-v1",
+    "bounded-mempool-v1",
+    "basic-builders-v1",
+    "on-visible-program-v1",
+    "heterogeneous-route-v1",
+    "native-bundles-v1",
+    "bounded-greedy-v1"
+  ],
+  "name": "M4 · Bundle: только видимая victim",
+  "seed": "42",
+  "assets": {
+    "X": {
+      "decimals": 0
+    },
+    "Q": {
+      "decimals": 0
+    }
+  },
+  "accounts": {
+    "alice": {
+      "balances": {
+        "X": "1000",
+        "Q": "10000"
+      },
+      "nonce": "0"
+    },
+    "bob": {
+      "balances": {
+        "X": "0",
+        "Q": "1000"
+      },
+      "nonce": "0"
+    },
+    "builder": {
+      "balances": {
+        "X": "0",
+        "Q": "0"
+      },
+      "nonce": "0"
+    },
+    "pool": {
+      "balances": {
+        "X": "1000",
+        "Q": "1000"
+      },
+      "nonce": "0"
+    },
+    "pool-b": {
+      "nonce": "0",
+      "balances": {
+        "X": "1000",
+        "Q": "1000"
+      }
+    }
+  },
+  "protocols": {
+    "cpmm": {
+      "account": "pool",
+      "x": "X",
+      "y": "Q",
+      "fee_bps": 0,
+      "owner": "alice"
+    },
+    "second": {
+      "account": "pool-b",
+      "x": "X",
+      "y": "Q",
+      "fee_bps": 0,
+      "owner": "alice"
+    }
+  },
+  "agents": {
+    "trader": {
+      "controlled_accounts": [
+        "alice"
+      ]
+    },
+    "recipient": {
+      "controlled_accounts": [
+        "bob"
+      ]
+    }
+  },
+  "chain": {
+    "id": "lab-1",
+    "fee_asset": "Q",
+    "fee_account": "builder",
+    "block_limit": "10000",
+    "interval": "10"
+  },
+  "blocks": [],
+  "policies": {},
+  "scheduler": {
+    "rounds": 2,
+    "builder": {
+      "type": "Greedy"
+    },
+    "limits": {
+      "agents": 64,
+      "emissions": 4096,
+      "rounds": 10000,
+      "pending": 1024,
+      "queue": 4096,
+      "visible": 256,
+      "known": 65536,
+      "events_per_round": 4096,
+      "reactions_per_round": 64,
+      "depth": 8,
+      "intents_per_agent": 1,
+      "retention": 32,
+      "inclusion_attempts": 256,
+      "eligibility_checks": 65536
+    },
+    "agents": {
+      "trader": {
+        "observe_public": true,
+        "observation_delay": "1",
+        "outgoing": {
+          "channel": {
+            "type": "Public"
+          },
+          "builder_delay": "1"
+        }
+      },
+      "recipient": {
+        "observe_public": false,
+        "observation_delay": "1",
+        "outgoing": {
+          "channel": {
+            "type": "Public"
+          },
+          "builder_delay": "1"
+        }
+      }
+    },
+    "emissions": [
+      {
+        "at": "7",
+        "producer_id": "script",
+        "producer_sequence": "0",
+        "transaction": {
+          "id": "victim",
+          "agent": "recipient",
+          "sender": "bob",
+          "chain": "lab-1",
+          "nonce": "0",
+          "limit": "500",
+          "price": "0",
+          "deadline": "100",
+          "program": [
+            {
+              "type": "SwapExactIn",
+              "pool": "cpmm",
+              "asset_in": "Q",
+              "amount": "200",
+              "min_out": "1"
+            }
+          ]
+        },
+        "delivery": {
+          "channel": {
+            "type": "Public"
+          },
+          "builder_delay": "2"
+        }
+      }
+    ],
+    "reactive": {},
+    "bundles": {
+      "limits": {
+        "members": 16,
+        "bytes": 1048576,
+        "pending": 128,
+        "known": 4096,
+        "probes": 64,
+        "probe_members": 256
+      },
+      "emissions": [
+        {
+          "at": "9",
+          "producer_id": "bundle-script",
+          "producer_sequence": "0",
+          "bundle": {
+            "id": "visible-group",
+            "agent": "trader",
+            "members": [
+              {
+                "type": "VisibleTxId",
+                "tx_id": "victim"
+              },
+              {
+                "type": "Own",
+                "transaction": {
+                  "id": "response",
+                  "agent": "trader",
+                  "sender": "alice",
+                  "chain": "lab-1",
+                  "nonce": "0",
+                  "limit": "500",
+                  "price": "0",
+                  "deadline": "100",
+                  "program": [
+                    {
+                      "type": "ExecuteRoute",
+                      "asset_in": "Q",
+                      "amount": "100",
+                      "hops": [
+                        {
+                          "kind": "Amm",
+                          "venue": "second"
+                        },
+                        {
+                          "kind": "Amm",
+                          "venue": "cpmm"
+                        }
+                      ],
+                      "min_out": "101",
+                      "residual_policy": "RequireFull"
+                    },
+                    {
+                      "type": "AssertTransactionNetGain",
+                      "asset": "Q",
+                      "minimum": "1"
+                    }
+                  ]
+                }
+              },
+              {
+                "type": "Own",
+                "transaction": {
+                  "id": "payment",
+                  "agent": "trader",
+                  "sender": "alice",
+                  "chain": "lab-1",
+                  "nonce": "1",
+                  "limit": "200",
+                  "price": "0",
+                  "deadline": "100",
+                  "program": [
+                    {
+                      "type": "Transfer",
+                      "to": "builder",
+                      "asset": "Q",
+                      "amount": "5"
+                    }
+                  ]
+                }
+              }
+            ],
+            "min_block": "1",
+            "max_block": "1",
+            "deadline": "100",
+            "allowed_reverts": [],
+            "bid": "5",
+            "payment_tx_id": "payment"
+          },
+          "delivery": {
+            "channel": {
+              "type": "Public"
+            },
+            "builder_delay": "0"
+          }
+        }
+      ]
+    }
+  }
+}

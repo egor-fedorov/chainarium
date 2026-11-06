@@ -1,4 +1,5 @@
 //! Accepted DEC-21: deterministic delivery, restricted observations and bounded builders.
+pub mod bundles;
 mod runtime;
 use crate::{Amount, Call, Scenario, Transaction, World, routing::Observation};
 use serde::{Deserialize, Serialize};
@@ -36,6 +37,8 @@ pub enum Builder {
     Fifo,
     FeePriority,
     Fixed { priority: Vec<String> },
+    FixedItems { priority: Vec<bundles::CandidateId> },
+    Greedy,
 }
 #[derive(Clone, Debug, Serialize, Deserialize, PartialEq, Eq)]
 #[serde(deny_unknown_fields)]
@@ -103,12 +106,14 @@ pub struct Config {
     pub agents: BTreeMap<String, Network>,
     pub emissions: Vec<Emission>,
     pub reactive: BTreeMap<String, ReactivePolicy>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub bundles: Option<bundles::Config>,
 }
 
 pub fn validate(s: &Scenario) -> Result<(), String> {
     let has = |m: &str| s.model_versions.iter().any(|v| v == m);
     let Some(c) = &s.scheduler else {
-        if !has("scheduler-m1-v1") || MODELS.iter().any(|m| has(m)) {
+        if !has("scheduler-m1-v1") || MODELS.iter().chain(bundles::MODELS.iter()).any(|m| has(m)) {
             return Err("scheduler profile/config mismatch".into());
         }
         return Ok(());
@@ -204,12 +209,14 @@ pub fn validate(s: &Scenario) -> Result<(), String> {
             return Err("empty/invalid reactive policy".into());
         }
     }
+    bundles::validate_config(s, c)?;
     Ok(())
 }
 
 #[derive(Clone, Debug, Serialize, Deserialize, PartialEq, Eq)]
 #[serde(tag = "type", deny_unknown_fields)]
 pub enum Status {
+    BundleMember,
     InFlight,
     Pending,
     Waiting { reason: String },
@@ -224,6 +231,8 @@ impl Status {
 #[derive(Clone, Debug, Serialize, Deserialize, PartialEq, Eq)]
 #[serde(deny_unknown_fields)]
 pub struct Known {
+    #[serde(default = "yes", skip_serializing_if = "is_yes")]
+    pub standalone: bool,
     pub transaction: Transaction,
     pub delivery: Delivery,
     pub submitted_at: Amount,
@@ -242,6 +251,16 @@ pub struct Pending {
 #[derive(Clone, Debug, Serialize, Deserialize, PartialEq, Eq)]
 #[serde(tag = "type", deny_unknown_fields)]
 pub enum EventKind {
+    BundleEmission {
+        index: usize,
+    },
+    BundleBuilderDelivery {
+        bundle_id: String,
+    },
+    BundleAgentDelivery {
+        bundle_id: String,
+        agent: String,
+    },
     Emission {
         index: usize,
     },
@@ -286,6 +305,12 @@ pub struct State {
     pub pending: BTreeMap<String, Pending>,
     pub visible: BTreeMap<String, Vec<Message>>,
     pub triggered: BTreeMap<String, BTreeSet<String>>,
+    #[serde(default, skip_serializing_if = "BTreeMap::is_empty")]
+    pub bundles: BTreeMap<String, bundles::KnownBundle>,
+    #[serde(default, skip_serializing_if = "BTreeMap::is_empty")]
+    pub bundle_pending: BTreeMap<String, Pending>,
+    #[serde(default, skip_serializing_if = "BTreeMap::is_empty")]
+    pub bundle_visible: BTreeMap<String, Vec<bundles::BundleMessage>>,
 }
 impl Default for State {
     fn default() -> Self {
@@ -297,6 +322,9 @@ impl Default for State {
             pending: BTreeMap::new(),
             visible: BTreeMap::new(),
             triggered: BTreeMap::new(),
+            bundles: BTreeMap::new(),
+            bundle_pending: BTreeMap::new(),
+            bundle_visible: BTreeMap::new(),
         }
     }
 }
@@ -313,6 +341,10 @@ pub struct AgentObservation {
     pub market: Observation,
     pub messages: Vec<Message>,
     pub own_outbox: Vec<OwnSubmission>,
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub bundle_messages: Vec<bundles::BundleMessage>,
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub own_bundles: Vec<bundles::OwnBundle>,
 }
 impl ReactivePolicy {
     // Only delivered trigger metadata, own observation and public chain configuration.
@@ -374,11 +406,23 @@ impl State {
         }
         Ok(AgentObservation {
             market: Observation::capture(s, parent, account)?,
+            bundle_messages: self.bundle_visible.get(agent).cloned().unwrap_or_default(),
+            own_bundles: self
+                .bundles
+                .iter()
+                .filter(|(_, k)| k.agent == agent)
+                .map(|(id, k)| bundles::OwnBundle {
+                    id: id.clone(),
+                    bundle: k.resolved.clone(),
+                    submitted_at: k.submitted_at,
+                    status: k.committed_status.clone(),
+                })
+                .collect(),
             messages: self.visible.get(agent).cloned().unwrap_or_default(),
             own_outbox: self
                 .known
                 .values()
-                .filter(|k| k.transaction.agent == agent)
+                .filter(|k| k.standalone && k.transaction.agent == agent)
                 .map(|k| OwnSubmission {
                     transaction: k.transaction.clone(),
                     submitted_at: k.submitted_at,
@@ -403,6 +447,14 @@ pub struct Trace {
 #[serde(deny_unknown_fields)]
 pub struct Metrics {
     pub actions: BTreeMap<String, usize>,
+    #[serde(default)]
+    pub probes: usize,
+    #[serde(default)]
+    pub probe_members: usize,
+    #[serde(default)]
+    pub probe_used: Amount,
+    #[serde(default)]
+    pub truncated: bool,
     pub events: usize,
     pub reactions: usize,
     pub attempts: usize,
@@ -411,8 +463,17 @@ pub struct Metrics {
 #[derive(Clone, Debug, Serialize, Deserialize, PartialEq, Eq)]
 #[serde(deny_unknown_fields)]
 pub struct Report {
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub probes: Vec<bundles::Probe>,
     pub trace: Vec<Trace>,
     pub metrics: Metrics,
     pub state: State,
 }
 pub(crate) use runtime::advance;
+
+fn yes() -> bool {
+    true
+}
+fn is_yes(value: &bool) -> bool {
+    *value
+}
