@@ -1075,3 +1075,44 @@ lending, внутри — BTreeMap keys; затем расчёт суммы по
 Помимо каждой просмотренной записи счётчик включает lookup account/protocol
 container: пустые контейнеры также не обходят cap. Quantity/value каждой строки
 проверяются отдельно, агрегация проходит без промежуточного floor.
+
+### M5a / DEC-28 — сквозная реализация и проверки
+
+Добавлены HTTP `GET /api/valuation/{block}`, MTM-панель с выбором portfolio,
+компонентами, price provenance, Unpriced/reasons, capital flows, пересечениями
+счетов и скачиванием policy + выбранной boundary. Деньги отображаются точными
+строками/дробями; UI не пересчитывает PnL из округлённых строк. Просмотр не меняет
+исполнение. Новые presets `sc-mtm-{capital,unpriced,flash,credit,clmm,book}`
+добавлены к58 предыдущим: всего64 CLI/UI demos.
+
+Проверка дополнительного edge case выявила неоднозначный binding, когда TxId
+literal emission повторно определён как Own bundle member. Валидация теперь
+отвергает обе такие definitions, включая идентичные; VisibleTxId остаётся ссылкой
+на единственный literal target. Отдельный regression test фиксирует это правило.
+
+Проверено на release fingerprint
+`d6e0e56b25b40455a52e1ce7c290b1c0f6bf76bc2a947ea2be33162e3d15953f`:
+
+- Полный workspace: **428 Rust-тестов**,0 failures/ignored;16 новых integration
+  tests MTM. Format и Clippy all-targets `-D warnings` прошли.
+- JS syntax и `web/wire.test.mjs` прошли.
+- `scripts/check-demos.py`: **64 CLI demos**, каждый новый MTM export проверен
+  отдельной Python Fraction арифметикой. Все committed boundaries шести demos
+  восстановлены; полный resumed export совпадает побайтно.
+- `scripts/check-ui.py`:58 прежних demos прошли; `scripts/check-valuation-ui.py`:
+  все6 новых demos прошли, включая точный `1/2`, capital timing, historical
+  Unpriced, LP/CLMM/order/debt, history/readonly, download, restore и mobile.
+- Визуально просмотрены `output/m5a-capital.png` и
+  `output/m5a-unpriced-mobile.png`; горизонтального переполнения нет.
+
+Артефакты CLI: `output/m5a-final-validated/`. Модель демонстрирует:
+стоимость115 Q и PnL10 Q после взноса20/вывода15; известную текущую стоимость10 Q
+с Unpriced PnL из-за исторического взноса; wallet cycle +24104 Q при полном
+LP-owner MTM PnL−240 Q; post-loss депозит и долг, native CLMM fees/surplus и
+remaining book escrow. Существующие scenarios без valuation policy сохраняют
+прежний JSON/экспортный профиль (кроме обычного обновления build fingerprint).
+
+**Границы готовности:** независимый review DEC-27 и DEC-28 ещё не выполнен.
+Предыдущие разрешения на агента охватывали код до DEC-26; новый reviewer без
+согласования не запускался. Сравнительные серии, HODL, полный Explorer,
+оставшиеся user-task и performance gates v1.0 впереди. Среда не публиковалась.

@@ -82,6 +82,12 @@ async fn wire(Json(value): Json<Wire>) -> Json<Wire> {
 }
 async fn preset(ApiPath(id): ApiPath<String>) -> Result<impl IntoResponse, ApiError> {
     let data = match id.as_str() {
+        "sc-mtm-capital" => include_str!("../../../scenarios/demos/sc-mtm-capital.json"),
+        "sc-mtm-unpriced" => include_str!("../../../scenarios/demos/sc-mtm-unpriced.json"),
+        "sc-mtm-flash" => include_str!("../../../scenarios/demos/sc-mtm-flash.json"),
+        "sc-mtm-credit" => include_str!("../../../scenarios/demos/sc-mtm-credit.json"),
+        "sc-mtm-clmm" => include_str!("../../../scenarios/demos/sc-mtm-clmm.json"),
+        "sc-mtm-book" => include_str!("../../../scenarios/demos/sc-mtm-book.json"),
         "sc-flash-arb-success" => {
             include_str!("../../../scenarios/demos/sc-flash-arb-success.json")
         }
@@ -371,6 +377,14 @@ async fn credit_view(
         markets: chainarium_core::credit::views(&r.scenario, w),
     }))
 }
+async fn valuation_view(
+    State(s): State<Shared>,
+    ApiPath(block): ApiPath<usize>,
+) -> Result<Json<chainarium_core::valuation::Boundary>, ApiError> {
+    let g = current(&s)?;
+    let r = g.as_ref().ok_or_else(|| bad("no run"))?;
+    Ok(Json(chainarium_core::valuation::at(r, block).map_err(bad)?))
+}
 #[derive(Deserialize)]
 #[serde(deny_unknown_fields)]
 struct QuoteRequest {
@@ -449,6 +463,15 @@ fn app() -> Router {
                 (
                     [(header::CONTENT_TYPE, "text/javascript; charset=utf-8")],
                     include_str!("../../../web/flash-arbitrage.js"),
+                )
+            }),
+        )
+        .route(
+            "/valuation.js",
+            get(|| async {
+                (
+                    [(header::CONTENT_TYPE, "text/javascript; charset=utf-8")],
+                    include_str!("../../../web/valuation.js"),
                 )
             }),
         )
@@ -537,6 +560,7 @@ fn app() -> Router {
         .route("/api/routes", post(routes))
         .route("/api/route-quote", post(route_quote))
         .route("/api/credit/{block}", get(credit_view))
+        .route("/api/valuation/{block}", get(valuation_view))
         .route("/api/market/{block}/{id}", get(market_view))
         .route("/api/oracles/{block}", get(oracle_view))
         .route("/api/books/{block}", get(books_view))

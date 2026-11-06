@@ -1,0 +1,341 @@
+{
+  "schema_version": "chainarium-scenario-m1-v1",
+  "model_versions": [
+    "native-execution-v1",
+    "native-cost-v1",
+    "cpmm-v1",
+    "scheduler-m1-v1",
+    "chacha12-v1",
+    "clmm-native-v1",
+    "reference-mtm-v1"
+  ],
+  "name": "Reference MTM: native CLMM claims and surplus",
+  "seed": "42",
+  "assets": {
+    "X": {
+      "decimals": 0
+    },
+    "Q": {
+      "decimals": 0
+    }
+  },
+  "accounts": {
+    "alice": {
+      "nonce": "0",
+      "balances": {
+        "X": "100000",
+        "Q": "100000"
+      }
+    },
+    "bob": {
+      "nonce": "0",
+      "balances": {
+        "X": "100000",
+        "Q": "100000"
+      }
+    },
+    "carol": {
+      "nonce": "0",
+      "balances": {
+        "X": "100000",
+        "Q": "100000"
+      }
+    },
+    "trader": {
+      "nonce": "0",
+      "balances": {
+        "X": "100000",
+        "Q": "100000"
+      }
+    },
+    "clmm-account": {
+      "nonce": "0",
+      "balances": {
+        "X": "0",
+        "Q": "0"
+      }
+    },
+    "builder": {
+      "nonce": "0",
+      "balances": {
+        "X": "0",
+        "Q": "0"
+      }
+    }
+  },
+  "protocols": {},
+  "agents": {
+    "alice": {
+      "controlled_accounts": [
+        "alice"
+      ]
+    },
+    "bob": {
+      "controlled_accounts": [
+        "bob"
+      ]
+    },
+    "carol": {
+      "controlled_accounts": [
+        "carol"
+      ]
+    },
+    "trader": {
+      "controlled_accounts": [
+        "trader"
+      ]
+    }
+  },
+  "chain": {
+    "id": "lab-1",
+    "fee_asset": "Q",
+    "fee_account": "builder",
+    "block_limit": "10000",
+    "interval": "1"
+  },
+  "blocks": [
+    [
+      {
+        "id": "mint-4988-X-and-Q",
+        "agent": "alice",
+        "sender": "alice",
+        "chain": "lab-1",
+        "nonce": "0",
+        "limit": "1000",
+        "price": "0",
+        "deadline": "1000",
+        "program": [
+          {
+            "type": "MintPosition",
+            "pool": "clmm",
+            "lower": -100,
+            "upper": 100,
+            "liquidity": "1000000",
+            "max_x": "100000",
+            "max_q": "100000"
+          }
+        ]
+      }
+    ],
+    [
+      {
+        "id": "swap-late-rollback",
+        "agent": "trader",
+        "sender": "trader",
+        "chain": "lab-1",
+        "nonce": "0",
+        "limit": "1000",
+        "price": "0",
+        "deadline": "1000",
+        "program": [
+          {
+            "type": "ClmmSwap",
+            "pool": "clmm",
+            "asset_in": "X",
+            "amount": "1000",
+            "sqrt_price_limit": "78833030112140176575862854578",
+            "min_out": "996",
+            "allow_partial": false
+          },
+          {
+            "type": "AssertCondition",
+            "condition": false,
+            "message": "CLMM price, ticks, fees и tokens должны восстановиться"
+          }
+        ]
+      },
+      {
+        "id": "swap-1000-to-996",
+        "agent": "trader",
+        "sender": "trader",
+        "chain": "lab-1",
+        "nonce": "1",
+        "limit": "1000",
+        "price": "0",
+        "deadline": "1000",
+        "program": [
+          {
+            "type": "ClmmSwap",
+            "pool": "clmm",
+            "asset_in": "X",
+            "amount": "1000",
+            "sqrt_price_limit": "78833030112140176575862854578",
+            "min_out": "996",
+            "allow_partial": false
+          }
+        ]
+      }
+    ],
+    [
+      {
+        "id": "burn-and-collect-2",
+        "agent": "alice",
+        "sender": "alice",
+        "chain": "lab-1",
+        "nonce": "1",
+        "limit": "1000",
+        "price": "0",
+        "deadline": "1000",
+        "program": [
+          {
+            "type": "BurnPosition",
+            "pool": "clmm",
+            "position_id": "1",
+            "liquidity": "1000000",
+            "min_x": "5984",
+            "min_q": "3991"
+          },
+          {
+            "type": "CollectPosition",
+            "pool": "clmm",
+            "position_id": "1"
+          }
+        ]
+      }
+    ],
+    [
+      {
+        "id": "empty-pool-no-output",
+        "agent": "trader",
+        "sender": "trader",
+        "chain": "lab-1",
+        "nonce": "2",
+        "limit": "1000",
+        "price": "0",
+        "deadline": "1000",
+        "program": [
+          {
+            "type": "ClmmSwap",
+            "pool": "clmm",
+            "asset_in": "X",
+            "amount": "1000",
+            "sqrt_price_limit": "78833030112140176575862854578",
+            "min_out": "1",
+            "allow_partial": false
+          }
+        ]
+      },
+      {
+        "id": "bootstrap-after-surplus",
+        "agent": "alice",
+        "sender": "alice",
+        "chain": "lab-1",
+        "nonce": "2",
+        "limit": "1000",
+        "price": "0",
+        "deadline": "1000",
+        "program": [
+          {
+            "type": "MintPosition",
+            "pool": "clmm",
+            "lower": -100,
+            "upper": 100,
+            "liquidity": "1000000",
+            "max_x": "100000",
+            "max_q": "100000"
+          }
+        ]
+      }
+    ],
+    [
+      {
+        "id": "swap-exhaustion",
+        "agent": "trader",
+        "sender": "trader",
+        "chain": "lab-1",
+        "nonce": "3",
+        "limit": "120",
+        "price": "0",
+        "deadline": "1000",
+        "program": [
+          {
+            "type": "ClmmSwap",
+            "pool": "clmm",
+            "asset_in": "Q",
+            "amount": "1000",
+            "sqrt_price_limit": "79625275426524748796330556127",
+            "min_out": "1",
+            "allow_partial": false
+          }
+        ]
+      },
+      {
+        "id": "swap-late-rollback-again",
+        "agent": "trader",
+        "sender": "trader",
+        "chain": "lab-1",
+        "nonce": "4",
+        "limit": "1000",
+        "price": "0",
+        "deadline": "1000",
+        "program": [
+          {
+            "type": "ClmmSwap",
+            "pool": "clmm",
+            "asset_in": "Q",
+            "amount": "1000",
+            "sqrt_price_limit": "79625275426524748796330556127",
+            "min_out": "1",
+            "allow_partial": false
+          },
+          {
+            "type": "AssertCondition",
+            "condition": false,
+            "message": "CLMM price, ticks, fees и tokens должны восстановиться"
+          }
+        ]
+      }
+    ]
+  ],
+  "clmm_pools": {
+    "clmm": {
+      "account": "clmm-account",
+      "x": "X",
+      "q": "Q",
+      "fee_bps": 30,
+      "initial_sqrt": "79228162514264337593543950336"
+    }
+  },
+  "valuation_policy": {
+    "version": "reference-mtm-v1",
+    "numeraire": "Q",
+    "evaluation_point": "committed-block-end",
+    "source": "environment-reference",
+    "max_age_seconds": "60",
+    "limits": {
+      "portfolios": 16,
+      "accounts_per_portfolio": 64,
+      "reference_assets": 64,
+      "updates_total": 16384,
+      "capital_transfers": 4096,
+      "component_checks_per_portfolio": 4096,
+      "rational_bits": 32768
+    },
+    "portfolios": {
+      "owner": {
+        "accounts": [
+          "alice"
+        ]
+      }
+    },
+    "reference_feeds": {
+      "X": {
+        "source_id": "scenario-reference-X-Q",
+        "records": [
+          {
+            "available_at": "0",
+            "observed_at": "0",
+            "sequence": "0",
+            "price": {
+              "base_asset": "X",
+              "quote_asset": "Q",
+              "numerator": "1",
+              "denominator": "1"
+            }
+          }
+        ]
+      }
+    },
+    "capital_transfers": []
+  }
+}

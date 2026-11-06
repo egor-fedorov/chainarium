@@ -16,3 +16,5 @@ select{display:block;width:100%;padding:10px;margin-top:5px;background:#f9fbf8;b
 
 #backrun-panel{overflow-wrap:anywhere}.search-decision{border-top:1px solid var(--line);padding:14px 0}.search-best{background:#eef7f3}
 .tx>span:not(.badge){min-width:0;overflow-wrap:anywhere}
+
+#valuation-panel{overflow-wrap:anywhere}#valuation-panel .stat{min-width:0;max-width:100%}#valuation-panel .stat small{font-size:12px;font-weight:400;letter-spacing:normal}#valuation-download{margin-top:20px}

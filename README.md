@@ -1,7 +1,7 @@
 # Chainarium
 
 Локальная лаборатория DeFi с Rust-ядром. **v1.0 в разработке.**
-Сейчас исполняются M1–M4g: CPMM swaps/LP, маршруты, арбитражная политика
+Сейчас исполняются M1–M5a: CPMM swaps/LP, маршруты, арбитражная политика
 на собственных средствах, flash loans, lending, oracle, проценты и ликвидации, StableSwap, TWAP и flash-ликвидация,
 стакан GTC/IOC/FOK, CLMM и общий partial-fill router, rollback, fees/nonce и
 исчерпание ресурса. Добавлены event scheduler, mempool, Public/Private delivery,
@@ -17,6 +17,8 @@ Backrun policy ищет размер/маршрут по доставленно�
 Их выбор, preflight и фактические оплаченные receipts показаны отдельно.
 Flash arbitrage ищет закрытый RequireFull цикл на фиксированный principal,
 резервирует собственные native fees и проверяет net после settlement займа.
+Reference MTM считает точную стоимость портфеля, учитывает позиции и долги,
+оценивает внешний капитал по времени исполнения и явно показывает Unpriced.
 Полный объём и приёмка: [спецификация](docs/spec.md).
 
 ## Запуск
@@ -58,14 +60,24 @@ M4f добавляет `baseline-decisions.jsonl`: цели, RNG-выборки 
 M4g добавляет `flash-arbitrage-probes.jsonl`: пути, ограничение поиска, provider,
 собственный fee reserve, conditional net и typed исход отправки. Canonical
 receipts отдельно показывают фактические расходы и rollback.
+M5a добавляет `valuation-policy.json`, `valuations.jsonl` (genesis и committed
+blocks) и `capital-flows.jsonl`. Manifest содержит hashes policy/reference inputs.
+HTTP `GET /api/valuation/{block}` и UI читают те же точные дроби; панель MTM
+позволяет скачать выбранную оценку вместе с правилами.
 Для повторного запуска выберите новое имя папки.
 Checkpoint восстанавливается только на committed-границе; checksum и повторное
 исполнение проверяют его целостность. CSV не является форматом восстановления.
 
-Доступны 58 presets в UI и CLI:
+Доступны 64 presets в UI и CLI:
 
 | Файл | Демонстрация |
 | --- | --- |
+| `scenarios/demos/sc-mtm-capital.json` | Взнос2 X по10, цена15, вывод1 X: стоимость115 Q, PnL10 Q |
+| `scenarios/demos/sc-mtm-unpriced.json` | Текущая стоимость10 Q известна; PnL Unpriced из-за цены исторического взноса |
+| `scenarios/demos/sc-mtm-flash.json` | Wallet net+24104 Q и полный MTM PnL−240 Q владельца обоих LP |
+| `scenarios/demos/sc-mtm-credit.json` | Залог, долг, проценты и депозитное право после убытка |
+| `scenarios/demos/sc-mtm-clmm.json` | Признанные CLMM principal/fees без rounding surplus |
+| `scenarios/demos/sc-mtm-book.json` | Собственный remaining escrow заявок и wallet без двойного счёта |
 | `scenarios/demos/sc-flash-arb-success.json` | Flash100000 Q, net24104 Q после fee50 и native190 |
 | `scenarios/demos/sc-flash-arb-unprofitable.json` | Малый цикл не окупает native fee: Skip без расходов |
 | `scenarios/demos/sc-flash-arb-guard.json` | Успешная проба, поздний guard revert; оплачено190 Q |
@@ -148,6 +160,9 @@ scripts/cargo.sh test --workspace --locked
 
 ```sh
 python3 scripts/check-ui.py
+python3 scripts/check-valuation-ui.py
+# После release build; создаётся новая папка результатов:
+python3 scripts/check-demos.py output/demo-validation
 ```
 
 Эта проверка проходит пользовательский путь, точные U256 через браузер/API,
@@ -213,7 +228,12 @@ checkpoint/resume, fork, A/B и мобильную верстку. Снимки 
   node/depth caps. Другие venue families hooks пока не принимают.
   Payout не включается в route output; arbitrage net использует полный balance delta.
   Для hooks нужна execution quote; чистая base-fee кривая ею не считается.
-- Исследовательский MTM/PnL не рассчитывается; баланс не называется прибылью.
+- M5a: opt-in `reference-mtm-v1` — точные signed fractions и reference prices
+  с availability/observation time. PnL = V−V0−in+out; capital labels относятся
+  только к literal sole Transfer, исполненному в canonical block. Missing/stale
+  или исторически недоступная цена сохраняет Unpriced. LP mark не является
+  burn quote; deposit claim отличается от доступного cash. Пересекающиеся
+  portfolios нельзя суммировать. Серии экспериментов и HODL ещё впереди.
 - M4f: `baseline-agents-v1` — scripted/random user, target borrower и native
   oracle publisher. До одного intent и preflight на агента за раунд; AnyReceipt
   допускает отправку предсказанной оплачиваемой неудачи. RandomUser использует
@@ -224,7 +244,7 @@ checkpoint/resume, fork, A/B и мобильную верстку. Снимки 
   до3 hops/64 probes/4096 venue checks; RequireFull и root net guard после
   settlement. Shared family budget, explicit truncation/submit refusal;
   включённый actual revert оплачивается, диагностические пробы — нет.
-- UI — прототип M1–M4g с58 presets. Полный explorer M5 впереди.
+- UI — прототип M1–M5a с64 presets. Полный explorer M5 впереди.
 - Критерии всей v1.0 не объявляются выполненными. Независимый review и следующие
   открытые экономические контракты фиксируются согласно §23–24 спецификации.
 
@@ -257,8 +277,9 @@ capability checks и явный submission outcome. [Перепроверка и
 +3 unit tests адресной перепроверки.
 DEC-27/M4g реализован и функционально проверен; отдельный независимый review
 нового search/controller ещё не выполнен.
-Следующий контракт — Proposed DEC-28: [reference MTM](docs/spec.md#23216-предлагаемый-контракт-m5a--proposed-dec-28)
-с24 точными примерами. Реализация ожидает согласования G-11.
+DEC-28 принят владельцем: [reference MTM](docs/spec.md#23216-принятый-контракт-m5a--accepted-dec-28)
+с24 pre-implementation arithmetic examples. Реализация прошла Rust/CLI/browser проверки;
+независимый review нового evaluator ещё не выполнен.
 
 Фактические результаты и оставшиеся проверки: [журнал прогресса](docs/progress.md).
 Сценарий CLI ограничен 64 MiB, отдельная транзакция — 1 MiB. Web restore

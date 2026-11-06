@@ -1,4 +1,5 @@
 import {renderAgents} from './agents.js';
+import {renderValuation} from './valuation.js';
 import {renderFlashArbitrage} from './flash-arbitrage.js';
 import {renderHooks,hookCard} from './hooks.js';
 import {renderLiquidators,liquidationCard} from './liquidators.js';
@@ -19,6 +20,7 @@ function balance(state,account,asset){return state.accounts[account]?.balances[a
 function render(){
  if(!run)return;
  const block=run.blocks[viewed], state=block?.state??run.initial;
+ renderValuation(run,state,api);
  renderRoutes(run,state,api);
  renderPolicies(run);
  renderScheduler(run,block);
@@ -34,7 +36,7 @@ function render(){
  const creditId=Object.keys(run.scenario.lending??{})[0],creditCfg=run.scenario.lending?.[creditId],creditState=state.lending?.[creditId];
  $('#venue-control').hidden=!pool;$('#lp-title').hidden=!pool;$('#positions').hidden=!pool;
  $('#scenario-title').textContent=run.scenario.name;
- $('#assumptions').innerHTML=`<p>Активы: ${Object.entries(run.scenario.assets).map(([id,a])=>`${esc(id)} (${a.decimals} decimals)`).join(', ')}. Ресурс блока: ${esc(run.scenario.chain.block_limit)}; интервал: ${esc(run.scenario.chain.interval)} s.</p><p>Комиссия исполнения и полный резерв задаются каждым конвертом. Подтверждённые события и трасса попытки разделены. Общий MTM/PnL не вычисляется.</p><code>${run.scenario.model_versions.map(esc).join('<br>')}</code>`;
+ $('#assumptions').innerHTML=`<p>Активы: ${Object.entries(run.scenario.assets).map(([id,a])=>`${esc(id)} (${a.decimals} decimals)`).join(', ')}. Ресурс блока: ${esc(run.scenario.chain.block_limit)}; интервал: ${esc(run.scenario.chain.interval)} s.</p><p>Комиссия исполнения и полный резерв задаются каждым конвертом. Подтверждённые события и трасса попытки разделены. ${run.scenario.valuation_policy?'Reference MTM/PnL показан для выбранной границы портфеля.':'Общий MTM/PnL не вычисляется.'}</p><code>${run.scenario.model_versions.map(esc).join('<br>')}</code>`;
 
 
  const poolAccount=pool?.account??creditCfg?.cash_account??bookCfg?.account??clmmCfg?.account??Object.keys(state.accounts)[0];
