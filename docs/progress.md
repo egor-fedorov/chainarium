@@ -11,7 +11,9 @@ scheduler/mempool/basic builders реализованы и функционал�
 Независимый review M4a завершён без подтверждённых замечаний;
 отчёт — `docs/reviews/dec21-independent-review.md`.
 M4b / DEC-22 реализован и функционально проверен в `7fc0007`;
-разрешённый владельцем независимый read-only review этого snapshot выполняется.
+независимый read-only review этого snapshot завершён без подтверждённых findings.
+Отчёт — `docs/reviews/dec22-independent-review.md`; сохранены 12 независимых
+тестов, включая 640 differential cases. DEC-23 в область review не входит.
 Следующий контракт M4c — **Accepted DEC-23** (§23.2.11): поиск backrun,
 ограниченное наблюдение и conditional net после bid. До реализации сохранены
 аналитические `docs/reviews/backrun-reference.py`/`.json`; контракт согласован владельцем, реализация начата.
@@ -508,7 +510,11 @@ JS errors/overflow. Снимки `output/m4b-greedy.png`, `output/m4b-forbidden.
 UI не называет пробные комиссии каноническими, не показывает нулевой score
 вместо отсутствующей оценки budget-limited/незавершённой пробы.
 
-Независимый review DEC-22 требуется отдельно. Поисковые backrun/liquidator
+Независимый review DEC-22 завершён без подтверждённых findings на `7fc0007`;
+211 штатных tests, 12 независимых tests/640 differential cases и шесть
+CLI export/resume проверены reviewer. Ограничения —
+`docs/reviews/dec22-independent-review.md`; live browser reviewer не запускал.
+Поисковые backrun/liquidator
 политики, hooks, прочие роли, MTM и M5 остаются впереди. Caps ограничивают
 модельную работу, но performance на совместных максимальных payload/history
 не доказана; G-16 не закрыт. Сценарный bundle сам по себе не является
@@ -565,7 +571,8 @@ latency UI и полные workloads M5 ещё не измерены/не при
    в его отчёте. Новые механизмы M4 потребуют отдельного review.
 4. M4a / DEC-21 функционально и независимо проверен. M4b / Accepted DEC-22
    реализован, численные ожидания совпали, все функциональные проверки прошли;
-   отдельный read-only review diff `82e52c7..7fc0007` разрешён и выполняется.
+   отдельный read-only review diff `82e52c7..7fc0007` завершён без findings,
+   его отчёт и 12 независимых тестов сохранены.
    Для следующего M4c принят DEC-23 (§23.2.11), реализация начата:
    поиск backrun по видимой victim, sizes/route caps, bundle и net после fees/bid.
    Затем M4: liquidator policies, hooks и остальные роли;
