@@ -24,10 +24,10 @@ M4c — **Accepted DEC-23** (§23.2.11): поиск backrun,
 тестов и отдельный boundary test. Итоговый suite reviewer —271 passed.
 M4d: **Accepted DEC-24** (§23.2.12), LiquidateAndSell + bounded
 liquidator, Own/Flash funding и SC-06 competition реализованы. До реализации
-сохранены `docs/reviews/liquidator-reference.py`/`.json`. Нужен отдельный
-независимый review нового экономического call и policy; DEC-23 его не охватывает.
-Владелец разрешил один read-only review DEC-24; проверяется diff
-`72590bb..976a5cb` в отдельном контексте. Параллельно подготовлен **Proposed DEC-25**
+сохранены `docs/reviews/liquidator-reference.py`/`.json`. Разрешённый владельцем
+отдельный read-only review diff `72590bb..976a5cb` завершён без подтверждённых
+findings. Отчёт — `docs/reviews/dec24-independent-review.md`; сохранены7 независимых
+тестов, включая768 integer cases и344 resource-boundary executions. Параллельно подготовлен **Proposed DEC-25**
 (§23.2.13): hooks CPMM и независимые численные примеры. Он ещё не согласован
 и не реализуется до решения владельца.
 
@@ -74,12 +74,14 @@ LP shares, C/D/S/E, escrow, точный HF и запись oracle, фактич
 ## Фактическая проверка
 
 - `scripts/cargo.sh fmt --check` и Clippy всех targets с `-D warnings` — прошли.
-- `scripts/cargo.sh test --workspace --locked --offline` — **305 tests passed**:
+- `scripts/cargo.sh test --workspace --locked --offline` — **305 tests passed** в полном прогоне; затем7 новых
+  независимых DEC-24 tests прошли адресно (в suite теперь312 тестов):
   11 unit tests (включая fault injection), 19 acceptance, 20 composition, 19 credit,
   10 stable, 10 twap, 7 flash_liquidation, 14 book, 17 clmm, 11 heterogeneous,
   16 policies, 6 independent_dec20, 10 independent_dec21, 12 independent_dec22,
   18 scheduler, 26 bundles, 30 backrun, 16 independent_dec23,
   1 independent_dec23_boundaries, 12 liquidation_sale, 20 liquidator_policy;
+  дополнительно7 independent_dec24;
   ignored=0. Независимые тесты сохраняют аналитические sweeps предыдущих reviews.
 - `node --test web/wire.test.mjs` — канонические строки, диапазоны и точный
   decimal conversion прошли; JS экономические команды не проходят через Number.
@@ -665,7 +667,15 @@ UI показывает config/funding, parent→preview, target health/freshnes
 Release fingerprint: `e5347c96728677f327938fc4db0223f39fa031affad8c8aad4cbe92dace4c205`.
 Артефакты: `output/m4d-validated/`, `output/m4d-competition.png`,
 `output/m4d-flash-mobile.png`; логи `/tmp/chainarium-m4d-{full-tests,clippy,browser,cli}.log`.
-Независимый review DEC-24 ещё не выполнен; прежний DEC-23 review исключает этот scope.
+Независимый review DEC-24 diff `72590bb..976a5cb` завершён без подтверждённых
+findings: `docs/reviews/dec24-independent-review.md`. Семь reviewer tests сохранены
+в `tests/independent_dec24.rs` и адресно прошли в основном checkout. Они добавляют
+768 независимых integer cases,344 resource boundaries, точные1024 nodes/depth32,
+Fixed/Greedy с оплачиваемым проигравшим, U256 request/minimum, multi-target/path
+tie-breaks и checkpoint каждого из6 demos на каждой committed boundary.
+Reviewer независимо выполнил весь baseline305 suite. Новая численная модель —
+liquidation+CPMM; StableSwap/CLMM/book опираются на чтение и существующие tests.
+UI/CLI reviewer проверил статически; browser40 acceptance выше выполнена автором.
 Это M4d, не вся M4 или v1.0: hooks, остальные роли, MTM/эксперименты/explorer и
 performance/user-task gates M5 остаются открытыми.
 
@@ -673,7 +683,7 @@ performance/user-task gates M5 остаются открытыми.
 
 | Проверка | Доказательство | Ограничение |
 | --- | --- | --- |
-| Ledger/auth/execution/block | acceptance + 5 injected ModelErrors после успешной tx, включая accrual/oracle | M4b/M4c независимо проверены; review M4d впереди |
+| Ledger/auth/execution/block | acceptance + 5 injected ModelErrors после успешной tx, включая accrual/oracle | M4b/M4c/M4d независимо проверены; ограничения указаны в отдельных отчётах |
 | CPMM/LP/router/flash | composition: rounding/minima/ownership/reentry/actual output/rollback; 500 CPMM invariant cases | Native models; совместимость с внешним deployment не заявлена |
 | Lending accounting | exact fixture, caps/HF/LTV/cash, aggregate rates, multiple escrow, fractional carry, no-holder income | Прямой долг, заранее зарегистрированные позиции, максимум 1024/reserve |
 | Liquidation/loss | exact waterfall, partial close, dust, min_collateral, fee-preserving rollback, 256 deterministic boundary cases | Нет recovery/treasury; вывод equity запрещён |
@@ -726,12 +736,13 @@ latency UI и полные workloads M5 ещё не измерены/не при
    sizes/route caps, bundle и net после fees/bid. Независимый
    read-only review этого среза завершён; два P2 исправлены и перепроверены. Для M4d принят
    DEC-24 (§23.2.12) с численными ожиданиями; M4d реализован,
-   независимый review нового среза ещё впереди.
+   независимый review нового среза завершён без подтверждённых findings.
+   Для hooks подготовлен Proposed DEC-25 (§23.2.13), требуется решение владельца.
    Затем M4: hooks и остальные роли;
    M5: MTM, эксперименты, полный explorer и приёмка. Новые существенные решения
    требуют конкретных карточек и согласования по §23.7.
 5. Полные user-task/latency/performance budgets и независимое review должны
-   быть выполнены до приёмки целевой v1.0. SC-06 с конкуренцией исполняется в M4d, независимый review впереди.
+   быть выполнены до приёмки целевой v1.0. SC-06 с конкуренцией исполняется в M4d и отдельно проверен.
 
 Изменения находятся в рабочем checkout. Среда не публиковалась, push и публикация релизов
 не выполнялись. Ранее опубликованная конфигурация среды не изменялась повторно.

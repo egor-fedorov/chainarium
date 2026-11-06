@@ -194,7 +194,10 @@ checkpoint/resume, fork, A/B и мобильную верстку. Снимки 
 [Review DEC-23/M4c](docs/reviews/dec23-independent-review.md) выявил два P2
 (nonce/time overflow); исправления до `f99114a` независимо перепроверены.
 
-DEC-24/M4d функционально реализован; независимый review нового среза ещё впереди.
+[Review DEC-24/M4d](docs/reviews/dec24-independent-review.md) завершён без
+подтверждённых findings. Сохранены7 независимых tests:768 денежных сценариев,
+344 resource boundaries, node/depth, Fixed/Greedy, U256 и checkpoint/replay.
+Для hooks подготовлен Proposed DEC-25; его согласование и реализация впереди.
 
 Фактические результаты и оставшиеся проверки: [журнал прогресса](docs/progress.md).
 Сценарий CLI ограничен 64 MiB, отдельная транзакция — 1 MiB. Web restore
