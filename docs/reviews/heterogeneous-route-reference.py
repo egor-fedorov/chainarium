@@ -1,4 +1,4 @@
-"""Analytical expectations for Proposed DEC-20, before implementation.
+"""Analytical expectations for accepted DEC-20, pinned before implementation.
 
 Uses Python integers and Fraction only; no executor imports. This calculation
 pins example outcomes, not an independent review of the future implementation.
@@ -92,7 +92,7 @@ assert anchors == [50, 60] and quotes == [(45, 55), (55, 65)]
 assert locks == [(20, 180), (20, 220)]
 
 print(json.dumps(dict(
-    status='pre-implementation expectations for Proposed DEC-20',
+    status='pre-implementation expectations for accepted DEC-20',
     book_sell_then_cpmm=sell, book_buy_budget=buy, clmm_then_cpmm=clmm,
     passive_clmm_lp=lp, market_maker_reprice=mm,
 ), indent=2))

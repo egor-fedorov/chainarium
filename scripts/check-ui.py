@@ -1,4 +1,4 @@
-"""M1–M3b browser/API acceptance. Run against `chainarium serve 8080`. Requires Playwright + Chromium."""
+"""M1–M3c browser/API acceptance. Run against `chainarium serve 8080`. Requires Playwright + Chromium."""
 import json
 from pathlib import Path
 from playwright.sync_api import sync_playwright, expect
@@ -470,6 +470,56 @@ with sync_playwright() as p:
     expect(page.locator('#clmm-view')).to_contain_text('Открытых позиций нет')
     page.reload()
     expect(page.locator('#preset')).to_have_value('sc-clmm-crossing')
+    page.locator('#preset').select_option('sc-03-heterogeneous')
+    page.locator('#new').click()
+    expect(page.locator('#route-panel')).to_be_visible()
+    page.locator('#step').click()
+    expect(page.locator('#position')).to_contain_text('Исполнено 1 / 4')
+    page.locator('#route-input').select_option('X')
+    page.locator('#route-output').select_option('R')
+    page.locator('#route-amount').fill('35')
+    page.locator('#route-residual').select_option('KeepResiduals')
+    page.locator('#route-limits input[data-include="0"]').check()
+    before_route_query=page.request.get('http://127.0.0.1:8080/api/run').json()
+    page.locator('#route-quote-form button').click()
+    expect(page.locator('#route-quote-result')).to_contain_text('Проверено кандидатов: 2 / 64')
+    expect(page.locator('#route-quote-result')).to_contain_text('194 R')
+    expect(page.locator('#route-quote-result')).to_contain_text('15 X')
+    expect(page.locator('#route-quote-result')).to_contain_text('165 R')
+    assert page.request.get('http://127.0.0.1:8080/api/run').json()==before_route_query
+    page.locator('#route-panel').screenshot(path='output/m3-route-search.png')
+    page.locator('#route-residual').select_option('RequireFull')
+    page.locator('#route-quote-form button').click()
+    expect(page.locator('#route-quote-result')).to_contain_text('route requires full input consumption')
+    assert page.request.get('http://127.0.0.1:8080/api/run').json()==before_route_query
+    page.locator('#step').click()
+    expect(page.locator('#receipt')).to_contain_text('ProtocolRevert')
+    page.locator('#transactions button[data-tx="2"]').click()
+    page.locator('#canonical').click()
+    expect(page.locator('#detail')).to_contain_text('165 R')
+    expect(page.locator('#detail')).to_contain_text('Остатки в кошельке: 15 X')
+    route_checkpoint=page.request.get('http://127.0.0.1:8080/api/checkpoint').json()
+    page.locator('#step').click()
+    page.locator('#transactions button[data-tx="1"]').click()
+    expect(page.locator('#detail')).to_contain_text('3327 R')
+    expect(page.locator('#detail')).to_contain_text('4971 X')
+    page.screenshot(path='output/m3-route-partial.png',full_page=True)
+    page.set_viewport_size({'width':390,'height':844})
+    assert page.evaluate('document.documentElement.scrollWidth <= innerWidth'), 'route mobile horizontal overflow'
+    page.locator('#detail').evaluate("el=>el.scrollIntoView({block:'start'})")
+    page.screenshot(path='output/m3-route-mobile.png')
+    page.set_viewport_size({'width':1440,'height':1100})
+    page.locator('#step').click()
+    page.locator('#transactions button[data-tx="1"]').click()
+    expect(page.locator('#detail')).to_contain_text('stable')
+    route_full=page.request.get('http://127.0.0.1:8080/api/run').json()
+    assert len(route_full['blocks'][3]['receipts'][1]['route_results']['0']['hops'])==3
+    assert page.request.post('http://127.0.0.1:8080/api/restore',data=route_checkpoint).ok
+    page.reload()
+    expect(page.locator('#preset')).to_have_value('sc-03-heterogeneous')
+    page.locator('#play').click()
+    expect(page.locator('#position')).to_contain_text('Исполнено 4 / 4',timeout=10000)
+    assert page.request.get('http://127.0.0.1:8080/api/run').json()==route_full
     assert not errors, errors
     browser.close()
-print('PASS: browser run, trace, read-only viewing, checkpoint/resume, A/B, fork, exact U256 HTTP round-trip, mobile layout, LP, route policy, flash success/shortfall/rollback, credit interest/loss/redemption, exact oracle use, credit checkpoint replay, StableSwap curves/solver/LP/route/replay/depeg/mobile, TWAP 150/175/rollback/stale/readonly/checkpoint/mobile, flash liquidation real legs/loss/shortfall/rollback/checkpoint/mobile, order book levels/quote/fills/escrow/FOK/IOC/GTC/cancel/self-trade/rollback/replay/mobile, CLMM ranges/fees/surplus/crossings/partial/quote/rollback/replay/mobile')
+print('PASS: browser run, trace, read-only viewing, checkpoint/resume, A/B, fork, exact U256 HTTP round-trip, mobile layout, LP, route policy, flash success/shortfall/rollback, credit interest/loss/redemption, exact oracle use, credit checkpoint replay, StableSwap curves/solver/LP/route/replay/depeg/mobile, TWAP 150/175/rollback/stale/readonly/checkpoint/mobile, flash liquidation real legs/loss/shortfall/rollback/checkpoint/mobile, order book levels/quote/fills/escrow/FOK/IOC/GTC/cancel/self-trade/rollback/replay/mobile, CLMM ranges/fees/surplus/crossings/partial/quote/rollback/replay/mobile, heterogeneous routes/limits/search/strict/residuals/readonly/rollback/replay/mobile')

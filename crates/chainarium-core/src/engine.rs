@@ -2,6 +2,7 @@ mod book_calls;
 mod clmm_calls;
 mod credit_calls;
 mod oracle_calls;
+mod route_calls;
 use crate::{Amount, model::*};
 use num_bigint::BigUint;
 use std::{
@@ -278,12 +279,13 @@ pub fn cpmm_output(x: Amount, y: Amount, amount: Amount, fee_bps: u16) -> Result
 struct Context<'a> {
     s: &'a Scenario,
     tx: &'a Transaction,
-    used: Amount,
     entry_fee_balance: Amount,
+    used: Amount,
     events: Vec<Event>,
     trace: Vec<Trace>,
     charges: Vec<Charge>,
     outputs: BTreeMap<String, (String, Amount)>,
+    route_results: BTreeMap<String, crate::routing::heterogeneous::RouteResult>,
     active_flash: BTreeSet<String>,
 }
 impl Context<'_> {
@@ -335,6 +337,7 @@ impl Context<'_> {
         // A savepoint includes all protocol state, not just the touched ledger entries.
         let saved = w.clone();
         let saved_outputs = self.outputs.clone();
+        let saved_routes = self.route_results.clone();
         let event_start = self.events.len();
         let trace_index = self.trace.len();
         let callee = match c {
@@ -362,6 +365,7 @@ impl Context<'_> {
             _ => self.tx.sender.clone(),
         };
         self.trace.push(Trace {
+            route: None,
             clmm: None,
             book: None,
             twap: None,
@@ -406,6 +410,7 @@ impl Context<'_> {
         if result.is_err() {
             *w = saved;
             self.outputs = saved_outputs;
+            self.route_results = saved_routes;
             self.events.truncate(event_start);
         }
         result
@@ -470,6 +475,7 @@ impl Context<'_> {
     fn body(&mut self, w: &mut World, c: &Call, path: &str) -> Result<(), ExecutionError> {
         let sender = self.tx.sender.clone();
         match c {
+            Call::ExecuteRoute { .. } => self.route_call(w, c, path),
             Call::Transfer { to, asset, amount } => {
                 if self.s.protected(to) {
                     return Err(Protocol("protected protocol account".into()));
@@ -816,24 +822,25 @@ pub(crate) fn simulate_transaction(
 }
 
 fn execute(s: &Scenario, w: &mut World, tx: &Transaction) -> Result<Receipt, String> {
+    let entry_fee_balance = w.balance(&tx.sender, &s.chain.fee_asset);
     let reserved = tx.limit.checked_mul(tx.price)?;
     w.debit(&tx.sender, &s.chain.fee_asset, reserved)?;
     Arc::make_mut(&mut w.accounts)
         .get_mut(&tx.sender)
         .ok_or("missing sender")?
         .nonce = tx.nonce.checked_add(1.into())?;
-    let entry_fee_balance = w.balance(&tx.sender, &s.chain.fee_asset);
     let envelope = w.clone();
     let mut ctx = Context {
         s,
         tx,
+        entry_fee_balance,
         used: Amount::ZERO,
         events: vec![],
         trace: vec![],
         charges: vec![],
         outputs: BTreeMap::new(),
+        route_results: BTreeMap::new(),
         active_flash: BTreeSet::new(),
-        entry_fee_balance,
     };
     let outcome = ctx.charge(100).and_then(|()| {
         for (i, c) in tx.program.iter().enumerate() {
@@ -863,6 +870,7 @@ fn execute(s: &Scenario, w: &mut World, tx: &Transaction) -> Result<Receipt, Str
     w.credit(&tx.sender, &s.chain.fee_asset, refund)?;
     w.credit(&s.chain.fee_account, &s.chain.fee_asset, fee)?;
     if status != "Success" {
+        ctx.route_results.clear();
         for t in &mut ctx.trace {
             if t.outcome == "Success" {
                 t.outcome = "RolledBack".into();
@@ -871,6 +879,7 @@ fn execute(s: &Scenario, w: &mut World, tx: &Transaction) -> Result<Receipt, Str
     }
     w.invariant(s)?;
     Ok(Receipt {
+        route_results: ctx.route_results,
         tx_id: tx.id.clone(),
         sender: tx.sender.clone(),
         status: status.into(),

@@ -1,0 +1,15 @@
+{
+  "agent": "trader",
+  "sender": "trader",
+  "asset_in": "X",
+  "asset_out": "R",
+  "amount": "35",
+  "min_out": "1",
+  "residual_policy": "KeepResiduals",
+  "resource_limit": "1000",
+  "resource_price": "0",
+  "limits": [
+    { "asset_in": "X", "hop": { "kind": "Book", "venue": "book", "limit_price_ticks": "50" } },
+    { "asset_in": "X", "hop": { "kind": "Clmm", "venue": "clmm", "limit_tick": -100 } }
+  ]
+}

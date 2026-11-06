@@ -85,6 +85,7 @@ async fn preset(ApiPath(id): ApiPath<String>) -> Result<impl IntoResponse, ApiEr
         "sc-01" => include_str!("../../../scenarios/demos/sc-01.json"),
         "sc-lp" => include_str!("../../../scenarios/demos/sc-lp.json"),
         "sc-03-route" => include_str!("../../../scenarios/demos/sc-03-route.json"),
+        "sc-03-heterogeneous" => include_str!("../../../scenarios/demos/sc-03-heterogeneous.json"),
         "sc-04-flash" => include_str!("../../../scenarios/demos/sc-04-flash.json"),
         "sc-05-credit" => include_str!("../../../scenarios/demos/sc-05-credit.json"),
         "sc-stable" => include_str!("../../../scenarios/demos/sc-stable.json"),
@@ -318,6 +319,31 @@ struct QuoteRequest {
     asset_out: String,
     amount: Amount,
 }
+#[derive(Deserialize)]
+#[serde(deny_unknown_fields)]
+struct RouteQuoteRequest {
+    block: usize,
+    query: chainarium_core::routing::heterogeneous::Query,
+}
+async fn route_quote(
+    State(s): State<Shared>,
+    Json(input): Json<RouteQuoteRequest>,
+) -> Result<Json<chainarium_core::routing::heterogeneous::Quote>, ApiError> {
+    let g = current(&s)?;
+    let r = g.as_ref().ok_or_else(|| bad("no run"))?;
+    let w = if input.block == 0 {
+        &r.initial
+    } else {
+        &r.blocks
+            .get(input.block - 1)
+            .ok_or_else(|| bad("unknown block"))?
+            .state
+    };
+    Ok(Json(
+        chainarium_core::routing::heterogeneous::quote(&r.scenario, w, &input.query)
+            .map_err(bad)?,
+    ))
+}
 async fn routes(
     State(s): State<Shared>,
     Json(input): Json<QuoteRequest>,
@@ -358,6 +384,15 @@ fn app() -> Router {
             }),
         )
         .route(
+            "/routes.js",
+            get(|| async {
+                (
+                    [(header::CONTENT_TYPE, "text/javascript; charset=utf-8")],
+                    include_str!("../../../web/routes.js"),
+                )
+            }),
+        )
+        .route(
             "/style.css",
             get(|| async {
                 (
@@ -377,6 +412,7 @@ fn app() -> Router {
         )
         .route("/api/preset/{id}", get(preset))
         .route("/api/routes", post(routes))
+        .route("/api/route-quote", post(route_quote))
         .route("/api/credit/{block}", get(credit_view))
         .route("/api/market/{block}/{id}", get(market_view))
         .route("/api/oracles/{block}", get(oracle_view))
@@ -414,6 +450,28 @@ async fn main() {
 async fn command() -> Result<(), String> {
     let args: Vec<String> = std::env::args().skip(1).collect();
     match args.first().map(String::as_str).unwrap_or("--help") {
+        "routes" => {
+            let mut r = Run::new(load(required(&args, 1)?)?)?;
+            let n: usize = required(&args, 2)?
+                .parse()
+                .map_err(|_| "invalid block count")?;
+            if n > r.scenario.blocks.len() {
+                return Err("block count exceeds scenario".into());
+            }
+            for _ in 0..n {
+                r.step()?;
+            }
+            let bytes = std::fs::read(required(&args, 3)?).map_err(|e| e.to_string())?;
+            if bytes.len() > chainarium_core::model::MAX_INPUT {
+                return Err("route query exceeds 1 MiB".into());
+            }
+            let q = serde_json::from_slice(&bytes).map_err(|e| format!("route query: {e}"))?;
+            let result = chainarium_core::routing::heterogeneous::quote(&r.scenario, &r.state, &q)?;
+            println!(
+                "{}",
+                serde_json::to_string_pretty(&result).map_err(|e| e.to_string())?
+            );
+        }
         "run" => {
             let mut r = Run::new(load(required(&args, 1)?)?)?;
             r.finish()?;
@@ -451,7 +509,7 @@ async fn command() -> Result<(), String> {
             let listener = tokio::net::TcpListener::bind((std::net::Ipv4Addr::LOCALHOST, port))
                 .await
                 .map_err(|e| e.to_string())?;
-            println!("Chainarium M1–M3b inspector listening on port {port}");
+            println!("Chainarium M1–M3c inspector listening on port {port}");
             axum::serve(listener, app())
                 .await
                 .map_err(|e| e.to_string())?;
@@ -553,7 +611,7 @@ async fn command() -> Result<(), String> {
             );
         }
         "--help" | "help" => println!(
-            "Chainarium M1–M2b (v1.0 in development)\n  run SCENARIO NEW_OUTPUT_DIR\n  checkpoint SCENARIO BLOCKS NEW_FILE\n  resume CHECKPOINT NEW_OUTPUT_DIR\n  serve [PORT]\n  benchmark [BLOCKS]"
+            "Chainarium M1–M3c (v1.0 in development)\n  run SCENARIO NEW_OUTPUT_DIR\n  routes SCENARIO BLOCKS QUERY_JSON\n  checkpoint SCENARIO BLOCKS NEW_FILE\n  resume CHECKPOINT NEW_OUTPUT_DIR\n  serve [PORT]\n  benchmark [BLOCKS]"
         ),
         _ => return Err("unknown command; use --help".into()),
     }

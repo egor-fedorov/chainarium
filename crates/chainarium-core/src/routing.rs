@@ -1,3 +1,4 @@
+pub mod heterogeneous;
 use crate::{Amount, Call, model::*};
 use serde::{Deserialize, Serialize};
 use std::collections::{BTreeMap, BTreeSet};
@@ -23,6 +24,7 @@ pub struct Observation {
     pub nonce: Amount,
     pub balances: BTreeMap<String, Amount>,
     pub venues: Vec<VenueView>,
+    pub route_venues: Vec<heterogeneous::Venue>,
 }
 impl Observation {
     /// Only own balances and public pool state; no other wallets, pending orderflow or future inputs.
@@ -37,6 +39,7 @@ impl Observation {
             timestamp: w.timestamp,
             nonce: a.nonce,
             balances: a.balances.clone(),
+            route_venues: heterogeneous::venues(s),
             venues: s
                 .pools()
                 .map(|(id, p)| {

@@ -1,10 +1,9 @@
 # Прогресс Chainarium — 2026-11-06
 
-Цель: весь v1.0 из §2.1. Текущий результат — **исполняемый прототип M1–M3b**.
-Это не готовая v1.0; обязательный независимый review ещё не выполнен.
-DEC-05–DEC-19 приняты владельцем; M2a–M2g, M3a/стакан и M3b/CLMM
-реализованы и проверены.
-Общий partial-fill router ещё не реализован.
+Цель: весь v1.0 из §2.1. Текущий результат — **исполняемый прототип M1–M3c**.
+Это не готовая v1.0. Независимый review M1–M3b завершён, три findings исправлены
+и перепроверены; M3c в его область не входил. DEC-05–DEC-20 приняты владельцем.
+Общий partial-fill router реализован; LP/MM-политики M3d — следующий срез.
 
 ## Что работает
 
@@ -35,8 +34,10 @@ fees/nonce/resource accounting и deterministic replay. Канонические
   GTC/IOC/FOK/cancel, защищённый escrow и read-only quote через executor.
 - M3b: CLMM positions/ticks, partial swaps, fees/claims/surplus, полная trace
   и обе read-only формы; атомарность сохраняется на crossings и выводах LP.
+- M3c: ExecuteRoute через четыре семейства, RequireFull/KeepResiduals,
+  typed ledger results, до 3 hops / 64 полных simulations, read-only UI/CLI.
 
-UI содержит тринадцать presets, play/pause/step, просмотр block→tx→call, балансы, сравнение котировок и трасса solver,
+UI содержит четырнадцать presets, play/pause/step, просмотр block→tx→call, балансы, сравнение котировок и трасса solver,
 LP shares, C/D/S/E, escrow, точный HF и запись oracle, фактически использованную
 в конкретном вызове. Расчёт риска выполняет Rust; JS отображает готовые строки.
 Есть export/checkpoint/restore/fork и A/B параметров SC-01.
@@ -44,16 +45,16 @@ LP shares, C/D/S/E, escrow, точный HF и запись oracle, фактич
 ## Фактическая проверка
 
 - `scripts/cargo.sh fmt --check` и Clippy всех targets с `-D warnings` — прошли.
-- `scripts/cargo.sh test --workspace --locked --offline` — **117 tests passed**:
-  5 unit fault-injection, 19 acceptance, 19 composition, 18 credit, 10 stable,
-  10 twap, 7 flash_liquidation, 14 book, 15 clmm; ignored=0.
+- `scripts/cargo.sh test --workspace --locked --offline` — **132 tests passed**:
+  5 unit fault-injection, 19 acceptance, 20 composition, 19 credit, 10 stable,
+  10 twap, 7 flash_liquidation, 14 book, 17 clmm, 11 heterogeneous; ignored=0.
 - `node --test web/wire.test.mjs` — канонические строки, диапазоны и точный
   decimal conversion прошли; JS экономические команды не проходят через Number.
-- `python3 scripts/check-ui.py` — пройден путь всех тринадцати presets, readonly
+- `python3 scripts/check-ui.py` — пройден путь всех четырнадцати presets, readonly
   просмотр, trace, checkpoint/resume, fork/A-B, точные Amount/Price через HTTP,
   desktop/mobile; ошибок JavaScript и горизонтального overflow нет.
 - Release build и `git diff --check` — прошли.
-- CLI: все тринадцать demos исполнены. Оба StableSwap demos после checkpoint/resume
+- CLI: все четырнадцать demos исполнены. Оба StableSwap demos после checkpoint/resume
   дают побайтно идентичные `run.json`. SC-05 checkpoint после блока 1 → resume:
   `run.json` побайтно совпадает с непрерывным запуском. В events JSONL начисление
   10 Q присутствует, отменённая liquidation не создаёт канонического write-off.
@@ -266,6 +267,38 @@ Browser прошёл все13 presets, включая оба CLMM, quote/partial
 Снимки `output/m3-clmm-position.png`, `output/m3-clmm-crossing.png`,
 `output/m3-clmm-mobile.png`; desktop/mobile просмотрены.
 
+### M3c: общий маршрут по DEC-20
+
+ExecuteRoute вызывает реальные AMM/CLMM/IOC операции, передавая только их
+фактический output. Typed result хранит budget/spent/unspent/output и residuals
+по активам; динамические children учитываются в node/depth limits. Требование
+полного расхода относится и к lot dust, и к price-improvement refund. Native
+fee отделена от результата каждой ноги, fee recipient=sender учтён по ledger.
+
+SC-03 heterogeneous: 35 X → 198 Q → 165 R, остаток 15 X; 10000 X через CLMM
+тратит 5029 X → 4987 Q → 3327 R, остаток 4971 X. Первый strict swap откатывается;
+поздний отказ откатывает обе исполненные ноги. Третья демонстрация проходит
+book/CPMM/StableSwap. Стоимость: book route 166 units, strict отказ 146, late
+отказ 176; CLMM route 156, strict отказ 136; три семейства 195.
+
+Поиск на исходном состоянии даёт четыре полных кандидата с явно выбранными
+book/CLMM limits; лучший выход 194 R через book/deep с residual 15 X. UI и CLI
+сортируют output/resource/path, показывают отказы и `truncated`, не оценивают
+стоимость остаточного портфеля. Старый AMM search сохранён для профиля M2.
+
+11 tests покрывают pinned fixtures, price improvement, self fee recipient,
+preexisting inventory, все resource boundaries, late/minimum/flash rollback,
+generated-child limits, stale quote, explicit directional limits, 64 simulations,
+admission failures, tie-break по фактическому ресурсу и checkpoint всех границ.
+
+Артефакты: `output/m3c-final/` — 14 demos, byte-identical route resume и CLI
+route quote. Build `864851b44dc6e875241345bf00e203bf41259eda21253495bb9c88580d5ee760`.
+Browser прошёл все 14 presets, route search/strict/partial/readonly/replay/mobile.
+Снимки `output/m3-route-search.png`, `output/m3-route-partial.png`,
+`output/m3-route-mobile.png`; desktop/mobile просмотрены.
+LP/MM-политики и heterogeneous arbitrage integration — M3d. Независимый review
+DEC-20 остаётся отдельным критерием приёмки этого среза.
+
 ### Fixtures и границы доказательства
 
 | Проверка | Доказательство | Ограничение |
@@ -303,16 +336,17 @@ latency UI и полные workloads M5 ещё не измерены/не при
 
 ## Что остаётся
 
-1. Независимый review в отдельном контексте по §23.4. Разрешение на отдельного
-   агента запрошено ранее, ответа на этот вопрос нет. Самопроверка не закрывает
-   этот критерий, а экономические согласования не считаются разрешением на агента.
+1. Независимый review в отдельном контексте по §23.4: владелец разрешил одного
+   read-only агента для M1–M3b (4d5b6bb..42651ee). Проверка завершена: три findings
+   исправлены в `3827f63` и адресно перепроверены reviewer; отчёт и ограничения —
+   `docs/reviews/m1-m3b-independent-review.md`. DEC-20 в её область не входит.
 2. Следующая часть M3 — общий partial-fill router и LP/MM политики.
-   Proposed DEC-20 подготовлен в `docs/spec.md` §23.2.8: контракт остатков,
+   DEC-20 принят владельцем в `docs/spec.md` §23.2.8: контракт остатков,
    bounded search и политики. Аналитические ожидания до реализации сохранены
    в `docs/reviews/heterogeneous-route-reference.py`/`.json` и совпали при
-   пересчёте. G-09 для partial policy ещё не согласован; реализации нет.
+   пересчёте. M3c реализован и функционально проверен; M3d впереди.
 3. M2f/M2g функционально проверены; независимый review остаётся обязательным.
-4. M3–M5: общий partial-fill router, LP/MM policies, MEV/builders/bundles, hooks, остальные
+4. M3d–M5: LP/MM policies, heterogeneous arbitrage, MEV/builders/bundles, hooks, остальные
    политики agents, полный scheduler, MTM, эксперименты и explorer.
 5. Полные user-task/latency/performance budgets и независимое review должны
    быть выполнены до приёмки целевой v1.0. SC-06 с конкуренцией — этап M4.

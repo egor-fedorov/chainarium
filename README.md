@@ -1,9 +1,10 @@
 # Chainarium
 
 Локальная лаборатория DeFi с Rust-ядром. **v1.0 в разработке.**
-Сейчас исполняются M1–M3b: CPMM swaps/LP, маршруты, арбитражная политика
+Сейчас исполняются M1–M3c: CPMM swaps/LP, маршруты, арбитражная политика
 на собственных средствах, flash loans, lending, oracle, проценты и ликвидации, StableSwap, TWAP и flash-ликвидация,
-стакан GTC/IOC/FOK, rollback, fees/nonce и исчерпание ресурса. Полный объём и приёмка: [спецификация](docs/spec.md).
+стакан GTC/IOC/FOK, CLMM и общий partial-fill router, rollback, fees/nonce и
+исчерпание ресурса. Полный объём и приёмка: [спецификация](docs/spec.md).
 
 ## Запуск
 
@@ -25,6 +26,7 @@ scripts/cargo.sh run --locked --bin chainarium -- serve 8080
 scripts/cargo.sh run --locked --bin chainarium -- run scenarios/demos/sc-01.json output/demo
 scripts/cargo.sh run --locked --bin chainarium -- checkpoint scenarios/demos/sc-01.json 1 output/checkpoint.json
 scripts/cargo.sh run --locked --bin chainarium -- resume output/checkpoint.json output/resumed
+scripts/cargo.sh run --locked --bin chainarium -- routes scenarios/demos/sc-03-heterogeneous.json 1 scenarios/queries/heterogeneous.json
 ```
 
 Экспорт создаёт **новую** папку: manifest, scenario, run, checkpoint, events JSONL,
@@ -32,7 +34,7 @@ scripts/cargo.sh run --locked --bin chainarium -- resume output/checkpoint.json 
 Checkpoint восстанавливается только на committed-границе; checksum и повторное
 исполнение проверяют его целостность. CSV не является форматом восстановления.
 
-Доступны тринадцать presets в UI и CLI:
+Доступны четырнадцать presets в UI и CLI:
 
 | Файл | Демонстрация |
 | --- | --- |
@@ -49,6 +51,7 @@ Checkpoint восстанавливается только на committed-гра
 | `scenarios/demos/sc-08-book.json` | 40 X за 420 Q + 5 Q fees; FOK, partial GTC, IOC, cancel и escrow |
 | `scenarios/demos/sc-02-clmm.json` | 1000 X → 996 Q; burn/collect, остатки округления и rollback |
 | `scenarios/demos/sc-clmm-crossing.json` | Три диапазона: 16000 X → 15755 Q; обратный partial swap и вывод LP |
+| `scenarios/demos/sc-03-heterogeneous.json` | Book/CPMM: выход 165 R и остаток 15 X; CLMM/CPMM: выход 3327 R и остаток 4971 X; strict/late rollback и маршрут через StableSwap |
 
 В SC-05 аналитическая ставка 12.5% за модельную секунду и reserve factor 20%;
 это fixture, не рыночный прогноз. UI показывает C/D/S/E, отдельный залог,
@@ -56,8 +59,9 @@ Checkpoint восстанавливается только на committed-гра
 
 В M2 presets execution fee явно равна нулю. Отдельные тесты проверяют прибыль
 после ненулевой execution fee, включая стоимость solver. Финальный
-`AssertNetBalanceDelta` проверяет результат с фактической комиссией и возвратом
-резерва; допустим только последним root-вызовом и в fee asset. LP claims не прибавляются к обеспечивающим активам;
+`AssertTransactionNetGain` проверяет результат относительно баланса на входе
+транзакции, с фактической комиссией и возвратом резерва; допустим только последним
+root-вызовом и в fee asset. LP claims не прибавляются к обеспечивающим активам;
 `FlashSettled` — пояснение комиссии внутри возврата, не дополнительный перевод.
 
 ## Проверки
@@ -96,11 +100,20 @@ checkpoint/resume, fork, A/B и мобильную верстку. Снимки 
 - CLMM: Q96/ticks±32768, позиции, crossings/gaps, Q128 fees, burn/collect
   и явное partial исполнение. UI показывает L по ranges, claims/surplus
   и пробный swap. Остатки округления не выводятся.
-- Общий partial-fill router, LP/MM политики, MEV и hooks ещё не реализованы.
+- Общий router исполняет до 3 native hops, передаёт фактический output и сохраняет
+  типизированные spent/unspent/results. RequireFull отменяет любой остаток;
+  KeepResiduals оставляет его в кошельке. Поиск делает до 64 проб через executor,
+  проверяет капитал/ресурс/комиссии и требует явных направленных limits для CLMM
+  и стакана. UI и CLI показывают все результаты, отказы и ограничение поиска.
+- LP/MM политики M3d, MEV и hooks ещё не реализованы.
 - Исследовательский MTM/PnL не рассчитывается; баланс не называется прибылью.
-- UI — прототип M1–M3b с тринадцатью presets. Полный explorer M5 впереди.
+- UI — прототип M1–M3c с четырнадцатью presets. Полный explorer M5 впереди.
 - Критерии всей v1.0 не объявляются выполненными. Независимый review и следующие
   открытые экономические контракты фиксируются согласно §23–24 спецификации.
+
+Независимый review M1–M3b выявил три дефекта, исправленных в `3827f63` и
+перепроверенных reviewer. [Отчёт и границы проверки](docs/reviews/m1-m3b-independent-review.md).
+DEC-20/M3c в область этого review не входил.
 
 Фактические результаты и оставшиеся проверки: [журнал прогресса](docs/progress.md).
 Сценарий CLI ограничен 64 MiB, отдельная транзакция — 1 MiB. Web restore

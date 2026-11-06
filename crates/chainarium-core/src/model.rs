@@ -75,6 +75,13 @@ pub struct Transaction {
 #[derive(Clone, Debug, Serialize, Deserialize, PartialEq, Eq)]
 #[serde(tag = "type", deny_unknown_fields)]
 pub enum Call {
+    ExecuteRoute {
+        asset_in: String,
+        amount: Amount,
+        hops: Vec<crate::routing::heterogeneous::VenueHop>,
+        min_out: Amount,
+        residual_policy: crate::routing::heterogeneous::ResidualPolicy,
+    },
     MintPosition {
         pool: String,
         lower: i32,
@@ -164,6 +171,10 @@ pub enum Call {
         baseline: Amount,
         minimum: Amount,
     },
+    AssertTransactionNetGain {
+        asset: String,
+        minimum: Amount,
+    },
     AssertBalanceDelta {
         account: String,
         asset: String,
@@ -171,10 +182,6 @@ pub enum Call {
         minimum: Amount,
     },
     Supply {
-    AssertTransactionNetGain {
-        asset: String,
-        minimum: Amount,
-    },
         market: String,
         amount: Amount,
         min_shares: Amount,
@@ -246,6 +253,7 @@ pub enum Call {
 impl Call {
     pub fn label(&self) -> &'static str {
         match self {
+            Self::ExecuteRoute { .. } => "ExecuteRoute",
             Self::Transfer { .. } => "Transfer",
             Self::Approve { .. } => "Approve",
             Self::TransferFrom { .. } => "TransferFrom",
@@ -262,6 +270,7 @@ impl Call {
             Self::FlashLoan { .. } => "FlashLoan",
             Self::AssertBalanceDelta { .. } => "AssertBalanceDelta",
             Self::AssertNetBalanceDelta { .. } => "AssertNetBalanceDelta",
+            Self::AssertTransactionNetGain { .. } => "AssertTransactionNetGain",
             Self::Supply { .. } => "Supply",
             Self::Withdraw { .. } => "Withdraw",
             Self::DepositCollateral { .. } => "DepositCollateral",
@@ -270,7 +279,6 @@ impl Call {
             Self::Borrow { .. } => "Borrow",
             Self::Repay { .. } => "Repay",
             Self::Liquidate { .. } => "Liquidate",
-            Self::AssertTransactionNetGain { .. } => "AssertTransactionNetGain",
             Self::PublishOracle { .. } => "PublishOracle",
             Self::PublishSpot { .. } => "PublishSpot",
             Self::PublishTwap { .. } => "PublishTwap",
@@ -352,6 +360,7 @@ impl Scenario {
                     && m != crate::twap::MODEL
                     && m != crate::book::MODEL
                     && m != crate::clmm::MODEL
+                    && m != crate::routing::heterogeneous::MODEL
             })
             || self.model_versions.iter().collect::<BTreeSet<_>>().len()
                 != self.model_versions.len()
@@ -629,6 +638,16 @@ impl Scenario {
                 }
                 match call {
                     Call::Sequence { calls } => check(s, calls, depth + 1, n, &path, outputs)?,
+                    Call::ExecuteRoute { asset_in, hops, .. } => {
+                        let output =
+                            crate::routing::heterogeneous::validate_hops(s, asset_in, hops)?;
+                        *n += hops.len();
+                        if *n > 1024 || depth + 1 > 32 {
+                            return Err("route child node/depth limit".into());
+                        }
+                        // Only the declared root result is referenceable, not generated native children.
+                        outputs.insert(path, output);
+                    }
                     Call::FlashLoan { callback, .. } => {
                         if !s
                             .model_versions
@@ -723,6 +742,8 @@ pub struct Event {
 #[serde(deny_unknown_fields)]
 pub struct Trace {
     #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub route: Option<crate::routing::heterogeneous::RouteResult>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
     pub clmm: Option<crate::clmm::Trace>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub book: Option<crate::book::OrderTrace>,
@@ -754,6 +775,8 @@ pub struct Charge {
 #[derive(Clone, Debug, Serialize, Deserialize, PartialEq, Eq)]
 #[serde(deny_unknown_fields)]
 pub struct Receipt {
+    #[serde(default, skip_serializing_if = "BTreeMap::is_empty")]
+    pub route_results: BTreeMap<String, crate::routing::heterogeneous::RouteResult>,
     pub tx_id: String,
     pub sender: String,
     pub status: String,

@@ -1,0 +1,442 @@
+{
+  "schema_version": "chainarium-scenario-m1-v1",
+  "model_versions": [
+    "native-execution-v1",
+    "native-cost-v1",
+    "cpmm-v1",
+    "scheduler-m1-v1",
+    "chacha12-v1",
+    "clmm-native-v1",
+    "heterogeneous-route-v1",
+    "bounded-route-v1",
+    "native-book-v1",
+    "stableswap-2-v1"
+  ],
+  "name": "SC-03 \u00b7 \u041e\u0431\u0449\u0438\u0435 \u043c\u0430\u0440\u0448\u0440\u0443\u0442\u044b \u0438 \u044f\u0432\u043d\u044b\u0435 \u043e\u0441\u0442\u0430\u0442\u043a\u0438",
+  "seed": "42",
+  "assets": {
+    "X": {
+      "decimals": 0
+    },
+    "Q": {
+      "decimals": 0
+    },
+    "R": {
+      "decimals": 0
+    },
+    "S": {
+      "decimals": 0
+    }
+  },
+  "accounts": {
+    "alice": {
+      "nonce": "0",
+      "balances": {
+        "X": "100000",
+        "Q": "100000"
+      }
+    },
+    "bob": {
+      "nonce": "0",
+      "balances": {
+        "X": "100000",
+        "Q": "100000"
+      }
+    },
+    "carol": {
+      "nonce": "0",
+      "balances": {
+        "X": "100000",
+        "Q": "100000"
+      }
+    },
+    "trader": {
+      "nonce": "0",
+      "balances": {
+        "X": "100000",
+        "Q": "100000"
+      }
+    },
+    "clmm-account": {
+      "nonce": "0",
+      "balances": {
+        "X": "0",
+        "Q": "0"
+      }
+    },
+    "builder": {
+      "nonce": "0",
+      "balances": {
+        "X": "0",
+        "Q": "0"
+      }
+    },
+    "book-escrow": {
+      "nonce": "0",
+      "balances": {}
+    },
+    "treasury": {
+      "nonce": "0",
+      "balances": {}
+    },
+    "exit-account": {
+      "nonce": "0",
+      "balances": {
+        "Q": "1000",
+        "R": "1000"
+      }
+    },
+    "deep-account": {
+      "nonce": "0",
+      "balances": {
+        "Q": "10000",
+        "R": "10000"
+      }
+    },
+    "stable-account": {
+      "nonce": "0",
+      "balances": {
+        "R": "10000",
+        "S": "10000"
+      }
+    }
+  },
+  "protocols": {
+    "exit": {
+      "account": "exit-account",
+      "x": "Q",
+      "y": "R",
+      "fee_bps": 0,
+      "owner": "alice"
+    },
+    "deep": {
+      "account": "deep-account",
+      "x": "Q",
+      "y": "R",
+      "fee_bps": 0,
+      "owner": "alice"
+    }
+  },
+  "agents": {
+    "alice": {
+      "controlled_accounts": [
+        "alice"
+      ]
+    },
+    "bob": {
+      "controlled_accounts": [
+        "bob"
+      ]
+    },
+    "carol": {
+      "controlled_accounts": [
+        "carol"
+      ]
+    },
+    "trader": {
+      "controlled_accounts": [
+        "trader"
+      ]
+    }
+  },
+  "chain": {
+    "id": "lab-1",
+    "fee_asset": "Q",
+    "fee_account": "builder",
+    "block_limit": "10000",
+    "interval": "1"
+  },
+  "blocks": [
+    [
+      {
+        "id": "mint-range",
+        "agent": "alice",
+        "sender": "alice",
+        "chain": "lab-1",
+        "nonce": "0",
+        "limit": "1000",
+        "price": "0",
+        "deadline": "1000",
+        "program": [
+          {
+            "type": "MintPosition",
+            "pool": "clmm",
+            "lower": -100,
+            "upper": 100,
+            "liquidity": "1000000",
+            "max_x": "4988",
+            "max_q": "4988"
+          }
+        ]
+      },
+      {
+        "id": "bid-two-lots",
+        "agent": "bob",
+        "sender": "bob",
+        "chain": "lab-1",
+        "nonce": "0",
+        "limit": "1000",
+        "price": "0",
+        "deadline": "1000",
+        "program": [
+          {
+            "type": "PlaceOrder",
+            "book": "book",
+            "side": "Buy",
+            "price_ticks": "50",
+            "lots": "2",
+            "tif": "GTC"
+          }
+        ]
+      }
+    ],
+    [
+      {
+        "id": "strict-book-reverts",
+        "agent": "trader",
+        "sender": "trader",
+        "chain": "lab-1",
+        "nonce": "0",
+        "limit": "1000",
+        "price": "0",
+        "deadline": "1000",
+        "program": [
+          {
+            "type": "ExecuteRoute",
+            "asset_in": "X",
+            "amount": "35",
+            "hops": [
+              {
+                "kind": "Book",
+                "venue": "book",
+                "limit_price_ticks": "50"
+              },
+              {
+                "kind": "Amm",
+                "venue": "exit"
+              }
+            ],
+            "residual_policy": "RequireFull",
+            "min_out": "165"
+          }
+        ]
+      },
+      {
+        "id": "late-route-reverts",
+        "agent": "trader",
+        "sender": "trader",
+        "chain": "lab-1",
+        "nonce": "1",
+        "limit": "1000",
+        "price": "0",
+        "deadline": "1000",
+        "program": [
+          {
+            "type": "ExecuteRoute",
+            "asset_in": "X",
+            "amount": "35",
+            "hops": [
+              {
+                "kind": "Book",
+                "venue": "book",
+                "limit_price_ticks": "50"
+              },
+              {
+                "kind": "Amm",
+                "venue": "exit"
+              }
+            ],
+            "residual_policy": "KeepResiduals",
+            "min_out": "165"
+          },
+          {
+            "type": "AssertCondition",
+            "condition": false,
+            "message": "late route failure"
+          }
+        ]
+      },
+      {
+        "id": "keep-book-residual",
+        "agent": "trader",
+        "sender": "trader",
+        "chain": "lab-1",
+        "nonce": "2",
+        "limit": "1000",
+        "price": "0",
+        "deadline": "1000",
+        "program": [
+          {
+            "type": "ExecuteRoute",
+            "asset_in": "X",
+            "amount": "35",
+            "hops": [
+              {
+                "kind": "Book",
+                "venue": "book",
+                "limit_price_ticks": "50"
+              },
+              {
+                "kind": "Amm",
+                "venue": "exit"
+              }
+            ],
+            "residual_policy": "KeepResiduals",
+            "min_out": "165"
+          }
+        ]
+      }
+    ],
+    [
+      {
+        "id": "strict-clmm-reverts",
+        "agent": "trader",
+        "sender": "trader",
+        "chain": "lab-1",
+        "nonce": "3",
+        "limit": "1000",
+        "price": "0",
+        "deadline": "1000",
+        "program": [
+          {
+            "type": "ExecuteRoute",
+            "asset_in": "X",
+            "amount": "10000",
+            "hops": [
+              {
+                "kind": "Clmm",
+                "venue": "clmm",
+                "limit_tick": -100
+              },
+              {
+                "kind": "Amm",
+                "venue": "deep"
+              }
+            ],
+            "residual_policy": "RequireFull",
+            "min_out": "3327"
+          }
+        ]
+      },
+      {
+        "id": "keep-clmm-residual",
+        "agent": "trader",
+        "sender": "trader",
+        "chain": "lab-1",
+        "nonce": "4",
+        "limit": "1000",
+        "price": "0",
+        "deadline": "1000",
+        "program": [
+          {
+            "type": "ExecuteRoute",
+            "asset_in": "X",
+            "amount": "10000",
+            "hops": [
+              {
+                "kind": "Clmm",
+                "venue": "clmm",
+                "limit_tick": -100
+              },
+              {
+                "kind": "Amm",
+                "venue": "deep"
+              }
+            ],
+            "residual_policy": "KeepResiduals",
+            "min_out": "3327"
+          }
+        ]
+      }
+    ],
+    [
+      {
+        "id": "replenish-bid",
+        "agent": "bob",
+        "sender": "bob",
+        "chain": "lab-1",
+        "nonce": "1",
+        "limit": "1000",
+        "price": "0",
+        "deadline": "1000",
+        "program": [
+          {
+            "type": "PlaceOrder",
+            "book": "book",
+            "side": "Buy",
+            "price_ticks": "50",
+            "lots": "2",
+            "tif": "GTC"
+          }
+        ]
+      },
+      {
+        "id": "three-families",
+        "agent": "trader",
+        "sender": "trader",
+        "chain": "lab-1",
+        "nonce": "5",
+        "limit": "1000",
+        "price": "0",
+        "deadline": "1000",
+        "program": [
+          {
+            "type": "ExecuteRoute",
+            "asset_in": "X",
+            "amount": "35",
+            "hops": [
+              {
+                "kind": "Book",
+                "venue": "book",
+                "limit_price_ticks": "50"
+              },
+              {
+                "kind": "Amm",
+                "venue": "exit"
+              },
+              {
+                "kind": "Amm",
+                "venue": "stable"
+              }
+            ],
+            "residual_policy": "KeepResiduals",
+            "min_out": "1"
+          }
+        ]
+      }
+    ]
+  ],
+  "clmm_pools": {
+    "clmm": {
+      "account": "clmm-account",
+      "x": "X",
+      "q": "Q",
+      "fee_bps": 30,
+      "initial_sqrt": "79228162514264337593543950336"
+    }
+  },
+  "books": {
+    "book": {
+      "account": "book-escrow",
+      "base_asset": "X",
+      "quote_asset": "Q",
+      "lot_atoms": "10",
+      "quote_tick_atoms": "2",
+      "taker_fee_bps": 100,
+      "fee_account": "treasury"
+    }
+  },
+  "stable_pools": {
+    "stable": {
+      "pool": {
+        "account": "stable-account",
+        "x": "R",
+        "y": "S",
+        "fee_bps": 4,
+        "owner": "alice"
+      },
+      "amplification": 100,
+      "iteration_limit": 255
+    }
+  }
+}
