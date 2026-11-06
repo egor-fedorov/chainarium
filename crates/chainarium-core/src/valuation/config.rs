@@ -153,6 +153,17 @@ pub fn validate(s: &Scenario) -> Result<(), String> {
         .filter_map(|e| e.bundle.payment_tx_id.as_deref())
         .collect();
     let mut seen = BTreeSet::new();
+    let own_definitions: BTreeSet<_> = s
+        .scheduler
+        .iter()
+        .flat_map(|c| c.bundles.iter())
+        .flat_map(|c| &c.emissions)
+        .flat_map(|e| &e.bundle.members)
+        .filter_map(|m| match m {
+            crate::scheduler::bundles::Member::Own { transaction } => Some(transaction.id.as_str()),
+            crate::scheduler::bundles::Member::VisibleTxId { .. } => None,
+        })
+        .collect();
     for binding in &p.capital_transfers {
         let portfolio = p
             .portfolios
@@ -161,7 +172,10 @@ pub fn validate(s: &Scenario) -> Result<(), String> {
         let targets = txs
             .get(binding.tx_id.as_str())
             .ok_or("capital target must be literal transaction")?;
-        if !seen.insert(binding) || targets.len() != 1 || payments.contains(binding.tx_id.as_str())
+        if !seen.insert(binding)
+            || targets.len() != 1
+            || payments.contains(binding.tx_id.as_str())
+            || own_definitions.contains(binding.tx_id.as_str())
         {
             return Err("ambiguous, duplicate or bid capital binding".into());
         }

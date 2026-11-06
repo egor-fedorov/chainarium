@@ -1032,3 +1032,60 @@ fn exports_stream_every_boundary_and_resume_exactly() {
     );
     std::fs::remove_dir_all(root).unwrap();
 }
+
+#[test]
+fn an_own_bundle_definition_cannot_shadow_a_literal_capital_transfer() {
+    let mut s = fixture("sc-bundle-visible");
+    enable(&mut s, &["alice"]);
+    s.scheduler.as_mut().unwrap().emissions[0]
+        .transaction
+        .program = vec![Call::Transfer {
+        to: "alice".into(),
+        asset: "Q".into(),
+        amount: 20.into(),
+    }];
+    label(&mut s, "victim");
+    assert!(s.validate().is_ok());
+    let mut alternate = s.scheduler.as_ref().unwrap().emissions[0]
+        .transaction
+        .clone();
+    alternate.agent = "trader".into();
+    alternate.sender = "alice".into();
+    alternate.program = vec![Call::Transfer {
+        to: "bob".into(),
+        asset: "Q".into(),
+        amount: 900.into(),
+    }];
+    s.scheduler
+        .as_mut()
+        .unwrap()
+        .bundles
+        .as_mut()
+        .unwrap()
+        .emissions[0]
+        .bundle
+        .members[0] = scheduler::bundles::Member::Own {
+        transaction: Box::new(alternate),
+    };
+    assert_eq!(
+        v::validate(&s).unwrap_err(),
+        "ambiguous, duplicate or bid capital binding"
+    );
+    // Even byte-identical extra definitions are ambiguous input declarations;
+    // the supported way to reuse the literal transaction is VisibleTxId.
+    let original = s.scheduler.as_ref().unwrap().emissions[0]
+        .transaction
+        .clone();
+    s.scheduler
+        .as_mut()
+        .unwrap()
+        .bundles
+        .as_mut()
+        .unwrap()
+        .emissions[0]
+        .bundle
+        .members[0] = scheduler::bundles::Member::Own {
+        transaction: Box::new(original),
+    };
+    assert!(v::validate(&s).is_err());
+}
