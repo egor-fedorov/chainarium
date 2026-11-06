@@ -4,7 +4,7 @@
 Это не готовая v1.0. Независимый review M1–M3b завершён, три findings исправлены
 и перепроверены. Отдельный review M3c–M3d завершён без подтверждённых findings;
 область и ограничения сохранены в `docs/reviews/dec20-independent-review.md`.
-DEC-05–DEC-21 приняты владельцем.
+DEC-05–DEC-22 приняты владельцем.
 Общий partial-fill router, LP/MM-политики и heterogeneous arbitrage реализованы.
 Контракт M4a принят как **DEC-21** (§23.2.9) 2026-11-06;
 scheduler/mempool/basic builders реализованы и функционально проверены.
@@ -491,10 +491,10 @@ latency UI и полные workloads M5 ещё не измерены/не при
    в его отчёте. Новые механизмы M4 потребуют отдельного review.
 4. M4a / DEC-21 реализован, функциональные проверки и независимый review
    завершены; ограничения указаны в `docs/reviews/dec21-independent-review.md`.
-   Следующий контракт — **Proposed DEC-22** в `docs/spec.md` §23.2.10:
+   Следующий контракт — **Accepted DEC-22** в `docs/spec.md` §23.2.10:
    bundles/greedy с реальным bid, разрешёнными reverts, visibility и search budgets.
-   `bundle-reference.py`/`.json` фиксируют расчёты до реализации; ожидается
-   согласование по §23.7. Затем M4: поисковые backrun/liquidator policies, hooks;
+   `bundle-reference.py`/`.json` фиксируют расчёты до реализации; владелец
+   согласовал DEC-22 по §23.7, реализация начата. Затем M4: поисковые backrun/liquidator policies, hooks;
    M5: MTM, эксперименты, полный explorer и приёмка. Новые существенные
    архитектурные решения требуют конкретных карточек и согласования по §23.7.
 5. Полные user-task/latency/performance budgets и независимое review должны

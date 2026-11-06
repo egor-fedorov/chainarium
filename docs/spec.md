@@ -1962,10 +1962,11 @@ checkpoint с pending/inflight/seen IDs и независимость от UI/ч
 запросов. UI/CLI должны объяснять отправку, видимость, arrival, Waiting/rejection,
 порядок, receipt и фактические fees одним воспроизводимым результатом.
 
-### 23.2.10. Следующий контракт M4b — Proposed DEC-22
+### 23.2.10. Принятый контракт M4b — Accepted DEC-22
 
 **DEC-22 / G-09/G-10, bundles и ограниченный greedy builder.** Предложение
-продолжает Accepted DEC-21, но ещё не согласовано и не реализовано. Новые профили:
+продолжает Accepted DEC-21 и согласовано владельцем 2026-11-06. Реализация
+ведётся отдельным срезом. Новые профили:
 `native-bundles-v1` и `bounded-greedy-v1`. Scheduler M4a, native cost, ledger,
 права и правила nonce/fee не пересматриваются. Поисковые backrun/liquidator
 политики и hooks остаются отдельными следующими срезами.
@@ -2097,7 +2098,7 @@ score и builder balance delta, отдельные native fees и bid без д�
 failure, nonce/funding/conflicts между группами и standalone, exact deadlines/
 target range, оба search budgets, deterministic tie-break/truncation, ModelError
 после успешного префикса, replay с overlapping groups, UI/CLI без вымышленных fees
-от отклонённых probes. Предложение не реализуется до согласования владельца.
+от отклонённых probes. Контракт согласован владельцем; результаты реализации фиксируются в журнале прогресса.
 
 ### 23.3. Вертикальные срезы и Definition of Done
 
@@ -2163,7 +2164,7 @@ openspec/                   # опционально, после решения 
 
 **Уже закрытые требования:** единый ledger; разделение origin/caller/callee и явная авторизация; точная передача atoms/цен без потери целых; native fee/nonce и ресурсный профиль `100 / 10 / 5 / 1` (§5–§6); изолированный collateral, уравнение `C + D = S + E`, распределение процентов и убытков, атомарность liquidation+writeoff (§8); возраст цены по observation time, полномочия publisher и validity oracle (§10); раздельные committed events/attempt trace и полные checkpoints (§15–§17). Выбор конкретного Rust crate или UI-транспорта обязан сохранить эти требования.
 
-**Состояние решений на 2026-11-06:** DEC-05–DEC-21 приняты. Для текущих
+**Состояние решений на 2026-11-06:** DEC-05–DEC-22 приняты. Для текущих
 профилей определены G-01/G-02, CPMM/LP часть G-03, прототип G-04,
 reference lending G-05, external oracle часть G-06, router budget часть G-09,
 базовый checkpoint G-10 и RNG часть G-15. Реализация/fixtures отражены в §20
@@ -2174,8 +2175,8 @@ reference lending G-05, external oracle часть G-06, router budget част�
 Для scheduler/mempool/basic builders принят **DEC-21** (§23.2.9)
 с численными ожиданиями; реализация M4a и функциональные проверки выполнены,
 независимый review завершён без подтверждённых findings (docs/progress.md).
-Для bundles/greedy подготовлен **Proposed DEC-22** (§23.2.10) с аналитическими
-ожиданиями; согласование владельца и реализация ещё впереди.
+Для bundles/greedy принят **DEC-22** (§23.2.10) с аналитическими
+ожиданиями; реализация ведётся отдельным срезом.
 Остальные механизмы и бюджеты остаются открытыми. Таблица ниже сохраняет
 исходные условия gates и критерии их полной приёмки.
 
