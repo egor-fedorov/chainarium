@@ -237,7 +237,8 @@ checkpoint/resume, fork, A/B и мобильную верстку. Снимки 
 включая3545 прямых executions и проверку composed search/payout/rollback.
 [Review DEC-26/M4f](docs/reviews/dec26-independent-review.md) выявил P1
 (чужой wallet через preflight) и P2 (потеря refusal отправки). Добавлены
-capability checks и явный submission outcome; независимая перепроверка впереди.
+capability checks и явный submission outcome. [Перепроверка исправлений](docs/reviews/dec26-fix-verification.md)
+на `ce78187` закрыла оба findings без новых подтверждённых замечаний.
 Сохранены8 integration tests и2 unit tests reviewer.
 
 Фактические результаты и оставшиеся проверки: [журнал прогресса](docs/progress.md).

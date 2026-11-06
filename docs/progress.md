@@ -34,7 +34,7 @@ findings. Отчёт — `docs/reviews/dec25-independent-review.md`; сохра�
 integration tests и unit fault injection. Для M4f принят Accepted DEC-26 (§23.2.14): scripted/random
 user, target borrower и native oracle publisher; владелец согласовал контракт
 2026-11-06. Реализация и Rust/CLI/browser проверки завершены;
-независимый review M4f завершён с двумя findings; исправления проходят адресную перепроверку.
+независимый review M4f выявил два findings; исправления `ce78187` независимо перепроверены, оба закрыты.
 
 ## Что работает
 
@@ -870,7 +870,15 @@ fingerprint `c22dddda5a934a87ee13322111247492b9d0a2473c851d7d510d95b9c609aa23`.
 совпали побайтно. Browser отдельно проверил Skip/Rejected для KnownTransactionsLimit
 и QueueLimit, успешный trial при отсутствии actual receipt, restore отказа и
 HTTP rejection обоих foreign-wallet fixtures с сохранением текущего run.
-Независимая перепроверка `ce78187` тем же разрешённым reviewer продолжается.
+Независимая [перепроверка `ce78187`](reviews/dec26-fix-verification.md)
+тем же разрешённым reviewer завершена: F1/P1 и F2/P2 закрыты, новых
+подтверждённых findings нет. Reviewer самостоятельно выполнил381 suite и ещё
+6 integration +3 unit tests. Дополнительная матрица покрывает240 static/runtime
+cases, оба preflight режима,6 запрещённых calls и5 уровней/видов nesting;
+Known/Queue отказы проверены на6 rounds с replay каждой границы. Проверены
+observer-only QueueLimit, поздняя expiry, typed dedup и rollback после отказа.
+Missing/foreign order ID меняет diagnostic text, но не Observation/action/fee;
+это ограничение researcher diagnostics явно записано в отчёте.
 Логи: `/tmp/chainarium-dec26-fix-{full,target,clippy,release,cli,browser}.log`.
 Экспорты: `output/dec26-fix-validated/`.
 Optional flash-funded arbitrage,
@@ -902,7 +910,7 @@ late guard revert и settlement shortfall. Все точные balances/reserves
 | Deposit shares | zero mint, minima, cash shortage без burn, last exit, bootstrap с E | Bankrupt проверен на invariant-valid defensive snapshot, не заявлен достижимым из genesis этого positive-payment preset |
 | Oracle | unauthorized/source/pair/future/duplicate/out-of-order; возраст 60/61; safe stale operations; consumer trace | External/native spot/TWAP; bounded history и однократное floor проверены |
 | Hooks | exact pre-implementation reference, resource/node/depth/capability boundaries, composed search/payout/rollback, ModelError; независимый DEC-25 review без findings | CPMM only; область и ограничения в docs/reviews/dec25-independent-review.md |
-| Baseline agents | independent RNG/ledger reference, target/publisher/preflight boundaries, paid actual failure, private/future isolation, atomic RNG, replay | DEC-26 review выявил P1/P2; исправлены, адресная перепроверка впереди; не экономически оптимальные политики |
+| Baseline agents | independent RNG/ledger reference, target/publisher/preflight boundaries, paid actual failure, private/future isolation, atomic RNG, replay | DEC-26 P1/P2 исправлены и независимо закрыты на ce78187; не экономически оптимальные политики |
 | Checkpoint/export | replay/resume/fork/tamper, протоколы, LP/MM schedules/decisions | M4b groups, M4c trigger/search и M4d preview/trials/inflight snapshots проверены |
 | UI | реальные balances/trace, 52 presets, desktop/mobile, exact HTTP wire | Прототип; полная приёмка M5 не закрыта |
 
@@ -957,7 +965,7 @@ latency UI и полные workloads M5 ещё не измерены/не при
    Для user/random/borrower/oracle ролей принят Accepted DEC-26 (§23.2.14),
    независимые численные ожидания — `docs/reviews/baseline-agents-reference.py`/`.json`.
    Reference ChaCha12 совпал с12 существующими DEC-10 draws; новые политики
-   реализованы в M4f; независимый review нашёл P1/P2, исправления проходят перепроверку.
+   реализованы в M4f; независимый review нашёл P1/P2, исправления ce78187 независимо перепроверены и закрыты.
    Следом остаётся optional arbitrage Flash;
    M5: MTM, эксперименты, полный explorer и приёмка. Новые существенные решения
    требуют конкретных карточек и согласования по §23.7.
