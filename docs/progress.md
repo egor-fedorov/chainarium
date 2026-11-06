@@ -17,7 +17,13 @@ M4b / DEC-22 реализован и функционально проверен
 M4c — **Accepted DEC-23** (§23.2.11): поиск backrun,
 ограниченное наблюдение и conditional net после bid. До реализации сохранены
 аналитические `docs/reviews/backrun-reference.py`/`.json`. Реализация и Rust/CLI/browser
-проверки завершены; независимый review M4c ещё не выполнялся.
+проверки завершены; независимый review M4c выполняется на `99c26d1`.
+Подтверждён P2: переполнение при построении payment nonce останавливало раунд.
+Исправление `467876f` (Skip NonceExhausted для невозможной own sequence)
+прошло адресный тест и Clippy, передано reviewer для перепроверки.
+Следующий M4d: **Proposed DEC-24** (§23.2.12), LiquidateAndSell + bounded
+liquidator, Own/Flash funding и SC-06 competition. До реализации сохранены
+`docs/reviews/liquidator-reference.py`/`.json`; согласование ожидается.
 
 ## Что работает
 
@@ -640,8 +646,10 @@ latency UI и полные workloads M5 ещё не измерены/не при
    отдельный read-only review diff `82e52c7..7fc0007` завершён без findings,
    его отчёт и 12 независимых тестов сохранены.
    M4c / DEC-23 (§23.2.11) реализован: поиск backrun по видимой victim,
-   sizes/route caps, bundle и net после fees/bid. Следующий шаг — независимый
-   read-only review этого среза; предыдущие разрешения его не охватывали.
+   sizes/route caps, bundle и net после fees/bid. Независимый
+   read-only review этого среза разрешён и выполняется; исправление nonce
+   finding передано на адресную перепроверку. Для M4d подготовлен Proposed
+   DEC-24 (§23.2.12) с численными ожиданиями, без реализации.
    Затем M4: liquidator policies, hooks и остальные роли;
    M5: MTM, эксперименты, полный explorer и приёмка. Новые существенные решения
    требуют конкретных карточек и согласования по §23.7.

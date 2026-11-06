@@ -2249,6 +2249,149 @@ probe, checkpoint с отложенной реакцией и byte-identical rep
 отправку, фактическое включение/отказ и конечный ledger. Независимое review
 нового search slice требуется отдельно по §23.4.
 
+### 23.2.12. Предложенный контракт M4d — Proposed DEC-24
+
+**DEC-24 / G-09/G-10, ограниченный liquidator и SC-06 competition.** Подготовлен
+после реализации DEC-23; **ожидает согласования владельца, код не реализован**.
+Новые явно выбираемые модели: `liquidate-and-sell-v1` и
+`bounded-liquidator-v1`. Первая связывает liquidation с продажей фактически
+полученного залога; вторая выбирает целевую позицию, repayment и маршрут по
+разрешённому состоянию. Lending/rounding/write-off DEC-14/15, strict flash
+DEC-13, route math DEC-20 и scheduler DEC-21/22 не пересматриваются.
+
+**Составной native call.** `LiquidateAndSell(market, borrower, max_repay,
+min_collateral, hops, min_out)` выполняет обычный Liquidate, затем обычный
+ExecuteRoute RequireFull. Route начинается с collateral asset, заканчивается
+debt asset, содержит1..3 hops без повторных venues; CLMM/book имеют явные
+directional limits. Сам call не выбирает target, repayment или маршрут.
+
+Входной бюджет продажи равен **фактическому приросту collateral balance sender
+от непосредственно вложенного Liquidate**. Имеющийся у sender inventory не
+входит в этот бюджет; quote из прошлого блока не становится исполняемым
+количеством. Перед Liquidate фиксируются балансы sender в debt/collateral;
+после него определяются actual paid/seized, после route — actual sale output.
+Liquidate не вызывает произвольных callbacks между этими снимками. Результат
+содержит market/borrower, requested/paid/seized, route result и исходный oracle
+use. Семантика Liquidate сохраняет min(request, close cap, debt, collateral cap).
+
+Child calls проходят общий executor/authority/resource path, с child traces;
+они также расходуют общие native node/depth caps, включая вызов из flash callback.
+В `native-cost-v1` wrapper стоит обычные10 units; Liquidate стоит10 плюс реальные
+transfers, ExecuteRoute —10 плюс native hops. Другой отдельной платы за чтение
+этого результата нет. Неполный fill, min_out, stale oracle, неуспешная repayment
+flash loan или поздний final guard отменяют liquidation, sale и write-off
+вместе. Каноническая receipt не сохраняет успешный typed result отменённого
+call; diagnostic trace показывает попытку. Включённый protocol revert сохраняет
+native fee/nonce обычным способом; ModelError отменяет весь рабочий раунд.
+
+**Наблюдение и расписание policy.** Liquidator — периодическая роль event
+scheduler, одна на AgentId без совмещения с другими policies. В общий порядок
+periodic decisions по AgentId она входит на parent boundary до обработки
+текущих emissions. Busy guard DEC-21/22 не позволяет повторить собственный
+неоконченный nonce. Новая policy получает собственные balances/nonce, публичные
+venues/feeds, публичные данные **только перечисленных targets** и выбранного
+flash provider. Чужие wallet balances, unrelated positions, private/pending
+messages, будущие oracle updates и полный World не раскрываются.
+
+Конфигурация явно задаёт account != fee account, targets `(market, borrower)`
+(различные, заранее зарегистрированные, borrower не управляется этим агентом),
+1..8 различных положительных max_repay sizes для каждого target, directional
+route limits, положительный minimum net profit, resource limit/price, lifetime
+и funding `Own` либо `Flash { provider }`. Debt asset каждого target и flash
+asset равны chain fee asset. Public target view содержит collateral/debt,
+collateral_enabled, interest remainder, risk parameters, rate/accrual data и
+oracle record с provenance/time. Flash view содержит cash/asset/fee, без чужих
+wallets. Эти протокольные данные явно являются публичными для этой роли.
+
+Контроллер готовит read-only preview следующего блока общим begin_block на
+parent snapshot: только детерминированные accrual/TWAP transitions, без текущих
+pending/emissions. Все liquidation trials начинаются с копии одного preview;
+пробы не начисляют проценты друг поверх друга. Наблюдение маркирует parent
+block/time и preview block/time. Freshness, debt и HF проверяются на preview
+time; цена с возрастом max_age допустима, max_age+1 — StaleOracle. HF>=1,
+NoDebt, отсутствующая/просроченная цена дают явный Skip соответствующего target.
+Новый oracle update в текущем mempool может стать известен periodic policy
+только после commit; liquidator не предсказывает его по входному сценарию.
+
+**Перебор и funding.** Порядок targets — `(MarketId, BorrowerId)`, sizes — по
+возрастанию, пути — DFS по VenueId с остановкой при достижении debt asset.
+CLMM/book без directional limit исключаются; каждый trial — целая готовая
+native transaction через common executor, включая native reserve и guard.
+
+Own transaction: `[LiquidateAndSell(...), AssertTransactionNetGain(minimum)]`.
+В Own mode наличие funds проверяется для actual paid, а не для никогда не
+списанного полного max_repay; reserve native fee недоступен программе.
+Flash transaction: `[FlashLoan(provider, receiver=sender, amount=max_repay,
+callback=[LiquidateAndSell(...)]), AssertTransactionNetGain(minimum)]`.
+Flash principal равен именно выбранному max_repay; если фактически погашено
+меньше, неиспользованный principal остаётся для полного settlement. Fee берётся
+со всего principal с принятой ceil-семантикой. Flash loan не оплачивает native
+reserve, который должен существовать у sender до запуска программы.
+
+Policy оценивает изменение собственного fee-asset balance после полного
+settlement и actual native fee. Заём не становится доходом, открытые residuals
+не оцениваются, MTM не подставляется. Финальный guard относительно баланса на
+входе tx проверяет тот же minimum при фактическом включении, после flash scope.
+Выбор — максимальный положительный net, затем меньшие actual used, market,
+borrower, max_repay и лексикографический path. Это лучший исследованный
+кандидат на заданном preview, без обещания глобального оптимума или inclusion.
+
+**Отправка и конкуренция.** Победившая проба даёт один обычный native intent с
+собственным committed nonce, deterministic reserved policy ID и deadline
+`parent_timestamp + lifetime`. Используются настроенные outgoing channel и
+builder_delay. Отдельного bid или bundle policy не создаёт. Перед включением
+builder заново проверяет текущие nonce/funding/resource/deadline; внутри call
+заново проверяются debt/HF/oracle и фактическое collateral sale.
+
+Несколько liquidators могут выбрать одну позицию по одинаковому preview.
+Первый успешный влияет на всех последующих. При нулевом оставшемся долге
+следующий **включённый native** candidate завершится NoDebt/ProtocolRevert и
+заплатит свою actual native fee; невыбранный/expired envelope не платит. Это
+существенный наблюдаемый результат SC-06, а не бесплатное исключение неудачных
+конкурентов. FIFO/Fixed/FeePriority/Greedy сохраняют принятые правила native tx.
+
+**Лимиты и результаты.** Все caps явно заданы и могут быть снижены, нули
+запрещены; лимиты этой policy отдельны от backrun и builder probes:
+
+| Предел | Cap | Исход |
+| --- | --- | --- |
+| Targets на policy / sizes на target / hops | 16 / 8 / 3 | Неверная конфигурация отклоняется |
+| Проверки venue в DFS всех liquidators за раунд | 4096 | Считается каждая inspected venue, включая неподходящую; остановка с truncated |
+| Полные transaction trials на policy / всех liquidators за раунд | 64 / 64 | Неисследованные кандидаты не объявляются убыточными |
+| Новые intents / очередь / известные TxIds | Прежние DEC-21/22 caps | Без обхода общих пределов или скрытой повторной отправки |
+
+Inclusion rejection, ProtocolRevert и ResourceExhausted расходуют trial slot;
+trial work/fees остаются диагностическими. Лучший завершённый кандидат можно
+отправить при truncated. Target observations, decisions, counters, queued
+delivery и receipts воспроизводимы из committed checkpoint. UI/CLI связывают
+oracle health, candidate net/funding, фактические repayment/seizure/sale,
+flash settlement, outcome проигравшего и итоговые C/D/S/E.
+
+**Числа до кода.** `docs/reviews/liquidator-reference.py`/`.json` используют
+независимую integer arithmetic. Parent reserve `(C,D,S,E)=(20,80,100,0)`,
+collateral6 X, свежая oracle11 Q/X, LT80%, close100%, bonus10%, rate0;
+sale CPMM100 X/1500 Q, fee0; repay sizes20/40/60/80, min profit1:
+
+| Fixture | Ожидание |
+| --- | --- |
+| Own, native price0 | Paid20/40/60/60; seized2/4/6/6; sale29/57/84/84; net9/17/24/24. Выбран request60; write-off20, итог80/0/80/0 |
+| Flash5 bps, native price0 | Fee1 для всех sizes; net8/16/23/23. Выбран60, возврат61, net23; неиспользованный principal request80 не считается доходом |
+| Предыдущие величины×1000, native price1 | Sale84905 Q для repay60000; Own used170/net24735; Flash used190, fee30, net24685. Flash sender1000→25685 Q, builder190 Q |
+| SC-06: два Own liquidators по100000 Q; Alice price1/arrival20, Carol price2/arrival21, cutoff30 | FIFO: Alice124735 Q, Carol99760 Q, builder410 Q. FeePriority: Alice99880 Q, Carol124565 Q, builder460 Q. Winner used170, NoDebt loser used120; nonce обоих1; залог продан и write-off20000 выполнен один раз |
+| Ранее другая tx ликвидировала20 Q→2 X без продажи, теперь collateral4/debt60; request60, свой inventory9 X, prices0 | Wrapper платит40 Q, продаёт только новые4 X→57 Q, net17; свой inventory остаётся9 X; write-off20 |
+| Перед включением в scaled fixture другой продавец внёс150000 X, получил900000 Q | Пул стал250000 X/600000 Q; попытка продажи6000 X даёт14062 Q. Финальный guard отменяет liquidation/sale/write-off; included fee170 Q сохраняется, sender100000→99830 Q |
+| Один accrual r=0.125M, dt1 на parent20/80/100/0 | Preview20/90/108/2; liquidation60+writeoff30 даёт80/0/80/0. Несколько trials не умножают начисление |
+| Native limit500/price1, свои499 Q и доступный flash provider | Skip до займа: flash не покрывает native reserve |
+
+Обязательны также HF equality, stale/missing oracle, close/dust caps, partial
+close конкурента, target/sizes/budget boundaries, own/flash shortage и repay
+rollback, StableSwap fee work, CLMM/book partial rejection, неправильные
+units/path/authority, delayed inclusion и busy guard, отсутствие future/private
+leakage, ModelError после успешного liquidation/write-off, отсутствие расхода
+RNG от просмотра, checkpoint/replay и read-only UI. Независимое review нового
+экономического call и policy требуется по §23.4. Остальные роли и hooks
+остаются следующими срезами; M5/MTM/performance gates ещё не закрыты.
+
 ### 23.3. Вертикальные срезы и Definition of Done
 
 Работа дробится на сквозные сценарии **требование → состояние → действие → исполнение → тесты → trace → визуальное объяснение**. Новый компонент не считается завершённым по одному лишь trait, mock API или графическому экрану. На один срез — один проверяемый вопрос и минимальное число новых механизмов.
@@ -2328,7 +2471,9 @@ reference lending G-05, external oracle часть G-06, router budget част�
 ожиданиями; M4b реализован и функционально проверен, независимый review
 завершён без подтверждённых findings (`docs/reviews/dec22-independent-review.md`).
 Для backrun searcher принят **DEC-23** (§23.2.11) с точными
-pre-implementation ожиданиями; M4c реализован, независимый review впереди.
+pre-implementation ожиданиями; M4c реализован, независимый review выполняется.
+Для liquidator competition и продажи фактического залога подготовлен
+**Proposed DEC-24** (§23.2.12); согласование и реализация ещё не выполнены.
 Остальные механизмы и бюджеты остаются открытыми. Таблица ниже сохраняет
 исходные условия gates и критерии их полной приёмки.
 
