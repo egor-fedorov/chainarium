@@ -2376,12 +2376,17 @@ sale CPMM100 X/1500 Q, fee0; repay sizes20/40/60/80, min profit1:
 | --- | --- |
 | Own, native price0 | Paid20/40/60/60; seized2/4/6/6; sale29/57/84/84; net9/17/24/24. Выбран request60; write-off20, итог80/0/80/0 |
 | Flash5 bps, native price0 | Fee1 для всех sizes; net8/16/23/23. Выбран60, возврат61, net23; неиспользованный principal request80 не считается доходом |
-| Предыдущие величины×1000, native price1 | Sale84905 Q для repay60000; Own used170/net24735; Flash used190, fee30, net24685. Flash sender1000→25685 Q, builder190 Q |
+| Предыдущие величины×1000, native price1 | Sale84905 Q для repay60000; Own used170/net24735; Flash used200, fee30, net24675. Flash sender1000→25675 Q, builder200 Q |
 | SC-06: два Own liquidators по100000 Q; Alice price1/arrival20, Carol price2/arrival21, cutoff30 | FIFO: Alice124735 Q, Carol99760 Q, builder410 Q. FeePriority: Alice99880 Q, Carol124565 Q, builder460 Q. Winner used170, NoDebt loser used120; nonce обоих1; залог продан и write-off20000 выполнен один раз |
 | Ранее другая tx ликвидировала20 Q→2 X без продажи, теперь collateral4/debt60; request60, свой inventory9 X, prices0 | Wrapper платит40 Q, продаёт только новые4 X→57 Q, net17; свой inventory остаётся9 X; write-off20 |
 | Перед включением в scaled fixture другой продавец внёс150000 X, получил900000 Q | Пул стал250000 X/600000 Q; попытка продажи6000 X даёт14062 Q. Финальный guard отменяет liquidation/sale/write-off; included fee170 Q сохраняется, sender100000→99830 Q |
 | Один accrual r=0.125M, dt1 на parent20/80/100/0 | Preview20/90/108/2; liquidation60+writeoff30 даёт80/0/80/0. Несколько trials не умножают начисление |
 | Native limit500/price1, свои499 Q и доступный flash provider | Skip до займа: flash не покрывает native reserve |
+
+**Уточнение эталона 2026-11-06 до реализации policy:** исходный численный
+пример ошибочно пропускал10 units существующего FlashCallback. Flash overhead
+равен30 (FlashLoan10 + callback10 + transfers5+5), итог200 units. Native cost
+DEC-13/§6 не меняется; reference script и JSON исправлены явно.
 
 Обязательны также HF equality, stale/missing oracle, close/dust caps, partial
 close конкурента, target/sizes/budget boundaries, own/flash shortage и repay
