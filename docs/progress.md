@@ -863,11 +863,33 @@ attempted transaction и diagnostic trial остаются для объясне
 отказ отправки, пробный успех и фактическое включение. Дополнительные регрессии
 проверяют nesting, оба preflight режима, runtime defense и checkpoint с отказом.
 
-После исправлений полный suite381 passed, fmt и Clippy прошли; независимая
-перепроверка исправленного commit и обновлённая browser/CLI проверка впереди.
-Логи: `/tmp/chainarium-dec26-fix-{full,target,clippy}.log`.
+Исправление закоммичено и отправлено в origin/work: `ce78187`.
+После исправлений полный suite381 passed, fmt и Clippy прошли. Release
+fingerprint `c22dddda5a934a87ee13322111247492b9d0a2473c851d7d510d95b9c609aa23`.
+Все52 CLI demos и52 browser presets прошли;6 baseline checkpoint/resume exports
+совпали побайтно. Browser отдельно проверил Skip/Rejected для KnownTransactionsLimit
+и QueueLimit, успешный trial при отсутствии actual receipt, restore отказа и
+HTTP rejection обоих foreign-wallet fixtures с сохранением текущего run.
+Независимая перепроверка `ce78187` тем же разрешённым reviewer продолжается.
+Логи: `/tmp/chainarium-dec26-fix-{full,target,clippy,release,cli,browser}.log`.
+Экспорты: `output/dec26-fix-validated/`.
 Optional flash-funded arbitrage,
 MTM/experiments/full explorer и M5 performance/user-task gates остаются открытыми.
+
+### Подготовлен следующий срез M4g / Proposed DEC-27
+
+В `docs/spec.md` §23.2.15 записан конкретный контракт bounded flash arbitrage:
+один principal/provider, own native fee reserve, закрытые RequireFull пути,
+3 hops /64 trials /4096 venue checks, общий budget семейства, actual net после
+settlement/fees и явные submission outcomes. Статус **Proposed**, согласования
+владельца ещё нет; новая policy/controller/UI не реализованы.
+
+Независимый integer reference `docs/reviews/flash-arbitrage-reference.py`/`.json`
+содержит8 случаев. До реализации policy они сопоставлены с literal programs
+существующего native executor: success, exact/minimum+1, fee reserve shortage,
+late guard revert и settlement shortfall. Все точные balances/reserves/provider
+и used совпали. Артефакты: `output/flash-arbitrage-reference-check/`.
+Это не тест отсутствующего route search; его acceptance явно перечислен в карточке.
 
 ### Fixtures и границы доказательства
 

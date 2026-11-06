@@ -2657,6 +2657,117 @@ UI показывает роль/цель/выборку/Skip, пробный и
 CLI/browser demos и независимый review §23.4 обязательны. Optional flash-funded
 arbitrage, MTM/experiments/full explorer и M5 gates остаются следующими срезами.
 
+### 23.2.15. Предлагаемый контракт M4g — Proposed DEC-27
+
+**DEC-27 / G-09/G-10, ограниченный flash-funded arbitrage.** Статус **Proposed**;
+согласование владельца и реализация новой policy ещё не выполнены.
+Закрывает опциональный flash funding arbitrageur из §13 поверх уже принятых
+DEC-11/12/13/20/21/25. Профиль `bounded-flash-arbitrage-v1` работает только
+через event scheduler, конфигурация `scheduler.flash_arbitrage` содержит
+limits и policies по AgentId. Существующая Own arbitrage policy сохраняется;
+новое семейство не вводит новых calls, правил settlement или расчёта AMM.
+
+**Policy и observation.** Явные поля: account, asset, provider, положительные
+principal/minimum_net_profit/lifetime, resource_limit/price, route_limits.
+Asset должен совпадать с asset provider и chain.fee_asset: FX/MTM здесь нет.
+Account контролируется агентом, не является protected или fee account.
+На AgentId ровно одна policy среди всех семейств. Envelope проходит обычную
+validation: limit>=100, limit<=block_limit, checked limit×price.
+Principal фиксирован; оптимизация размера и подбор provider не выполняются.
+
+Одна возможность решения на каждый round в общем порядке AgentId, после
+постановки emissions и до dispatch. Используется та же единичная системная
+проекция begin_block(parent) на cutoff, что у baseline/liquidator. Она передаёт
+только собственные balances/nonce, публичные venues/feeds/hooks и выбранный
+provider {asset,cash,fee_bps}; parent/cutoff явно различены. Нет чужих wallets,
+borrower positions, pending/private/future orderflow, RNG или reference valuation.
+Controller предоставляет только capability для сгенерированной ниже программы;
+policy не получает World или возможность произвольного probe.
+
+**Составная транзакция.** Для каждого замкнутого пути asset→…→asset:
+
+```text
+FlashLoan(provider, receiver=account, amount=principal, callback=[
+  ExecuteRoute(asset_in=asset, amount=principal, hops, min_out=1, RequireFull)
+])
+AssertTransactionNetGain(asset, minimum=minimum_net_profit)
+```
+
+Последний guard находится на root после settlement и учитывает фактическую
+native fee/refund. Каждая следующая нога получает фактический output предыдущей.
+RequireFull запрещает остатки промежуточных assets. Hook payout не является
+output swap; net учитывает полный собственный balance delta после payout,
+flash fee и native fee. Комиссия flash — прежняя ceil(principal×bps/10000).
+Собственные средства покрывают весь declared native fee reserve **до** займа;
+principal берётся у provider и не используется для оплаты native fee reserve.
+Закрытый цикл должен увеличить конечный собственный balance минимум на заданное
+значение: оставшийся principal и существующий inventory не объявляются доходом.
+
+**Детерминированный bounded search.** Hard caps/defaults: hops3,
+trials_per_policy64, trials_per_round64, venue_checks4096; положительные limits
+можно только уменьшать. Последние два бюджета общие для этого семейства за
+round и расходуются в порядке AgentId. Прежние budgets других семейств сохраняются.
+Venues сортируются по VenueId, пути обходятся DFS. Повтор venue запрещён;
+первое возвращение к asset завершает путь, дальнейшее продление не выполняется.
+Каждый рассмотренный venue на каждом префиксе расходует один venue check,
+включая повтор, несовпадающий asset и отсутствие directional limit.
+CPMM/StableSwap используют обычный exact-in; CLMM/book участвуют только при
+явном directional price limit, с той же validation, что DEC-20.
+
+Каждый полный путь расходует одну trial attempt, включая inclusion rejection.
+Не более одной полной simulation на attempt, всегда на отдельной копии preview;
+канонические balances/fees/nonce, hooks и provider не меняются от поиска.
+Только Success с фактическим net>=minimum участвует в выборе. Выбор: больший net,
+затем меньший receipt.used, затем лексикографический список VenueId.
+При exhaustion сохраняется лучший завершённый кандидат и truncated=true;
+без кандидата — Skip SearchLimit. Полного перебора или оптимума не обещается.
+NoRoute/NoProfitableCycle различены. ModelError отменяет весь round, включая
+очередь и результаты остальных решений; protocol failure только отвергает trial.
+
+**Отправка и отказы.** BusyNonce/NonceExhausted, overflow deadline/delivery,
+principal+flash_fee overflow, недостаточный provider cash или own fee reserve
+дают явный Skip до probes. TxId=`policy:flash-arbitrage:<AgentId>:<round>`;
+nonce из parent, deadline=parent_timestamp+lifetime, отправка в parent_timestamp
+через настроенные Public/Private и delays. Не более одного intent на round.
+Отдельный typed Queued/Rejected сохраняет причину отказа submit по DEC-26 fix;
+ранний refusal даёт Skip с attempted tx/trial. Сам факт queued не гарантирует
+включения. Actual builder заново исполняет всю транзакцию на текущем prefix:
+изменение ликвидности, hook state, provider cash или fee может дать paid revert.
+При таком revert откатывается loan/все legs/settlement/hooks, сохраняются только
+обычные native fee/nonce. Автоматического retry старого TxId нет; следующий
+round может сформировать новое решение после проверки busy/текущего состояния.
+
+**Численные ожидания до policy.** Независимый integer расчёт:
+`docs/reviews/flash-arbitrage-reference.py`/`.json`. Два CPMM, fee30 bps:
+A=1000 X/1000 Q, B=1000 X/1500 Q; цикл Q→X на A→Q на B, flash fee5 bps.
+Указанные ниже used включают все native costs: envelope100 + FlashLoan10 +
+loan transfer5 + FlashCallback10 + ExecuteRoute10 + 2×swap20 + settlement5 +
+root guard10 = **190 units**. Declared limit300; provider имеет достаточный cash.
+
+| Fixture | Ожидаемый исход |
+| --- | --- |
+| Principal100 Q, own0 Q, price0, minimum1 | 100 Q→90 X→123 Q; возврат101; net22, provider+1, used190, собственный balance22 |
+| То же, own1000 Q, price1 | Projected net−168; trial guard revert190, policy Skip, canonical own1000/fee0/nonce0 |
+| Резервы/principal×1000, own1000 Q, price1 | 100000→90661→124344; возврат100050; net24104, own25104, provider+50, builder190; minimum24104 проходит,24105 — Skip без canonical fee |
+| Успешный preflight предыдущего случая с minimum20000; перед actual trade другой sender продаёт50000 X в B за71224 Q, price0 | Actual output113247, net13007<20000; guard revert190, own810, provider gain0; prefix сохраняется, обе ноги займа откатились |
+| Успешный preflight minimum1; перед actual trade другой sender продаёт150000 X в B за195141 Q, price0 | Actual output95087; доступно95787 при fee reserve300, меньше due100050; settlement shortfall180, own820, provider gain0; prefix сохраняется |
+| Scaled case, own299 Q, limit300/price1 | Skip OwnFeeBudget, probes0; provider cash не оплачивает fee reserve |
+
+Восемь literal-call ожиданий независимо сопоставлены с существующим native
+executor до реализации policy, включая обе minimum boundaries. Это проверка
+арифметики/состава программы, не проверка ещё отсутствующего search/controller.
+
+Acceptance: точные fixtures выше, два/три hops и смешанные venues, reverse cycle,
+тай-брейки и cap boundaries,4096 непродуктивных venue checks,64 probes, несколько
+агентов с общим budget, provider/fee/nonce/time/U256 boundaries, RequireFull
+partial rollback, hook fees/payout/rollback, actual loss после preflight,
+Public/Private/delay/busy/submit refusal, отсутствие foreign/future leakage,
+ModelError round rollback и checkpoint/resume всех committed boundaries.
+CLI/UI показывают own fee reserve отдельно от principal, provider cash/fee,
+trial costs и actual receipt, выбранный путь/net и truncation; probes не
+называются фактическими сделками. Нужны сквозные demos и независимый review §23.4.
+MTM/experiments/full explorer и M5 gates остаются следующими срезами.
+
 ### 23.3. Вертикальные срезы и Definition of Done
 
 Работа дробится на сквозные сценарии **требование → состояние → действие → исполнение → тесты → trace → визуальное объяснение**. Новый компонент не считается завершённым по одному лишь trait, mock API или графическому экрану. На один срез — один проверяемый вопрос и минимальное число новых механизмов.
@@ -2721,7 +2832,8 @@ openspec/                   # опционально, после решения 
 
 **Уже закрытые требования:** единый ledger; разделение origin/caller/callee и явная авторизация; точная передача atoms/цен без потери целых; native fee/nonce и ресурсный профиль `100 / 10 / 5 / 1` (§5–§6); изолированный collateral, уравнение `C + D = S + E`, распределение процентов и убытков, атомарность liquidation+writeoff (§8); возраст цены по observation time, полномочия publisher и validity oracle (§10); раздельные committed events/attempt trace и полные checkpoints (§15–§17). Выбор конкретного Rust crate или UI-транспорта обязан сохранить эти требования.
 
-**Состояние решений на 2026-11-06:** DEC-05–DEC-26 приняты. Для текущих
+**Состояние решений на 2026-11-06:** DEC-05–DEC-26 приняты; DEC-27 (§23.2.15)
+подготовлен как Proposed и ожидает согласования владельца. Для текущих
 профилей определены G-01/G-02, CPMM/LP часть G-03, прототип G-04,
 reference lending G-05, external oracle часть G-06, router budget часть G-09,
 базовый checkpoint G-10 и RNG часть G-15. Реализация/fixtures отражены в §20
