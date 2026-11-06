@@ -362,6 +362,7 @@ fn vf_stable_route_actual_outputs_simulation_and_net_fee_guard() {
     s.policies.insert(
         "alice".into(),
         ArbitragePolicy {
+            route_limits: None,
             account: "alice".into(),
             asset: "Q".into(),
             input: 100_000_000.into(),

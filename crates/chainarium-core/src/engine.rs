@@ -820,6 +820,20 @@ pub(crate) fn simulate_transaction(
     snapshot.invariant(s)?;
     Ok(receipt)
 }
+pub(crate) fn probe_transaction(
+    s: &Scenario,
+    w: &World,
+    tx: &Transaction,
+) -> Result<crate::routing::heterogeneous::Trial, String> {
+    use crate::routing::heterogeneous::Trial;
+    if let Err(error) = inclusion(s, w, tx, s.chain.block_limit) {
+        return Ok(Trial::Rejected(error));
+    }
+    let mut snapshot = w.clone();
+    let receipt = execute(s, &mut snapshot, tx)?;
+    snapshot.invariant(s)?;
+    Ok(Trial::Executed(Box::new(receipt)))
+}
 
 fn execute(s: &Scenario, w: &mut World, tx: &Transaction) -> Result<Receipt, String> {
     let entry_fee_balance = w.balance(&tx.sender, &s.chain.fee_asset);

@@ -25,6 +25,9 @@ pub struct Observation {
     pub balances: BTreeMap<String, Amount>,
     pub venues: Vec<VenueView>,
     pub route_venues: Vec<heterogeneous::Venue>,
+    pub clmm: BTreeMap<String, crate::policy::baselines::ClmmObservation>,
+    pub books: BTreeMap<String, crate::policy::baselines::BookObservation>,
+    pub feeds: BTreeMap<String, Option<crate::credit::OracleRecord>>,
 }
 impl Observation {
     /// Only own balances and public pool state; no other wallets, pending orderflow or future inputs.
@@ -40,6 +43,49 @@ impl Observation {
             nonce: a.nonce,
             balances: a.balances.clone(),
             route_venues: heterogeneous::venues(s),
+            clmm: w
+                .clmm
+                .iter()
+                .map(|(id, p)| {
+                    (
+                        id.clone(),
+                        crate::policy::baselines::ClmmObservation {
+                            sqrt_price: p.sqrt_price,
+                            current_tick: p.current_tick,
+                            active_liquidity: p.liquidity,
+                            own_positions: p
+                                .positions
+                                .iter()
+                                .filter(|(_, p)| p.owner == account)
+                                .map(|(id, p)| (*id, p.clone()))
+                                .collect(),
+                        },
+                    )
+                })
+                .collect(),
+            books: w
+                .books
+                .iter()
+                .map(|(id, b)| {
+                    (
+                        id.clone(),
+                        crate::policy::baselines::BookObservation {
+                            config: s.books[id].clone(),
+                            own_orders: b
+                                .orders
+                                .iter()
+                                .filter(|(_, o)| o.owner == account)
+                                .map(|(id, o)| (*id, o.clone()))
+                                .collect(),
+                        },
+                    )
+                })
+                .collect(),
+            feeds: w
+                .feeds
+                .iter()
+                .map(|(id, f)| (id.clone(), f.record.clone()))
+                .collect(),
             venues: s
                 .pools()
                 .map(|(id, p)| {

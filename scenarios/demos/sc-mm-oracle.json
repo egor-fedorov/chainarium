@@ -1,0 +1,251 @@
+{
+  "schema_version": "chainarium-scenario-m1-v1",
+  "model_versions": [
+    "native-execution-v1",
+    "native-cost-v1",
+    "cpmm-v1",
+    "scheduler-m1-v1",
+    "chacha12-v1",
+    "native-book-v1",
+    "oracle-observation-v1",
+    "bounded-book-mm-v1",
+    "heterogeneous-route-v1"
+  ],
+  "name": "SC-03 \u00b7 Oracle, market maker \u0438 \u0430\u0440\u0431\u0438\u0442\u0440\u0430\u0436",
+  "seed": "42",
+  "assets": {
+    "X": {
+      "decimals": 0
+    },
+    "Q": {
+      "decimals": 0
+    }
+  },
+  "accounts": {
+    "alice": {
+      "nonce": "0",
+      "balances": {
+        "X": "100",
+        "Q": "2000"
+      }
+    },
+    "bob": {
+      "nonce": "0",
+      "balances": {
+        "X": "110",
+        "Q": "1000"
+      }
+    },
+    "carol": {
+      "nonce": "0",
+      "balances": {
+        "X": "10000",
+        "Q": "5000"
+      }
+    },
+    "book-escrow": {
+      "nonce": "0",
+      "balances": {
+        "X": "0",
+        "Q": "0"
+      }
+    },
+    "treasury": {
+      "nonce": "0",
+      "balances": {
+        "X": "0",
+        "Q": "0"
+      }
+    },
+    "builder": {
+      "nonce": "0",
+      "balances": {
+        "X": "0",
+        "Q": "0"
+      }
+    },
+    "oracle": {
+      "nonce": "0",
+      "balances": {
+        "X": "0",
+        "Q": "0"
+      }
+    },
+    "cpmm-account": {
+      "nonce": "0",
+      "balances": {
+        "X": "120",
+        "Q": "1000"
+      }
+    }
+  },
+  "protocols": {
+    "cpmm": {
+      "account": "cpmm-account",
+      "x": "X",
+      "y": "Q",
+      "fee_bps": 0,
+      "owner": "bob"
+    }
+  },
+  "agents": {
+    "alice": {
+      "controlled_accounts": [
+        "alice"
+      ]
+    },
+    "bob": {
+      "controlled_accounts": [
+        "bob"
+      ]
+    },
+    "carol": {
+      "controlled_accounts": [
+        "carol"
+      ]
+    },
+    "treasury": {
+      "controlled_accounts": [
+        "treasury"
+      ]
+    },
+    "oracle": {
+      "controlled_accounts": [
+        "oracle"
+      ]
+    }
+  },
+  "chain": {
+    "id": "lab-1",
+    "fee_asset": "X",
+    "fee_account": "builder",
+    "block_limit": "10000",
+    "interval": "1"
+  },
+  "blocks": [
+    [],
+    [
+      {
+        "id": "publish-price-shock",
+        "agent": "oracle",
+        "sender": "oracle",
+        "chain": "lab-1",
+        "nonce": "0",
+        "limit": "1000",
+        "price": "0",
+        "deadline": "1000",
+        "program": [
+          {
+            "type": "PublishOracle",
+            "feed": "public-price",
+            "source_id": "external-market",
+            "price": {
+              "base_asset": "X",
+              "quote_asset": "Q",
+              "numerator": "12",
+              "denominator": "1"
+            },
+            "observed_at": "2",
+            "sequence": "1",
+            "update_id": "price-shock"
+          }
+        ]
+      }
+    ],
+    [],
+    [
+      {
+        "id": "buy-one-maker-lot",
+        "agent": "bob",
+        "sender": "bob",
+        "chain": "lab-1",
+        "nonce": "0",
+        "limit": "1000",
+        "price": "0",
+        "deadline": "1000",
+        "program": [
+          {
+            "type": "PlaceOrder",
+            "book": "book",
+            "side": "Buy",
+            "price_ticks": "65",
+            "lots": "1",
+            "tif": "IOC"
+          }
+        ]
+      }
+    ],
+    [],
+    []
+  ],
+  "books": {
+    "book": {
+      "account": "book-escrow",
+      "base_asset": "X",
+      "quote_asset": "Q",
+      "lot_atoms": "10",
+      "quote_tick_atoms": "2",
+      "taker_fee_bps": 100,
+      "fee_account": "treasury"
+    }
+  },
+  "feeds": {
+    "public-price": {
+      "base_asset": "X",
+      "quote_asset": "Q",
+      "source_id": "external-market",
+      "publishers": [
+        "oracle"
+      ],
+      "initial": {
+        "price": {
+          "base_asset": "X",
+          "quote_asset": "Q",
+          "numerator": "10",
+          "denominator": "1"
+        },
+        "source_id": "external-market",
+        "observed_at": "0",
+        "published_at": "0",
+        "sequence": "0",
+        "update_id": "initial-price"
+      }
+    }
+  },
+  "mm_policies": {
+    "alice": {
+      "account": "alice",
+      "book": "book",
+      "lots": "2",
+      "spread_ticks": "5",
+      "refresh_every": "1",
+      "resource_limit": "1000",
+      "resource_price": "0",
+      "anchor": {
+        "type": "PublicOracle",
+        "feed": "public-price",
+        "max_age": "2"
+      }
+    }
+  },
+  "policies": {
+    "carol": {
+      "account": "carol",
+      "asset": "X",
+      "input": "10",
+      "min_profit": "1",
+      "resource_limit": "1000",
+      "resource_price": "0",
+      "route_limits": [
+        {
+          "asset_in": "X",
+          "hop": {
+            "kind": "Book",
+            "venue": "book",
+            "limit_price_ticks": "45"
+          }
+        }
+      ]
+    }
+  }
+}

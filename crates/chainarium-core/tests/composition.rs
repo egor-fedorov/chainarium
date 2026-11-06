@@ -398,6 +398,7 @@ fn vf_policy_simulation_is_readonly_and_checkpoint_replays_decisions() {
     s.policies.insert(
         "trader".into(),
         ArbitragePolicy {
+            route_limits: None,
             account: "alice".into(),
             asset: "Q".into(),
             input: 100.into(),
@@ -470,6 +471,7 @@ fn vf_policy_accounts_for_execution_fees_and_absent_valuation() {
     let mut s = scenario();
     second_pool(&mut s);
     let p = ArbitragePolicy {
+        route_limits: None,
         account: "alice".into(),
         asset: "Q".into(),
         input: 100.into(),
@@ -498,6 +500,7 @@ fn vf_policy_positive_profit_after_nonzero_execution_fee() {
     s.policies.insert(
         "trader".into(),
         ArbitragePolicy {
+            route_limits: None,
             account: "alice".into(),
             asset: "Q".into(),
             input: 100.into(),
@@ -592,6 +595,7 @@ fn vf_policy_fee_to_same_account_is_not_an_external_cost() {
     s.policies.insert(
         "trader".into(),
         ArbitragePolicy {
+            route_limits: None,
             account: "alice".into(),
             asset: "Q".into(),
             input: 100.into(),

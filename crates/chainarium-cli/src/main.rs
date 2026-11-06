@@ -85,6 +85,8 @@ async fn preset(ApiPath(id): ApiPath<String>) -> Result<impl IntoResponse, ApiEr
         "sc-01" => include_str!("../../../scenarios/demos/sc-01.json"),
         "sc-lp" => include_str!("../../../scenarios/demos/sc-lp.json"),
         "sc-03-route" => include_str!("../../../scenarios/demos/sc-03-route.json"),
+        "sc-lp-policies" => include_str!("../../../scenarios/demos/sc-lp-policies.json"),
+        "sc-mm-oracle" => include_str!("../../../scenarios/demos/sc-mm-oracle.json"),
         "sc-03-heterogeneous" => include_str!("../../../scenarios/demos/sc-03-heterogeneous.json"),
         "sc-04-flash" => include_str!("../../../scenarios/demos/sc-04-flash.json"),
         "sc-05-credit" => include_str!("../../../scenarios/demos/sc-05-credit.json"),
@@ -384,6 +386,15 @@ fn app() -> Router {
             }),
         )
         .route(
+            "/policies.js",
+            get(|| async {
+                (
+                    [(header::CONTENT_TYPE, "text/javascript; charset=utf-8")],
+                    include_str!("../../../web/policies.js"),
+                )
+            }),
+        )
+        .route(
             "/routes.js",
             get(|| async {
                 (
@@ -509,7 +520,7 @@ async fn command() -> Result<(), String> {
             let listener = tokio::net::TcpListener::bind((std::net::Ipv4Addr::LOCALHOST, port))
                 .await
                 .map_err(|e| e.to_string())?;
-            println!("Chainarium M1–M3c inspector listening on port {port}");
+            println!("Chainarium M1–M3d inspector listening on port {port}");
             axum::serve(listener, app())
                 .await
                 .map_err(|e| e.to_string())?;
@@ -611,7 +622,7 @@ async fn command() -> Result<(), String> {
             );
         }
         "--help" | "help" => println!(
-            "Chainarium M1–M3c (v1.0 in development)\n  run SCENARIO NEW_OUTPUT_DIR\n  routes SCENARIO BLOCKS QUERY_JSON\n  checkpoint SCENARIO BLOCKS NEW_FILE\n  resume CHECKPOINT NEW_OUTPUT_DIR\n  serve [PORT]\n  benchmark [BLOCKS]"
+            "Chainarium M1–M3d (v1.0 in development)\n  run SCENARIO NEW_OUTPUT_DIR\n  routes SCENARIO BLOCKS QUERY_JSON\n  checkpoint SCENARIO BLOCKS NEW_FILE\n  resume CHECKPOINT NEW_OUTPUT_DIR\n  serve [PORT]\n  benchmark [BLOCKS]"
         ),
         _ => return Err("unknown command; use --help".into()),
     }

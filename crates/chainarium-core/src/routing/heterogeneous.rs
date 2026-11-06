@@ -277,13 +277,26 @@ pub struct Search {
     pub examined: Amount,
     pub truncated: bool,
 }
+pub enum Trial {
+    Executed(Box<Receipt>),
+    Rejected(String),
+}
 /// Enumeration uses public topology only, never future inputs or other wallets.
 /// The controller supplies a read-only execution capability, bounded to 64 calls.
 pub fn search_with(
     obs: &super::Observation,
     chain: &Chain,
     query: &Query,
-    simulate: &dyn Fn(&Transaction) -> Result<Receipt, String>,
+    simulate: &dyn Fn(&Transaction) -> Result<Trial, String>,
+) -> Result<Search, String> {
+    search_with_tail(obs, chain, query, &[], simulate)
+}
+pub(crate) fn search_with_tail(
+    obs: &super::Observation,
+    chain: &Chain,
+    query: &Query,
+    tail: &[Call],
+    simulate: &dyn Fn(&Transaction) -> Result<Trial, String>,
 ) -> Result<Search, String> {
     validate_limits(&obs.route_venues, &query.limits)?;
     if query.sender != obs.account || query.amount.is_zero() || query.resource_limit < 100.into() {
@@ -352,7 +365,7 @@ pub fn search_with(
     paths.truncate(MAX_CANDIDATES);
     let mut candidates = Vec::with_capacity(paths.len());
     for (i, hops) in paths.into_iter().enumerate() {
-        let transaction = Transaction {
+        let mut transaction = Transaction {
             id: format!("route-quote:{}:{i}", obs.block),
             agent: query.agent.clone(),
             sender: query.sender.clone(),
@@ -369,9 +382,10 @@ pub fn search_with(
                 residual_policy: query.residual_policy,
             }],
         };
-        let (receipt, admission_error) = match simulate(&transaction) {
-            Ok(receipt) => (Some(receipt), None),
-            Err(error) => (None, Some(error)),
+        transaction.program.extend_from_slice(tail);
+        let (receipt, admission_error) = match simulate(&transaction)? {
+            Trial::Executed(receipt) => (Some(*receipt), None),
+            Trial::Rejected(error) => (None, Some(error)),
         };
         candidates.push(Candidate {
             hops,
@@ -416,7 +430,7 @@ pub fn quote(s: &Scenario, w: &World, query: &Query) -> Result<Quote, String> {
     }
     let obs = super::Observation::capture(s, w, &query.sender)?;
     let search = search_with(&obs, &s.chain, query, &|tx| {
-        crate::engine::simulate_transaction(s, w, tx)
+        crate::engine::probe_transaction(s, w, tx)
     })?;
     Ok(Quote {
         state_ref: crate::run::digest(&serde_json::to_vec(&(s, w)).map_err(|e| e.to_string())?),

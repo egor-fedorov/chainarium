@@ -1,4 +1,4 @@
-"""M1–M3c browser/API acceptance. Run against `chainarium serve 8080`. Requires Playwright + Chromium."""
+"""M1–M3d browser/API acceptance. Run against `chainarium serve 8080`. Requires Playwright + Chromium."""
 import json
 from pathlib import Path
 from playwright.sync_api import sync_playwright, expect
@@ -520,6 +520,67 @@ with sync_playwright() as p:
     page.locator('#play').click()
     expect(page.locator('#position')).to_contain_text('Исполнено 4 / 4',timeout=10000)
     assert page.request.get('http://127.0.0.1:8080/api/run').json()==route_full
+    page.locator('#preset').select_option('sc-lp-policies')
+    page.locator('#new').click()
+    expect(page.locator('#policy-panel')).to_be_visible()
+    expect(page.locator('#policy-config')).to_contain_text('Блок 3: Диапазон [-200, -50)')
+    page.locator('#step').click()
+    expect(page.locator('#decisions')).to_contain_text('alice · Submit')
+    expect(page.locator('#clmm-view')).to_contain_text('2000000')
+    page.locator('#step').click()
+    expect(page.locator('#clmm-view')).to_contain_text('Inactive')
+    page.locator('#step').click()
+    expect(page.locator('#decisions')).to_contain_text('alice · Hold')
+    expect(page.locator('#decisions')).to_contain_text('bob · Submit')
+    expect(page.locator('#clmm-view')).to_contain_text('#3 bob')
+    page.screenshot(path='output/m3-lp-policies.png',full_page=True)
+    lp_checkpoint=page.request.get('http://127.0.0.1:8080/api/checkpoint').json()
+    page.locator('#play').click()
+    expect(page.locator('#position')).to_contain_text('Исполнено 5 / 5',timeout=10000)
+    lp_full=page.request.get('http://127.0.0.1:8080/api/run').json()
+    assert all(v['owner']=='alice' for v in lp_full['state']['clmm']['clmm']['positions'].values())
+    assert page.request.post('http://127.0.0.1:8080/api/restore',data=lp_checkpoint).ok
+    page.reload()
+    expect(page.locator('#preset')).to_have_value('sc-lp-policies')
+    page.locator('#play').click()
+    expect(page.locator('#position')).to_contain_text('Исполнено 5 / 5',timeout=10000)
+    assert page.request.get('http://127.0.0.1:8080/api/run').json()==lp_full
+    page.locator('#preset').select_option('sc-mm-oracle')
+    page.locator('#new').click()
+    expect(page.locator('#policy-config')).to_contain_text('Публичный oracle public-price')
+    page.locator('#step').click()
+    expect(page.locator('#book-view')).to_contain_text('180')
+    expect(page.locator('#decisions')).to_contain_text('Anchor: 50 ticks')
+    page.locator('#step').click()
+    expect(page.locator('#decisions')).to_contain_text('alice · Hold')
+    expect(page.locator('#decisions')).to_contain_text('Anchor: 50 ticks')
+    page.locator('#step').click()
+    expect(page.locator('#book-view')).to_contain_text('220')
+    expect(page.locator('#decisions')).to_contain_text('Anchor: 60 ticks')
+    page.locator('#step').click()
+    expect(page.locator('#decisions')).to_contain_text('carol · Submit')
+    expect(page.locator('#decisions')).to_contain_text('+1 atoms X')
+    expect(page.locator('#decisions')).to_contain_text('Остатки в кошельке: нет')
+    page.locator('#decisions').screenshot(path='output/m3-mm-decisions.png')
+    mm_checkpoint=page.request.get('http://127.0.0.1:8080/api/checkpoint').json()
+    page.locator('#step').click()
+    expect(page.locator('#decisions')).to_contain_text('возраст 2 / 2 s')
+    page.locator('#step').click()
+    expect(page.locator('#decisions')).to_contain_text('MM missing/stale oracle: cancel quotes')
+    expect(page.locator('#decisions')).to_contain_text('возраст 3 / 2 s')
+    mm_full=page.request.get('http://127.0.0.1:8080/api/run').json()
+    assert mm_full['state']['books']['book']['orders']=={}
+    page.set_viewport_size({'width':390,'height':844})
+    assert page.evaluate('document.documentElement.scrollWidth <= innerWidth'), 'policy mobile horizontal overflow'
+    page.locator('#decisions').evaluate("el=>el.scrollIntoView({block:'start'})")
+    page.screenshot(path='output/m3-mm-mobile.png')
+    page.set_viewport_size({'width':1440,'height':1100})
+    assert page.request.post('http://127.0.0.1:8080/api/restore',data=mm_checkpoint).ok
+    page.reload()
+    expect(page.locator('#preset')).to_have_value('sc-mm-oracle')
+    page.locator('#play').click()
+    expect(page.locator('#position')).to_contain_text('Исполнено 6 / 6',timeout=10000)
+    assert page.request.get('http://127.0.0.1:8080/api/run').json()==mm_full
     assert not errors, errors
     browser.close()
-print('PASS: browser run, trace, read-only viewing, checkpoint/resume, A/B, fork, exact U256 HTTP round-trip, mobile layout, LP, route policy, flash success/shortfall/rollback, credit interest/loss/redemption, exact oracle use, credit checkpoint replay, StableSwap curves/solver/LP/route/replay/depeg/mobile, TWAP 150/175/rollback/stale/readonly/checkpoint/mobile, flash liquidation real legs/loss/shortfall/rollback/checkpoint/mobile, order book levels/quote/fills/escrow/FOK/IOC/GTC/cancel/self-trade/rollback/replay/mobile, CLMM ranges/fees/surplus/crossings/partial/quote/rollback/replay/mobile, heterogeneous routes/limits/search/strict/residuals/readonly/rollback/replay/mobile')
+print('PASS: browser run, trace, read-only viewing, checkpoint/resume, A/B, fork, exact U256 HTTP round-trip, mobile layout, LP, route policy, flash success/shortfall/rollback, credit interest/loss/redemption, exact oracle use, credit checkpoint replay, StableSwap curves/solver/LP/route/replay/depeg/mobile, TWAP 150/175/rollback/stale/readonly/checkpoint/mobile, flash liquidation real legs/loss/shortfall/rollback/checkpoint/mobile, order book levels/quote/fills/escrow/FOK/IOC/GTC/cancel/self-trade/rollback/replay/mobile, CLMM ranges/fees/surplus/crossings/partial/quote/rollback/replay/mobile, heterogeneous routes/limits/search/strict/residuals/readonly/rollback/replay/mobile, LP/MM policies/schedules/observation-delay/anchor-age/closed-cycle/stale-cancel/replay/mobile')

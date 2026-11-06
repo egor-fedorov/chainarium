@@ -1,9 +1,9 @@
 # Прогресс Chainarium — 2026-11-06
 
-Цель: весь v1.0 из §2.1. Текущий результат — **исполняемый прототип M1–M3c**.
+Цель: весь v1.0 из §2.1. Текущий результат — **исполняемый прототип M1–M3d**.
 Это не готовая v1.0. Независимый review M1–M3b завершён, три findings исправлены
-и перепроверены; M3c в его область не входил. DEC-05–DEC-20 приняты владельцем.
-Общий partial-fill router реализован; LP/MM-политики M3d — следующий срез.
+и перепроверены; M3c–M3d в его область не входили. DEC-05–DEC-20 приняты владельцем.
+Общий partial-fill router, LP/MM-политики и heterogeneous arbitrage реализованы.
 
 ## Что работает
 
@@ -36,8 +36,11 @@ fees/nonce/resource accounting и deterministic replay. Канонические
   и обе read-only формы; атомарность сохраняется на crossings и выводах LP.
 - M3c: ExecuteRoute через четыре семейства, RequireFull/KeepResiduals,
   typed ledger results, до 3 hops / 64 полных simulations, read-only UI/CLI.
+- M3d: passive/scheduled CLMM LP, Fixed/PublicOracle book MM, heterogeneous
+  arbitrage с фактической native fee. Одно намерение на AgentId, Hold/Skip/Submit,
+  старое committed observation и повторная проверка включения.
 
-UI содержит четырнадцать presets, play/pause/step, просмотр block→tx→call, балансы, сравнение котировок и трасса solver,
+UI содержит шестнадцать presets, play/pause/step, просмотр block→tx→call, балансы, сравнение котировок и трасса solver,
 LP shares, C/D/S/E, escrow, точный HF и запись oracle, фактически использованную
 в конкретном вызове. Расчёт риска выполняет Rust; JS отображает готовые строки.
 Есть export/checkpoint/restore/fork и A/B параметров SC-01.
@@ -45,16 +48,16 @@ LP shares, C/D/S/E, escrow, точный HF и запись oracle, фактич
 ## Фактическая проверка
 
 - `scripts/cargo.sh fmt --check` и Clippy всех targets с `-D warnings` — прошли.
-- `scripts/cargo.sh test --workspace --locked --offline` — **132 tests passed**:
+- `scripts/cargo.sh test --workspace --locked --offline` — **148 tests passed**:
   5 unit fault-injection, 19 acceptance, 20 composition, 19 credit, 10 stable,
-  10 twap, 7 flash_liquidation, 14 book, 17 clmm, 11 heterogeneous; ignored=0.
+  10 twap, 7 flash_liquidation, 14 book, 17 clmm, 11 heterogeneous, 16 policies; ignored=0.
 - `node --test web/wire.test.mjs` — канонические строки, диапазоны и точный
   decimal conversion прошли; JS экономические команды не проходят через Number.
-- `python3 scripts/check-ui.py` — пройден путь всех четырнадцати presets, readonly
+- `python3 scripts/check-ui.py` — пройден путь всех шестнадцати presets, readonly
   просмотр, trace, checkpoint/resume, fork/A-B, точные Amount/Price через HTTP,
   desktop/mobile; ошибок JavaScript и горизонтального overflow нет.
 - Release build и `git diff --check` — прошли.
-- CLI: все четырнадцать demos исполнены. Оба StableSwap demos после checkpoint/resume
+- CLI: все шестнадцать demos исполнены. Оба StableSwap demos после checkpoint/resume
   дают побайтно идентичные `run.json`. SC-05 checkpoint после блока 1 → resume:
   `run.json` побайтно совпадает с непрерывным запуском. В events JSONL начисление
   10 Q присутствует, отменённая liquidation не создаёт канонического write-off.
@@ -296,8 +299,46 @@ route quote. Build `864851b44dc6e875241345bf00e203bf41259eda21253495bb9c88580d5e
 Browser прошёл все 14 presets, route search/strict/partial/readonly/replay/mobile.
 Снимки `output/m3-route-search.png`, `output/m3-route-partial.png`,
 `output/m3-route-mobile.png`; desktop/mobile просмотрены.
-LP/MM-политики и heterogeneous arbitrage integration — M3d. Независимый review
-DEC-20 остаётся отдельным критерием приёмки этого среза.
+LP/MM-политики и heterogeneous arbitrage integration добавлены в M3d ниже.
+Независимый review DEC-20 остаётся отдельным критерием приёмки этого среза.
+
+### M3d: LP/MM-политики и heterogeneous arbitrage
+
+LP получает собственные позиции и public market state. Alice вносит L=1000000
+в [-100,100) за 4988 X/4988 Q и далее Hold, включая выход цены из диапазона.
+Bob вносит такую же позицию, в блоке 3 выполняет collect/burn/mint диапазона
+[-200,-50), L=500000, а в блоке 5 — collect/burn и Exit. После блока 2 активная
+L=0, после перестановки 500000, после обратного swap 1500000; после выхода Bob
+остаётся позиция Alice. Стоимость mint 120, reposition 150, exit 130 units.
+
+MM получает собственные orders и опубликованный feed. Oracle 10→12 Q/X в блоке 2
+ещё не меняет решение по блоку 1; в блоке 3 MM отменяет bid45/ask55 и ставит
+bid55/ask65. Escrow 180 Q/20 X → 220 Q/20 X. В блоке 4 пользователь покупает
+один lot, Carol исполняет full-input цикл 10 X → 108 Q → 11 X; стоимость
+171 units при явно нулевой цене ресурса. После частичных fills MM восстанавливает
+размер quotes. Возраст feed 2 s допускается, 3 s при max_age=2 вызывает только
+отмену. Стоимость первой постановки 135, cancel/reprice 165, stale cancel 130.
+
+Heterogeneous arbitrage делает не более 64 полных simulations вместе с финальным
+AssertTransactionNetGain. Отдельный fixture с native price=1 даёт 270 X за 10 X,
+минус 171 X fees = 89 X net; при fee recipient=sender net=260 X. Lot dust
+отклоняется даже при положительном выходе. ModelError пробного исполнения
+пробрасывается отдельно от admission rejection и не скрывается как котировка.
+
+16 tests покрывают schedule/ownership/limits, отсутствие скрытого retry,
+scripted nonce conflict, zero-L collect, обеспечение обеих сторон MM, fixed
+anchor/cadence, rational floor, stale/missing oracle, отсутствие средств на cancel,
+GTC taker fee, задержку реакции, closed-cycle fee/self-recipient, ограниченное
+наблюдение, неизменность checkpoint/RNG при simulations и replay всех границ.
+
+Артефакты: `output/m3d-final/` — 16 demos и три byte-identical resumes
+(LP policies, MM/oracle, heterogeneous route). Build
+`1d0c329597116159f16cff02250ad3ea68dfc53076505eba601808f8db072278`.
+Browser прошёл все 16 presets, планы LP, решения Hold/Skip/Submit, anchor/age,
+арбитражный цикл, stale cancel и checkpoint каждого нового demo. Снимки:
+`output/m3-lp-policies.png`, `output/m3-mm-decisions.png`, `output/m3-mm-mobile.png`;
+MM desktop/mobile просмотрены. Full scheduler, pending visibility, bundles,
+greedy builder, hooks, остальные агенты и MTM остаются M4–M5.
 
 ### Fixtures и границы доказательства
 
@@ -340,13 +381,13 @@ latency UI и полные workloads M5 ещё не измерены/не при
    read-only агента для M1–M3b (4d5b6bb..42651ee). Проверка завершена: три findings
    исправлены в `3827f63` и адресно перепроверены reviewer; отчёт и ограничения —
    `docs/reviews/m1-m3b-independent-review.md`. DEC-20 в её область не входит.
-2. Следующая часть M3 — общий partial-fill router и LP/MM политики.
+2. DEC-20 — общий partial-fill router и LP/MM политики.
    DEC-20 принят владельцем в `docs/spec.md` §23.2.8: контракт остатков,
    bounded search и политики. Аналитические ожидания до реализации сохранены
    в `docs/reviews/heterogeneous-route-reference.py`/`.json` и совпали при
-   пересчёте. M3c реализован и функционально проверен; M3d впереди.
+   пересчёте. M3c/M3d реализованы и функционально проверены; нужен отдельный review.
 3. M2f/M2g функционально проверены; независимый review остаётся обязательным.
-4. M3d–M5: LP/MM policies, heterogeneous arbitrage, MEV/builders/bundles, hooks, остальные
+4. M4–M5: MEV/builders/bundles, hooks, остальные
    политики agents, полный scheduler, MTM, эксперименты и explorer.
 5. Полные user-task/latency/performance budgets и независимое review должны
    быть выполнены до приёмки целевой v1.0. SC-06 с конкуренцией — этап M4.

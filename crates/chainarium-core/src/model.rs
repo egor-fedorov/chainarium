@@ -309,6 +309,10 @@ pub struct Scenario {
     #[serde(default, skip_serializing_if = "BTreeMap::is_empty")]
     pub policies: BTreeMap<String, crate::policy::ArbitragePolicy>,
     #[serde(default, skip_serializing_if = "BTreeMap::is_empty")]
+    pub lp_policies: BTreeMap<String, crate::policy::baselines::LpPolicy>,
+    #[serde(default, skip_serializing_if = "BTreeMap::is_empty")]
+    pub mm_policies: BTreeMap<String, crate::policy::baselines::MmPolicy>,
+    #[serde(default, skip_serializing_if = "BTreeMap::is_empty")]
     pub lending: BTreeMap<String, crate::credit::LendingConfig>,
     #[serde(default, skip_serializing_if = "BTreeMap::is_empty")]
     pub feeds: BTreeMap<String, crate::credit::FeedConfig>,
@@ -361,6 +365,8 @@ impl Scenario {
                     && m != crate::book::MODEL
                     && m != crate::clmm::MODEL
                     && m != crate::routing::heterogeneous::MODEL
+                    && m != crate::policy::baselines::LP_MODEL
+                    && m != crate::policy::baselines::MM_MODEL
             })
             || self.model_versions.iter().collect::<BTreeSet<_>>().len()
                 != self.model_versions.len()
@@ -456,7 +462,8 @@ impl Scenario {
             }
         }
         for (agent, p) in &self.policies {
-            if !self.model_versions.iter().any(|v| v == "bounded-route-v1")
+            if (p.route_limits.is_none()
+                && !self.model_versions.iter().any(|v| v == "bounded-route-v1"))
                 || !self
                     .agents
                     .get(agent)
@@ -471,6 +478,7 @@ impl Scenario {
             p.input.checked_add(budget)?;
             p.min_profit.checked_add(budget)?;
         }
+        crate::policy::baselines::validate(self)?;
         let mut ids = BTreeSet::new();
         for block in &self.blocks {
             for tx in block {

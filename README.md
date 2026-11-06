@@ -1,7 +1,7 @@
 # Chainarium
 
 Локальная лаборатория DeFi с Rust-ядром. **v1.0 в разработке.**
-Сейчас исполняются M1–M3c: CPMM swaps/LP, маршруты, арбитражная политика
+Сейчас исполняются M1–M3d: CPMM swaps/LP, маршруты, арбитражная политика
 на собственных средствах, flash loans, lending, oracle, проценты и ликвидации, StableSwap, TWAP и flash-ликвидация,
 стакан GTC/IOC/FOK, CLMM и общий partial-fill router, rollback, fees/nonce и
 исчерпание ресурса. Полный объём и приёмка: [спецификация](docs/spec.md).
@@ -34,7 +34,7 @@ scripts/cargo.sh run --locked --bin chainarium -- routes scenarios/demos/sc-03-h
 Checkpoint восстанавливается только на committed-границе; checksum и повторное
 исполнение проверяют его целостность. CSV не является форматом восстановления.
 
-Доступны четырнадцать presets в UI и CLI:
+Доступны шестнадцать presets в UI и CLI:
 
 | Файл | Демонстрация |
 | --- | --- |
@@ -52,6 +52,8 @@ Checkpoint восстанавливается только на committed-гра
 | `scenarios/demos/sc-02-clmm.json` | 1000 X → 996 Q; burn/collect, остатки округления и rollback |
 | `scenarios/demos/sc-clmm-crossing.json` | Три диапазона: 16000 X → 15755 Q; обратный partial swap и вывод LP |
 | `scenarios/demos/sc-03-heterogeneous.json` | Book/CPMM: выход 165 R и остаток 15 X; CLMM/CPMM: выход 3327 R и остаток 4971 X; strict/late rollback и маршрут через StableSwap |
+| `scenarios/demos/sc-lp-policies.json` | Пассивный LP удерживает позицию; второй LP переставляет диапазон в блоке 3 и выходит в блоке 5 |
+| `scenarios/demos/sc-mm-oracle.json` | Oracle 10→12, реальные bid/ask 45/55→55/65, арбитраж 10 X→108 Q→11 X и отмена quotes при stale feed |
 
 В SC-05 аналитическая ставка 12.5% за модельную секунду и reserve factor 20%;
 это fixture, не рыночный прогноз. UI показывает C/D/S/E, отдельный залог,
@@ -105,15 +107,20 @@ checkpoint/resume, fork, A/B и мобильную верстку. Снимки 
   KeepResiduals оставляет его в кошельке. Поиск делает до 64 проб через executor,
   проверяет капитал/ресурс/комиссии и требует явных направленных limits для CLMM
   и стакана. UI и CLI показывают все результаты, отказы и ограничение поиска.
-- LP/MM политики M3d, MEV и hooks ещё не реализованы.
+- LP следует явному расписанию до 1024 событий; MM управляет до 16 собственных
+  заявок по Fixed/PublicOracle anchor. Обе политики получают только разрешённое
+  наблюдение и создают не более одного intent после пробного исполнения.
+  Hold/Skip/Submit, фактическое включение и источник цены видны в UI.
+  Heterogeneous arbitrage использует RequireFull и проверку прибыли на входе tx.
+- Полный scheduler/mempool, остальные политики M4, MEV и hooks ещё не реализованы.
 - Исследовательский MTM/PnL не рассчитывается; баланс не называется прибылью.
-- UI — прототип M1–M3c с четырнадцатью presets. Полный explorer M5 впереди.
+- UI — прототип M1–M3d с шестнадцатью presets. Полный explorer M5 впереди.
 - Критерии всей v1.0 не объявляются выполненными. Независимый review и следующие
   открытые экономические контракты фиксируются согласно §23–24 спецификации.
 
 Независимый review M1–M3b выявил три дефекта, исправленных в `3827f63` и
 перепроверенных reviewer. [Отчёт и границы проверки](docs/reviews/m1-m3b-independent-review.md).
-DEC-20/M3c в область этого review не входил.
+DEC-20/M3c–M3d в область этого review не входил.
 
 Фактические результаты и оставшиеся проверки: [журнал прогресса](docs/progress.md).
 Сценарий CLI ограничен 64 MiB, отдельная транзакция — 1 MiB. Web restore
