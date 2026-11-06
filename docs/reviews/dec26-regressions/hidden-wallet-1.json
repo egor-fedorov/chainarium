@@ -1,0 +1,178 @@
+{
+  "schema_version": "chainarium-scenario-m1-v1",
+  "model_versions": [
+    "native-execution-v1",
+    "native-cost-v1",
+    "cpmm-v1",
+    "chacha12-v1",
+    "cpmm-lp-v1",
+    "bounded-route-v1",
+    "strict-flash-provider-v1",
+    "event-scheduler-v1",
+    "bounded-mempool-v1",
+    "basic-builders-v1",
+    "heterogeneous-route-v1",
+    "baseline-agents-v1"
+  ],
+  "name": "Random user: \u0432\u043e\u0441\u043f\u0440\u043e\u0438\u0437\u0432\u043e\u0434\u0438\u043c\u044b\u0439 \u0432\u044b\u0431\u043e\u0440 \u0438 \u043e\u043f\u043b\u0430\u0447\u0435\u043d\u043d\u044b\u0435 \u043f\u0435\u0440\u0435\u0432\u043e\u0434\u044b",
+  "seed": "42",
+  "assets": {
+    "X": {
+      "decimals": 0
+    },
+    "Q": {
+      "decimals": 0
+    }
+  },
+  "accounts": {
+    "alice": {
+      "balances": {
+        "X": "1000",
+        "Q": "1000"
+      },
+      "nonce": "0"
+    },
+    "bob": {
+      "balances": {
+        "X": "0",
+        "Q": "1"
+      },
+      "nonce": "0"
+    },
+    "builder": {
+      "balances": {
+        "X": "0",
+        "Q": "0"
+      },
+      "nonce": "0"
+    },
+    "pool": {
+      "balances": {
+        "X": "1000",
+        "Q": "1000"
+      },
+      "nonce": "0"
+    },
+    "pool-b": {
+      "nonce": "0",
+      "balances": {
+        "X": "1000",
+        "Q": "1000"
+      }
+    }
+  },
+  "protocols": {
+    "cpmm": {
+      "account": "pool",
+      "x": "X",
+      "y": "Q",
+      "fee_bps": 0,
+      "owner": "alice"
+    },
+    "second": {
+      "account": "pool-b",
+      "x": "X",
+      "y": "Q",
+      "fee_bps": 0,
+      "owner": "alice"
+    }
+  },
+  "agents": {
+    "trader": {
+      "controlled_accounts": [
+        "alice"
+      ]
+    },
+    "recipient": {
+      "controlled_accounts": [
+        "bob"
+      ]
+    }
+  },
+  "chain": {
+    "id": "lab-1",
+    "fee_asset": "Q",
+    "fee_account": "builder",
+    "block_limit": "10000",
+    "interval": "1"
+  },
+  "blocks": [],
+  "policies": {},
+  "scheduler": {
+    "rounds": 6,
+    "builder": {
+      "type": "Fifo"
+    },
+    "limits": {
+      "agents": 64,
+      "emissions": 4096,
+      "rounds": 10000,
+      "pending": 1024,
+      "queue": 4096,
+      "visible": 256,
+      "known": 65536,
+      "events_per_round": 4096,
+      "reactions_per_round": 64,
+      "depth": 8,
+      "intents_per_agent": 1,
+      "retention": 32,
+      "inclusion_attempts": 256,
+      "eligibility_checks": 65536
+    },
+    "agents": {
+      "trader": {
+        "observe_public": true,
+        "observation_delay": "0",
+        "outgoing": {
+          "channel": {
+            "type": "Public"
+          },
+          "builder_delay": "0"
+        }
+      },
+      "recipient": {
+        "observe_public": true,
+        "observation_delay": "0",
+        "outgoing": {
+          "channel": {
+            "type": "Public"
+          },
+          "builder_delay": "0"
+        }
+      }
+    },
+    "emissions": [],
+    "reactive": {}
+  },
+  "baseline_policies": {
+    "trader": {
+      "account": "alice",
+      "resource_limit": "200",
+      "resource_price": "1",
+      "lifetime": "20",
+      "kind": {
+        "type": "ScriptedUser",
+        "schedule": [
+          {
+            "block": "1",
+            "program": [
+              {
+                "type": "AssertBalance",
+                "account": "bob",
+                "asset": "Q",
+                "minimum": "1"
+              },
+              {
+                "type": "Transfer",
+                "to": "bob",
+                "asset": "Q",
+                "amount": "10"
+              }
+            ]
+          }
+        ],
+        "preflight": "SuccessfulOnly"
+      }
+    }
+  }
+}

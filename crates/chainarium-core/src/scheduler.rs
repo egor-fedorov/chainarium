@@ -225,6 +225,30 @@ pub fn validate(s: &Scenario) -> Result<(), String> {
 }
 
 #[derive(Clone, Debug, Serialize, Deserialize, PartialEq, Eq)]
+pub enum SubmissionRejection {
+    Duplicate,
+    ConflictingTxId,
+    KnownTransactionsLimit,
+    QueueLimit,
+}
+impl SubmissionRejection {
+    pub fn label(&self) -> &'static str {
+        match self {
+            Self::Duplicate => "Duplicate",
+            Self::ConflictingTxId => "ConflictingTxId",
+            Self::KnownTransactionsLimit => "KnownTransactionsLimit",
+            Self::QueueLimit => "QueueLimit",
+        }
+    }
+}
+/// Immediate submission outcome, independent of later admission/inclusion status.
+#[derive(Clone, Debug, Serialize, Deserialize, PartialEq, Eq)]
+#[serde(tag = "type", deny_unknown_fields)]
+pub enum SubmissionOutcome {
+    Queued,
+    Rejected { reason: SubmissionRejection },
+}
+#[derive(Clone, Debug, Serialize, Deserialize, PartialEq, Eq)]
 #[serde(tag = "type", deny_unknown_fields)]
 pub enum Status {
     BundleMember,

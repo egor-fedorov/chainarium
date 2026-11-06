@@ -21,7 +21,8 @@ function decision(d,block){
  if(o?.credit)body+=`<p>После начисления: debt ${esc(o.credit.debt)}, collateral ${esc(o.credit.collateral)} · oracle ${esc(o.credit.oracle.status)}</p>`;
  if(d.program.length)body+=`<p>Намерение: ${d.program.map(command).join(' → ')}</p>`;
  if(t)body+=`<details open><summary>Пробное исполнение · ${esc(t.status)}</summary><p>${esc(t.used)} units · расчётная fee ${esc(t.fee)}${t.error?'<br>'+esc(t.error):''}</p><p class="hint">Проба не списывает средства. Реальные расходы возникают при включении транзакции.</p></details>`;
- if(d.transaction){const status=block.scheduler.state.known[d.transaction.id]?.committed_status;body+=`<p>TxId: <code>${esc(d.transaction.id)}</code><br>Доставка / включение на этой границе: ${esc(status?.type??'не зарегистрирована')}</p>`;}
+ if(d.submission)body+=`<p>Отправка: ${d.submission.type==='Queued'?'поставлена в очередь':'отклонена · '+esc(d.submission.reason)}</p>`;
+ if(d.transaction){const status=block.scheduler.state.known[d.transaction.id]?.committed_status;body+=`<p>TxId: <code>${esc(d.transaction.id)}</code><br>Доставка / включение на этой границе: ${esc(status?.type??'не зарегистрирована')}${status?.reason?' · '+esc(status.reason):''}</p>`;}
  return `<article><h3>${esc(d.agent)} · раунд ${esc(d.round)}</h3>${body}</article>`;
 }
 export function renderAgents(run,block){

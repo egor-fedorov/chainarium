@@ -911,6 +911,36 @@ with sync_playwright() as p:
             page.locator('#step').click()
             expect(page.locator('#position')).to_contain_text(f'Исполнено {i} / {rounds}')
         assert page.request.get('http://127.0.0.1:8080/api/run').json()==full
+    # DEC-26 independent findings: registration refusal is distinct from a successful trial.
+    for reason in ['KnownTransactionsLimit','QueueLimit']:
+        scenario=json.loads(Path('docs/reviews/dec26-regressions/known-cap.json').read_text())
+        if reason=='QueueLimit':
+            scenario['scheduler']['limits']['known']=65536
+            scenario['scheduler']['limits']['queue']=1
+            scenario['scheduler']['emissions']=[{
+                'at':'1','producer_id':'fills-queue','producer_sequence':'0',
+                'delivery':{'channel':{'type':'Public'},'builder_delay':'20'},
+                'transaction':{'id':'fills-queue','agent':'recipient','sender':'bob','chain':scenario['chain']['id'],
+                    'nonce':'0','limit':'200','price':'0','deadline':'100',
+                    'program':[{'type':'AssertCondition','condition':True,'message':'hold'}]}}]
+        assert page.request.post('http://127.0.0.1:8080/api/run',data=scenario).ok
+        for _ in range(1 if reason=='QueueLimit' else 2):
+            assert page.request.post('http://127.0.0.1:8080/api/step').ok
+        page.reload()
+        expect(page.locator('#agent-result')).to_contain_text('Skip')
+        expect(page.locator('#agent-result')).to_contain_text('Отправка: отклонена · '+reason)
+        result=page.request.get('http://127.0.0.1:8080/api/run').json()
+        d=result['blocks'][-1]['scheduler']['baselines'][0]
+        assert d['submission']=={'type':'Rejected','reason':reason}
+        assert d['trial']['status']=='Success' and not result['blocks'][-1]['receipts']
+        saved=page.request.get('http://127.0.0.1:8080/api/checkpoint').json()
+        assert page.request.post('http://127.0.0.1:8080/api/restore',data=saved).ok
+        assert page.request.get('http://127.0.0.1:8080/api/run').json()==result
+    for balance in [0,1]:
+        forbidden=json.loads(Path(f'docs/reviews/dec26-regressions/hidden-wallet-{balance}.json').read_text())
+        response=page.request.post('http://127.0.0.1:8080/api/run',data=forbidden)
+        assert not response.ok and 'BaselinePrivateRead' in response.text()
+        assert page.request.get('http://127.0.0.1:8080/api/run').json()==result
     assert not errors, errors
     browser.close()
 print('PASS: browser run, trace, read-only viewing, checkpoint/resume, A/B, fork, exact U256 HTTP round-trip, mobile layout, LP, route policy, flash success/shortfall/rollback, credit interest/loss/redemption, exact oracle use, credit checkpoint replay, StableSwap curves/solver/LP/route/replay/depeg/mobile, TWAP 150/175/rollback/stale/readonly/checkpoint/mobile, flash liquidation real legs/loss/shortfall/rollback/checkpoint/mobile, order book levels/quote/fills/escrow/FOK/IOC/GTC/cancel/self-trade/rollback/replay/mobile, CLMM ranges/fees/surplus/crossings/partial/quote/rollback/replay/mobile, heterogeneous routes/limits/search/strict/residuals/readonly/rollback/replay/mobile, LP/MM policies/schedules/observation-delay/anchor-age/closed-cycle/stale-cancel/replay/mobile; M4 delivery/cutoff/Public/Private/late-response/nonce-gap/FIFO/FeePriority/readonly/checkpoint/mobile; bundles/greedy/paid-bid/allowed-and-forbidden-revert/visible-reference/private-isolation/diagnostic-probes/replay/mobile; backrun/public/private/grid/fees/bid/competition/fifo/delay/readonly/checkpoint/mobile; liquidator/Own/Flash/actual-seizure/paid-loser/FIFO/FeePriority/stale/delayed/readonly/checkpoint/mobile; hooks/dynamic-fee/input-limit/cash-shortfall/LP/route-output/payout/rollback/resource/readonly-quote/checkpoint/mobile; baseline-agents/scripted/random/RNG/paid-failure/skip/borrower-target/native-spot-twap/readonly/checkpoint/mobile')

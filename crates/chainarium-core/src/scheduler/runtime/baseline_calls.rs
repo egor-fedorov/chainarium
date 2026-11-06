@@ -67,7 +67,9 @@ impl Round<'_> {
                         deadline: self.parent.timestamp.checked_add(p.lifetime)?,
                         program: d.program.clone(),
                     };
-                    match engine::inclusion(self.s, preview, &tx, self.s.chain.block_limit) {
+                    match engine::inclusion(self.s, preview, &tx, self.s.chain.block_limit)
+                        .and_then(|()| a::validate_program_access(&tx.program, &p.account))
+                    {
                         Err(reason) => d.skip(&format!("Rejected: {reason}")),
                         Ok(()) => {
                             let mut world = preview.clone();
@@ -96,24 +98,28 @@ impl Round<'_> {
                 }
             }
         }
-        self.note(
-            None,
-            self.parent.timestamp,
-            None,
-            Some(agent),
-            "Baseline",
-            &d.reason,
-        );
         if let Some(tx) = &d.transaction {
             *self.intents.entry(agent.into()).or_default() += 1;
-            self.submit(
+            let outcome = self.submit(
                 tx.clone(),
                 self.c.agents[agent].outgoing.clone(),
                 0,
                 self.parent.timestamp,
                 None,
             )?;
+            if let SubmissionOutcome::Rejected { reason } = &outcome {
+                d.skip(&format!("Submission: {}", reason.label()));
+            }
+            d.submission = Some(outcome);
         }
+        self.note(
+            None,
+            self.parent.timestamp,
+            d.transaction.as_ref().map(|tx| tx.id.as_str()),
+            Some(agent),
+            "Baseline",
+            &d.reason,
+        );
         self.baselines.push(d);
         Ok(())
     }

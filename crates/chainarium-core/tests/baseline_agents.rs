@@ -800,3 +800,259 @@ fn future_private_orderflow_and_other_wallets_do_not_enter_baseline_observation(
         assert_eq!(decision(&left, i), decision(&right, i));
     }
 }
+
+#[test]
+fn foreign_wallet_access_is_rejected_recursively_for_both_preflight_modes() {
+    use policy::agents::{Preflight, ScriptEvent};
+    let calls = [
+        Call::AssertBalance {
+            account: "bob".into(),
+            asset: "Q".into(),
+            minimum: 1.into(),
+        },
+        Call::AssertBalanceDelta {
+            account: "bob".into(),
+            asset: "Q".into(),
+            baseline: 0.into(),
+            minimum: 1.into(),
+        },
+        Call::TransferFrom {
+            from: "bob".into(),
+            to: "alice".into(),
+            asset: "Q".into(),
+            amount: 1.into(),
+        },
+    ];
+    for call in calls {
+        for mode in [Preflight::SuccessfulOnly, Preflight::AnyReceipt] {
+            for random in [false, true] {
+                for nesting in 0..3 {
+                    let mut s = fixture("random");
+                    s.flash_providers.insert(
+                        "loan".into(),
+                        FlashProvider {
+                            account: "pool-b".into(),
+                            asset: "Q".into(),
+                            fee_bps: 0,
+                        },
+                    );
+                    s.protocols.remove("second");
+                    let program = vec![match nesting {
+                        0 => call.clone(),
+                        1 => Call::Sequence {
+                            calls: vec![call.clone()],
+                        },
+                        _ => Call::Sequence {
+                            calls: vec![Call::FlashLoan {
+                                provider: "loan".into(),
+                                receiver: "alice".into(),
+                                amount: 1.into(),
+                                callback: vec![Call::Sequence {
+                                    calls: vec![call.clone()],
+                                }],
+                            }],
+                        },
+                    }];
+                    let p = random_mut(&mut s);
+                    if random {
+                        if let Kind::RandomUser {
+                            programs,
+                            preflight,
+                            ..
+                        } = &mut p.kind
+                        {
+                            *programs = vec![program];
+                            *preflight = mode;
+                        }
+                    } else {
+                        p.kind = Kind::ScriptedUser {
+                            schedule: vec![ScriptEvent {
+                                block: 1.into(),
+                                program,
+                            }],
+                            preflight: mode,
+                        };
+                    }
+                    let error = s.validate().unwrap_err();
+                    assert!(error.contains("BaselinePrivateRead"), "{error}");
+                }
+            }
+        }
+    }
+}
+
+#[test]
+fn foreign_credit_probes_are_rejected_but_own_repayment_is_allowed() {
+    use policy::agents::{Preflight, ScriptEvent};
+    let mut base = fixture("borrower");
+    let market_fixture = fixture("random");
+    base.accounts
+        .insert("pool".into(), market_fixture.accounts["pool"].clone());
+    base.protocols
+        .insert("cpmm".into(), market_fixture.protocols["cpmm"].clone());
+    base.model_versions.extend([
+        routing::heterogeneous::MODEL.into(),
+        liquidation::MODEL.into(),
+    ]);
+    let mut p = base.baseline_policies.remove("bob").unwrap();
+    p.account = "alice".into();
+    base.baseline_policies.insert("alice".into(), p);
+    for call in [
+        Call::Repay {
+            market: "credit".into(),
+            borrower: "bob".into(),
+            amount: 1.into(),
+        },
+        Call::Liquidate {
+            market: "credit".into(),
+            borrower: "bob".into(),
+            amount: 1.into(),
+            min_collateral: 0.into(),
+        },
+        Call::LiquidateAndSell {
+            market: "credit".into(),
+            borrower: "bob".into(),
+            max_repay: 1.into(),
+            min_collateral: 0.into(),
+            hops: vec![routing::heterogeneous::VenueHop::Amm {
+                venue: "cpmm".into(),
+            }],
+            min_out: 0.into(),
+        },
+    ] {
+        let mut s = base.clone();
+        s.baseline_policies.get_mut("alice").unwrap().kind = Kind::ScriptedUser {
+            schedule: vec![ScriptEvent {
+                block: 1.into(),
+                program: vec![Call::Sequence { calls: vec![call] }],
+            }],
+            preflight: Preflight::AnyReceipt,
+        };
+        let error = s.validate().unwrap_err();
+        assert!(error.contains("BaselinePrivateRead"), "{error}");
+    }
+    // Existing borrower demo repays only its own accrued debt and must still execute.
+    let r = run(fixture("borrower"));
+    assert!(
+        matches!(decision(&r, 3).program[0], Call::Repay { ref borrower, .. } if borrower=="bob")
+    );
+    assert_eq!(decision(&r, 3).action, DecisionAction::Submit);
+}
+
+#[test]
+fn changed_template_cannot_bypass_runtime_capability_check() {
+    let mut results = vec![];
+    for balance in [0u64, 1] {
+        let mut s = fixture("random");
+        s.accounts
+            .get_mut("bob")
+            .unwrap()
+            .balances
+            .insert("Q".into(), balance.into());
+        let mut r = Run::new(s).unwrap();
+        // Defensive API test: mutate a previously validated config after genesis.
+        if let Kind::RandomUser {
+            programs,
+            probability_ppm,
+            ..
+        } = &mut random_mut(&mut r.scenario).kind
+        {
+            *probability_ppm = 1_000_000;
+            *programs = vec![vec![Call::Sequence {
+                calls: vec![Call::AssertBalance {
+                    account: "bob".into(),
+                    asset: "Q".into(),
+                    minimum: 1.into(),
+                }],
+            }]];
+        }
+        r.step().unwrap();
+        let d = decision(&r, 0);
+        assert_eq!(d.action, DecisionAction::Skip);
+        assert!(d.reason.contains("BaselinePrivateRead"));
+        assert!(d.trial.is_none() && d.transaction.is_none() && d.submission.is_none());
+        assert!(r.blocks[0].receipts.is_empty());
+        assert_eq!(r.state.balance("alice", "Q"), 1000.into());
+        assert_eq!(r.state.accounts["alice"].nonce, 0.into());
+        assert_eq!(d.selection.as_ref().unwrap().position_after, 4.into());
+        results.push(d.clone());
+    }
+    assert_eq!(results[0], results[1]);
+}
+
+#[test]
+fn submission_limits_preserve_attempt_and_trial_with_explicit_skip() {
+    use scheduler::{SubmissionOutcome, SubmissionRejection};
+    for queue_full in [false, true] {
+        let mut s = fixture("random");
+        if let Kind::RandomUser {
+            programs,
+            probability_ppm,
+            ..
+        } = &mut random_mut(&mut s).kind
+        {
+            *probability_ppm = 1_000_000;
+            *programs = vec![vec![Call::Transfer {
+                to: "bob".into(),
+                asset: "Q".into(),
+                amount: 10.into(),
+            }]];
+        }
+        if queue_full {
+            let cfg = s.scheduler.as_mut().unwrap();
+            cfg.limits.queue = 1;
+            cfg.emissions.push(scheduler::Emission {
+                at: 1.into(),
+                producer_id: "fills-queue".into(),
+                producer_sequence: 0.into(),
+                delivery: scheduler::Delivery {
+                    channel: scheduler::Channel::Public,
+                    builder_delay: 20.into(),
+                },
+                transaction: Transaction {
+                    id: "fills-queue".into(),
+                    agent: "recipient".into(),
+                    sender: "bob".into(),
+                    chain: s.chain.id.clone(),
+                    nonce: 0.into(),
+                    limit: 200.into(),
+                    price: 0.into(),
+                    deadline: 100.into(),
+                    program: vec![Call::AssertCondition {
+                        condition: true,
+                        message: "hold".into(),
+                    }],
+                },
+            });
+        } else {
+            s.scheduler.as_mut().unwrap().limits.known = 1;
+        }
+        let mut r = Run::new(s).unwrap();
+        r.step().unwrap();
+        if !queue_full {
+            assert_eq!(decision(&r, 0).submission, Some(SubmissionOutcome::Queued));
+            r.step().unwrap();
+        }
+        let i = usize::from(!queue_full);
+        let d = decision(&r, i);
+        let reason = if queue_full {
+            SubmissionRejection::QueueLimit
+        } else {
+            SubmissionRejection::KnownTransactionsLimit
+        };
+        assert_eq!(d.action, DecisionAction::Skip);
+        assert_eq!(d.reason, format!("Submission: {}", reason.label()));
+        assert_eq!(d.submission, Some(SubmissionOutcome::Rejected { reason }));
+        assert_eq!(d.trial.as_ref().unwrap().status, "Success");
+        assert_eq!(d.trial.as_ref().unwrap().fee, 115.into());
+        assert!(d.transaction.is_some());
+        assert!(r.blocks[i].receipts.is_empty());
+        assert_eq!(r.state.accounts["alice"].nonce, (i as u64).into());
+        assert_eq!(
+            r.state.balance("alice", "Q"),
+            (1000 - 125 * i as u64).into()
+        );
+        assert_eq!(r.state.balance("builder", "Q"), (115 * i as u64).into());
+        assert_eq!(Run::restore(&r.checkpoint().unwrap()).unwrap(), r);
+    }
+}

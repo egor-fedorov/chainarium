@@ -266,6 +266,8 @@ pub struct Decision {
     pub program: Vec<Call>,
     pub trial: Option<Receipt>,
     pub transaction: Option<Transaction>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub submission: Option<crate::scheduler::SubmissionOutcome>,
 }
 impl Decision {
     pub fn new(agent: &str, p: &Policy, round: Amount) -> Self {
@@ -281,12 +283,69 @@ impl Decision {
             program: vec![],
             trial: None,
             transaction: None,
+            submission: None,
         }
     }
     pub(crate) fn skip(&mut self, reason: &str) {
         self.action = DecisionAction::Skip;
         self.reason = reason.into();
     }
+}
+/// A full-world trial must not turn a literal template into a foreign-wallet oracle.
+/// Call structure is bounded by validate_tx before this recursive capability check.
+pub(crate) fn validate_program_access(calls: &[Call], own: &str) -> Result<(), String> {
+    for call in calls {
+        let account = match call {
+            Call::AssertBalance { account, .. } | Call::AssertBalanceDelta { account, .. } => {
+                Some(account)
+            }
+            Call::TransferFrom { from, .. } => Some(from),
+            Call::Repay { borrower, .. }
+            | Call::Liquidate { borrower, .. }
+            | Call::LiquidateAndSell { borrower, .. } => Some(borrower),
+            Call::Sequence { calls }
+            | Call::FlashLoan {
+                callback: calls, ..
+            } => {
+                validate_program_access(calls, own)?;
+                None
+            }
+            // Public protocol operations and sender-local calls. Keep this exhaustive
+            // so every new native call requires an explicit capability decision.
+            Call::ExecuteRoute { .. }
+            | Call::MintPosition { .. }
+            | Call::BurnPosition { .. }
+            | Call::CollectPosition { .. }
+            | Call::ClmmSwap { .. }
+            | Call::PlaceOrder { .. }
+            | Call::CancelOrder { .. }
+            | Call::Transfer { .. }
+            | Call::Approve { .. }
+            | Call::SwapExactIn { .. }
+            | Call::SwapOutput { .. }
+            | Call::AddLiquidity { .. }
+            | Call::RemoveLiquidity { .. }
+            | Call::AssertNetBalanceDelta { .. }
+            | Call::AssertTransactionNetGain { .. }
+            | Call::Supply { .. }
+            | Call::Withdraw { .. }
+            | Call::DepositCollateral { .. }
+            | Call::WithdrawCollateral { .. }
+            | Call::SetCollateralUsage { .. }
+            | Call::Borrow { .. }
+            | Call::PublishSpot { .. }
+            | Call::PublishTwap { .. }
+            | Call::PublishOracle { .. }
+            | Call::AssertCondition { .. } => None,
+        };
+        if account.is_some_and(|account| account != own) {
+            return Err(format!(
+                "BaselinePrivateRead: {} requires own account",
+                call.label()
+            ));
+        }
+    }
+    Ok(())
 }
 impl Policy {
     /// Only the bounded observation and current sampled choices enter policy logic.
@@ -471,7 +530,8 @@ pub(crate) fn validate(s: &Scenario) -> Result<(), String> {
                 price: p.resource_price,
                 deadline: Amount::ZERO,
                 program: calls.to_vec(),
-            })
+            })?;
+            validate_program_access(calls, &p.account)
         };
         let schedule = |blocks: Vec<Amount>, ordered: bool| -> Result<(), String> {
             if blocks.len() > 1024

@@ -2,6 +2,8 @@ use super::*;
 mod backrun_calls;
 mod baseline_calls;
 mod bundle_calls;
+#[cfg(test)]
+mod independent_dec26;
 mod liquidator_calls;
 use crate::{Block, Rejected, engine, policy};
 
@@ -82,7 +84,7 @@ impl Round<'_> {
         depth: usize,
         at: Amount,
         event: Option<&Queued>,
-    ) -> Result<(), String> {
+    ) -> Result<SubmissionOutcome, String> {
         let id = tx.id.clone();
         if let Some(k) = self.state.known.get(&id)
             && (k.standalone
@@ -90,19 +92,19 @@ impl Round<'_> {
                 || matches!(k.status, Status::Included { .. } | Status::Rejected { .. }))
         {
             let outcome = if k.transaction == tx {
-                "Duplicate"
+                SubmissionRejection::Duplicate
             } else {
-                "ConflictingTxId"
+                SubmissionRejection::ConflictingTxId
             };
             self.note(
                 event,
                 at,
                 Some(&id),
                 Some(&tx.agent),
-                outcome,
+                outcome.label(),
                 "first submission retained; no implicit retry",
             );
-            return Ok(());
+            return Ok(SubmissionOutcome::Rejected { reason: outcome });
         }
         if !self.state.known.contains_key(&id) && self.state.known.len() >= self.c.limits.known {
             self.note(
@@ -113,7 +115,9 @@ impl Round<'_> {
                 "KnownTransactionsLimit",
                 "new transaction dropped",
             );
-            return Ok(());
+            return Ok(SubmissionOutcome::Rejected {
+                reason: SubmissionRejection::KnownTransactionsLimit,
+            });
         }
         self.note(
             event,
@@ -135,13 +139,14 @@ impl Round<'_> {
                 committed_status: Status::InFlight,
             },
         );
-        if !self.enqueue(
+        let queued = self.enqueue(
             at.checked_add(delivery.builder_delay)?,
             EventKind::BuilderDelivery { tx_id: id.clone() },
             at,
             Some(&id),
             None,
-        )? {
+        )?;
+        if !queued {
             self.reject(&id, "QueueLimit");
         }
         for (agent, n) in &self.c.agents {
@@ -162,7 +167,13 @@ impl Round<'_> {
                 )?;
             }
         }
-        Ok(())
+        Ok(if queued {
+            SubmissionOutcome::Queued
+        } else {
+            SubmissionOutcome::Rejected {
+                reason: SubmissionRejection::QueueLimit,
+            }
+        })
     }
     fn admission(&mut self, id: &str, event: &Queued, at: Amount) -> Result<(), String> {
         if matches!(self.state.known[id].status, Status::Included { .. }) {
@@ -386,6 +397,7 @@ impl Round<'_> {
             at,
             Some(event),
         )
+        .map(|_| ())
     }
     fn expire_visible(&mut self) {
         self.expire_bundle_visible();
@@ -840,8 +852,41 @@ mod tests {
             intents: BTreeMap::new(),
         };
         let tx = c.emissions[0].transaction.clone();
-        r.submit(tx, c.emissions[0].delivery.clone(), 0, 7.into(), None)
-            .unwrap();
+        assert_eq!(
+            r.submit(
+                tx.clone(),
+                c.emissions[0].delivery.clone(),
+                0,
+                7.into(),
+                None
+            )
+            .unwrap(),
+            SubmissionOutcome::Queued
+        );
+        let retained = r.state.clone();
+        assert_eq!(
+            r.submit(
+                tx.clone(),
+                c.emissions[0].delivery.clone(),
+                0,
+                7.into(),
+                None
+            )
+            .unwrap(),
+            SubmissionOutcome::Rejected {
+                reason: SubmissionRejection::Duplicate
+            }
+        );
+        let mut conflict = tx;
+        conflict.price = conflict.price.checked_add(1.into()).unwrap();
+        assert_eq!(
+            r.submit(conflict, c.emissions[0].delivery.clone(), 0, 7.into(), None)
+                .unwrap(),
+            SubmissionOutcome::Rejected {
+                reason: SubmissionRejection::ConflictingTxId
+            }
+        );
+        assert_eq!(r.state, retained);
         let event = r
             .state
             .queue

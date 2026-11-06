@@ -235,7 +235,10 @@ checkpoint/resume, fork, A/B и мобильную верстку. Снимки 
 [Review DEC-25/M4e](docs/reviews/dec25-independent-review.md) завершён без
 подтверждённых findings. Сохранены13 integration tests и fault injection,
 включая3545 прямых executions и проверку composed search/payout/rollback.
-DEC-26/M4f реализован; отдельный независимый review новых политик впереди.
+[Review DEC-26/M4f](docs/reviews/dec26-independent-review.md) выявил P1
+(чужой wallet через preflight) и P2 (потеря refusal отправки). Добавлены
+capability checks и явный submission outcome; независимая перепроверка впереди.
+Сохранены8 integration tests и2 unit tests reviewer.
 
 Фактические результаты и оставшиеся проверки: [журнал прогресса](docs/progress.md).
 Сценарий CLI ограничен 64 MiB, отдельная транзакция — 1 MiB. Web restore
