@@ -2397,6 +2397,126 @@ RNG от просмотра, checkpoint/replay и read-only UI. Независи
 экономического call и policy требуется по §23.4. Остальные роли и hooks
 остаются следующими срезами; M5/MTM/performance gates ещё не закрыты.
 
+### 23.2.13. Предложение M4e — Proposed DEC-25
+
+**DEC-25 / G-09/G-10, ограниченные hooks CPMM.** Подготовлено после M4d;
+**ожидает согласования владельца, реализация не начата**. Предлагаемый профиль
+`bounded-pool-hooks-v1` добавляет точки исполнения BeforeSwap/AfterSwap и
+BeforeLiquidity/AfterLiquidity для native CPMM. Это первый исполняемый hook
+§7.6/REQ-HOOK-01; StableSwap/CLMM/book пока не принимают hook bindings.
+Правила CPMM/LP, native fee, authority, flash и rollback сохраняются.
+
+**Привязка и capabilities.** Сценарий явно задаёт до64 различных HookId и
+однозначную связь hook↔CPMM: один hook на pool, один pool на hook. Каждый hook
+имеет выделенный funded account, local counter (genesis0), программы по точкам
+и объявленные capabilities. Hook account — protected, не управляется агентом,
+не совпадает с pool/lending/flash/escrow/fee accounts. Обычные Transfer/Approve/
+TransferFrom не получают права тратить или пополнять его. Funding в этом профиле
+задаётся genesis; отдельного механизма replenishment/withdrawal нет.
+
+Программа точки содержит0..16 типизированных инструкций, выполняемых по порядку.
+Пустая программа не вызывает hook и не расходует дополнительный ресурс.
+Доступны только следующие инструкции; соответствующие capability и point
+проверяются при чтении сценария и перед применением эффекта:
+
+| Инструкция | Capability и допустимые точки | Эффект |
+| --- | --- | --- |
+| `FeeByInput(asset_in, threshold, below_bps, at_or_above_bps)` | `SwapFee`, только BeforeSwap | Для совпавшего input asset выбирает fee по requested actual input: `< threshold` либо `>= threshold`; fee0..9999 bps, threshold>0. Не более одного fee rule на направление. Override действует только на текущий swap |
+| `MaxInput(asset_in, maximum)` | `Reject`, только BeforeSwap | Для совпавшего направления input>maximum даёт ProtocolRevert HookInputLimit; equality допустимо. maximum0 явно запрещает положительный input |
+| `Reject(reason)` | `Reject`, любая точка | Явный ProtocolRevert; reason — непустой текст до128 bytes |
+| `IncrementCounter` | `WriteLocal`, любая точка | Проверенное counter+1; MAX даёт ProtocolRevert HookStateExhausted, без wrap или изменения counter |
+| `PaySender(asset, amount)` | `SpendOwn { asset, max_per_invocation }`, любая точка | Положительный amount переводится только с собственного hook account исходному tx.sender через общий ledger. Сумма инструкций этой точки на asset не превышает явный cap |
+
+Unknown effect, неподходящая точка/asset, fee10000, отсутствие capability,
+несовместимая/повторная привязка,17 инструкций или65 hooks отклоняют сценарий.
+Запросить произвольный from/to, изменить чужой protocol state, вызвать другой
+protocol/hook, прочитать полный World или породить intent из hook нельзя.
+Нарушение capabilities при защитной runtime-проверке отклоняет эффект и весь
+родительский call; невозможное расхождение validated config/state остаётся ModelError.
+
+**Ограниченный контекст и порядок.** Hook получает HookId/PoolId, point,
+block/time, tx.sender, собственный counter/balances и публичный контекст только
+своего pool. BeforeSwap получает пару, текущие reserves, input asset/amount,
+min_out и base fee; AfterSwap дополнительно effective fee и actual output.
+BeforeLiquidity получает Add/Remove, reserves/total shares, собственные shares
+sender и declared max/min/shares; AfterLiquidity дополнительно actual amounts
+и minted/burned shares. Чужие wallets, pending/future messages, unrelated
+positions, приватные данные других hooks и полный World не передаются.
+
+Порядок swap: вход в обычный Swap → BeforeSwap → расчёт output с effective fee
+и обычным floor → min_out → реальные input/output transfers → AfterSwap →
+обычные invariants/source updates. Fee остаётся в CPMM по принятой формуле;
+hook payout — отдельный обеспеченный перевод, не часть output или LP fee.
+Before/AfterLiquidity окружают обычный AddLiquidity/RemoveLiquidity, включая
+ledger и shares, с неизменными mint/burn/rounding/minimums. Хук вызывается и из
+route/SwapOutput/flash callback/LiquidateAndSell; альтернативный путь обхода
+через составной call не допускается. Hook state изменяется внутри текущего
+savepoint: второй вызов той же tx видит успешный первый, поздний отказ отменяет оба.
+
+**Ресурс и глубина.** Вход в непустую точку hook стоит10 units, каждая начатая
+инструкция — обычные10 units; реальный PaySender transfer — ещё5 units.
+Сначала charge, затем проверка/эффект. Инструкция неподходящего направления
+тоже расходует10 units и не меняет состояние. Hook entry и инструкции имеют
+собственные child paths/trace и входят в общие caps1024 nodes/depth32, включая
+generated route/flash/LP children. Расчёт worst-case native program size учитывает
+обе точки даже при возможном раннем отказе. Нет loops/reentry/dynamic code;
+дополнительная работа ограничена программой и общим native limit. Прежняя
+стоимость100/10/5/1 не меняется.
+
+Hook ProtocolRevert, shortage собственного cash, поздний min_out/guard,
+ResourceExhausted и flash settlement failure откатывают hook counter, payout,
+pool transfers/shares и остальные изменения tx. Включённые fee/nonce сохраняются
+обычным способом. ModelError после hook отменяет весь рабочий блок/раунд.
+Канонические hook events появляются только при commit; attempt trace сохраняет
+эффекты с признаком rollback. Проверенный checkpoint содержит bindings,
+программы/capabilities и committed counters/balances; resume проверяет replay.
+
+**Quote, policies и observer.** Исполняемая quote/search использует общий
+executor с hooks на копии состояния; число просмотров не меняет counter/cash/RNG.
+Графическое отображение reserves и spot остаётся публичным состоянием. Чистая
+кривая по base fee без hook не представляется полной исполняемой quote: для
+hooked pool UI явно предлагает execution quote с sender/resource/minima.
+Обычный route search DEC-20 и поиски M4c/M4d исполняют hooks в каждой пробе,
+сохраняя прежние budgets. Для arbitrage policy с hooked venues требуется
+executor-based heterogeneous search (`route_limits`, включая пустой список),
+а прежний аналитический маршрут без hooks не используется. Выбор/ожидаемый
+net arbitrage учитывает полный собственный balance delta после payout и fees;
+route output и hook payout показываются отдельно. Profit guard остаётся последним
+root-call относительно входа tx и после flash settlement.
+
+Public hook config/counter/cash могут входить в разрешённое venue observation;
+engine не выдаёт остальной World политике. Event observer — отдельное read-only
+представление уже подтверждённых events/trace, без mutable World, capabilities
+или возможности вызвать protocol. В UI/CLI observer не запускает hook заново.
+
+**Ожидания до кода.** `docs/reviews/hooks-reference.py`/`.json` используют
+независимую integer arithmetic. Каждый swap fixture начинается с CPMM1000 X /
+1000 Q, sender1000 X/1000 Q, hook20 Q, counter0, builder0; native limit500,
+price1. BeforeSwap: FeeByInput(X,100,0,1000), MaxInput(X,200), IncrementCounter.
+AfterSwap: IncrementCounter, PaySender(Q,3).
+
+| Fixture | Ожидание |
+| --- | --- |
+| Swap50 X | Fee0 bps, output47 Q, payout3 Q; used195, sender950 X/855 Q, hook17 Q, counter2 |
+| Swap100 X | Fee1000 bps, output82 Q, payout3 Q; used195, sender900 X/890 Q, pool1100 X/918 Q, hook17 Q, counter2 |
+| Без hook, swap100 X | Output90 Q, used120, sender900 X/970 Q; различия output, payout и native fee раздельны |
+| Swap100 затем ложный AssertBalance | used205; sender1000 X/795 Q, pool и hook возвращаются к initial, counter0; nonce1 |
+| Input201 X / min_out83 Q при input100 X | HookInputLimit после140 units / min_out после150; нет payout/pool/counter effects |
+| Hook cash2 Q либо limit194 для успешного input100 | Payout shortage после195 / ResourceExhausted194; всё кроме included fee/nonce откатывается |
+| LP: BeforeLiquidity=[IncrementCounter], AfterLiquidity=[IncrementCounter,PaySender(Q,3)] | Add100 X/100 Q→100 shares: used175, sender900 X/728 Q, hook17 Q/counter2. Remove100 shares→100 X/100 Q: ещё175, sender1000 X/656 Q, hook14 Q/counter4, builder350 Q |
+| Тот же Add затем ложный AssertBalance | used185; mint/transfers/hook payout/counter отменены, sender1000 X/815 Q |
+
+Обязательны также threshold99/100, maximum200/201, fee0/9999/10000,16/17
+инструкций,64/65 bindings, node/depth/resource границы, counter MAX,
+capability/authority negative cases, фактический input от предыдущего hop,
+полный flash/lending rollback, несколько hook calls в одной tx, greedy probe
+и выбранное исполнение без двойного canonical counter/payout, privacy,
+ModelError и checkpoint/replay/read-only UI. Демонстрации показывают config,
+point/instruction trace, effective fee, реальные transfers/counter, отсутствие
+отменённых effects в каноническом ledger и цену включённой неудачи.
+Независимый review hooks требуется по §23.4. Borrower/user/oracle policies,
+MTM/experiments/explorer и performance gates остаются следующими срезами.
+
 ### 23.3. Вертикальные срезы и Definition of Done
 
 Работа дробится на сквозные сценарии **требование → состояние → действие → исполнение → тесты → trace → визуальное объяснение**. Новый компонент не считается завершённым по одному лишь trait, mock API или графическому экрану. На один срез — один проверяемый вопрос и минимальное число новых механизмов.

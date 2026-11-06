@@ -26,6 +26,10 @@ M4d: **Accepted DEC-24** (§23.2.12), LiquidateAndSell + bounded
 liquidator, Own/Flash funding и SC-06 competition реализованы. До реализации
 сохранены `docs/reviews/liquidator-reference.py`/`.json`. Нужен отдельный
 независимый review нового экономического call и policy; DEC-23 его не охватывает.
+Владелец разрешил один read-only review DEC-24; проверяется diff
+`72590bb..976a5cb` в отдельном контексте. Параллельно подготовлен **Proposed DEC-25**
+(§23.2.13): hooks CPMM и независимые численные примеры. Он ещё не согласован
+и не реализуется до решения владельца.
 
 ## Что работает
 
