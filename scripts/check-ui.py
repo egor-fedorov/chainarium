@@ -1,4 +1,4 @@
-"""M1–M3d browser/API acceptance. Run against `chainarium serve 8080`. Requires Playwright + Chromium."""
+"""M1–M4a browser/API acceptance. Run against `chainarium serve 8080`. Requires Playwright + Chromium."""
 import json
 from pathlib import Path
 from playwright.sync_api import sync_playwright, expect
@@ -581,6 +581,53 @@ with sync_playwright() as p:
     page.locator('#play').click()
     expect(page.locator('#position')).to_contain_text('Исполнено 6 / 6',timeout=10000)
     assert page.request.get('http://127.0.0.1:8080/api/run').json()==mm_full
+    # DEC-21: real delivery, visibility, canonical execution and pending checkpoint state.
+    for name in ['public','private','delayed','nonce','fifo','fee']:
+        page.locator('#preset').select_option('sc-scheduler-'+name)
+        page.locator('#new').click()
+        expect(page.locator('#position')).to_contain_text('Исполнено 0 / 3')
+        expect(page.locator('#scheduler-panel')).to_be_visible()
+        page.locator('#step').click()
+        expect(page.locator('#scheduler-summary')).to_contain_text('cutoff 10 s')
+        first=page.request.get('http://127.0.0.1:8080/api/run').json()
+        if name=='public':
+            expect(page.locator('#scheduler-result')).to_contain_text('10 s · Admitted')
+            expect(page.locator('#scheduler-result')).to_contain_text('8 s · Visible')
+            assert first['state']['accounts']['alice']['balances']['Q']=='10016'
+            page.locator('#scheduler-panel').screenshot(path='output/m4-public-delivery.png')
+        elif name=='private':
+            assert not first['blocks'][0].get('decisions')
+            expect(page.locator('#scheduler-result')).to_contain_text('Private → только builder')
+            assert first['state']['accounts']['alice']['balances']['Q']=='10000'
+        elif name=='delayed':
+            expect(page.locator('#scheduler-result')).to_contain_text('due 11 s')
+            expect(page.locator('#scheduler-result')).to_contain_text('InFlight')
+            assert len(first['scheduler']['queue'])==1
+        else:
+            expect(page.locator('#scheduler-result')).to_contain_text('Included')
+            assert first['state']['accounts']['alice']['balances']['Q']=={'nonce':'740','fifo':'875','fee':'760'}[name]
+        saved=page.request.get('http://127.0.0.1:8080/api/checkpoint').json()
+        # Viewing the old snapshot must not deliver messages or advance the scheduler.
+        page.locator('#blocks button[data-block="-1"]').click()
+        expect(page.locator('#scheduler-result')).to_contain_text('Начальное состояние')
+        assert page.request.get('http://127.0.0.1:8080/api/run').json()==first
+        page.locator('#blocks button[data-block="0"]').click()
+        page.locator('#play').click()
+        expect(page.locator('#position')).to_contain_text('Исполнено 3 / 3',timeout=10000)
+        full=page.request.get('http://127.0.0.1:8080/api/run').json()
+        assert page.request.post('http://127.0.0.1:8080/api/restore',data=saved).ok
+        page.reload()
+        expect(page.locator('#preset')).to_have_value('sc-scheduler-'+name)
+        if name=='delayed':
+            page.set_viewport_size({'width':390,'height':844})
+            assert page.evaluate('document.documentElement.scrollWidth <= innerWidth'), 'scheduler mobile overflow'
+            page.locator('#scheduler-panel').evaluate("el=>el.scrollIntoView({block:'start'})")
+            page.screenshot(path='output/m4-delayed-mobile.png')
+            page.set_viewport_size({'width':1440,'height':1100})
+            page.locator('#scheduler-panel').screenshot(path='output/m4-delayed-queue.png')
+        page.locator('#play').click()
+        expect(page.locator('#position')).to_contain_text('Исполнено 3 / 3',timeout=10000)
+        assert page.request.get('http://127.0.0.1:8080/api/run').json()==full
     assert not errors, errors
     browser.close()
-print('PASS: browser run, trace, read-only viewing, checkpoint/resume, A/B, fork, exact U256 HTTP round-trip, mobile layout, LP, route policy, flash success/shortfall/rollback, credit interest/loss/redemption, exact oracle use, credit checkpoint replay, StableSwap curves/solver/LP/route/replay/depeg/mobile, TWAP 150/175/rollback/stale/readonly/checkpoint/mobile, flash liquidation real legs/loss/shortfall/rollback/checkpoint/mobile, order book levels/quote/fills/escrow/FOK/IOC/GTC/cancel/self-trade/rollback/replay/mobile, CLMM ranges/fees/surplus/crossings/partial/quote/rollback/replay/mobile, heterogeneous routes/limits/search/strict/residuals/readonly/rollback/replay/mobile, LP/MM policies/schedules/observation-delay/anchor-age/closed-cycle/stale-cancel/replay/mobile')
+print('PASS: browser run, trace, read-only viewing, checkpoint/resume, A/B, fork, exact U256 HTTP round-trip, mobile layout, LP, route policy, flash success/shortfall/rollback, credit interest/loss/redemption, exact oracle use, credit checkpoint replay, StableSwap curves/solver/LP/route/replay/depeg/mobile, TWAP 150/175/rollback/stale/readonly/checkpoint/mobile, flash liquidation real legs/loss/shortfall/rollback/checkpoint/mobile, order book levels/quote/fills/escrow/FOK/IOC/GTC/cancel/self-trade/rollback/replay/mobile, CLMM ranges/fees/surplus/crossings/partial/quote/rollback/replay/mobile, heterogeneous routes/limits/search/strict/residuals/readonly/rollback/replay/mobile, LP/MM policies/schedules/observation-delay/anchor-age/closed-cycle/stale-cancel/replay/mobile; M4 delivery/cutoff/Public/Private/late-response/nonce-gap/FIFO/FeePriority/readonly/checkpoint/mobile')

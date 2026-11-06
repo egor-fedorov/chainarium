@@ -321,8 +321,15 @@ pub struct Scenario {
     pub agents: BTreeMap<String, Agent>,
     pub chain: Chain,
     pub blocks: Vec<Vec<Transaction>>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub scheduler: Option<crate::scheduler::Config>,
 }
 impl Scenario {
+    pub fn rounds(&self) -> usize {
+        self.scheduler
+            .as_ref()
+            .map_or(self.blocks.len(), |c| c.rounds)
+    }
     pub fn parse(bytes: &[u8]) -> Result<Self, String> {
         if bytes.len() > MAX_SCENARIO {
             return Err("scenario exceeds 64 MiB".into());
@@ -355,6 +362,7 @@ impl Scenario {
         if self.schema_version != SCHEMA
             || MODELS
                 .iter()
+                .filter(|m| **m != "scheduler-m1-v1")
                 .any(|m| !self.model_versions.iter().any(|v| v == m))
             || self.model_versions.iter().any(|m| {
                 !MODELS.contains(&m.as_str())
@@ -367,6 +375,7 @@ impl Scenario {
                     && m != crate::routing::heterogeneous::MODEL
                     && m != crate::policy::baselines::LP_MODEL
                     && m != crate::policy::baselines::MM_MODEL
+                    && !crate::scheduler::MODELS.contains(&m.as_str())
             })
             || self.model_versions.iter().collect::<BTreeSet<_>>().len()
                 != self.model_versions.len()
@@ -479,6 +488,7 @@ impl Scenario {
             p.min_profit.checked_add(budget)?;
         }
         crate::policy::baselines::validate(self)?;
+        crate::scheduler::validate(self)?;
         let mut ids = BTreeSet::new();
         for block in &self.blocks {
             for tx in block {
@@ -806,6 +816,8 @@ pub struct Rejected {
 #[derive(Clone, Debug, Serialize, Deserialize, PartialEq, Eq)]
 #[serde(deny_unknown_fields)]
 pub struct Block {
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub scheduler: Option<crate::scheduler::Report>,
     #[serde(default, skip_serializing_if = "Vec::is_empty")]
     pub system_events: Vec<Event>,
     #[serde(default, skip_serializing_if = "Vec::is_empty")]

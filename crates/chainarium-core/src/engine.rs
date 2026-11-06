@@ -793,7 +793,12 @@ impl Context<'_> {
     }
 }
 
-fn inclusion(s: &Scenario, w: &World, tx: &Transaction, remaining: Amount) -> Result<(), String> {
+pub(crate) fn inclusion(
+    s: &Scenario,
+    w: &World,
+    tx: &Transaction,
+    remaining: Amount,
+) -> Result<(), String> {
     s.validate_tx(tx)?;
     if tx.deadline < w.timestamp {
         return Err("expired deadline".into());
@@ -835,7 +840,7 @@ pub(crate) fn probe_transaction(
     Ok(Trial::Executed(Box::new(receipt)))
 }
 
-fn execute(s: &Scenario, w: &mut World, tx: &Transaction) -> Result<Receipt, String> {
+pub(crate) fn execute(s: &Scenario, w: &mut World, tx: &Transaction) -> Result<Receipt, String> {
     let entry_fee_balance = w.balance(&tx.sender, &s.chain.fee_asset);
     let reserved = tx.limit.checked_mul(tx.price)?;
     w.debit(&tx.sender, &s.chain.fee_asset, reserved)?;
@@ -919,6 +924,32 @@ fn build_with_check(
     txs: &[Transaction],
     mut check: impl FnMut(&World) -> Result<(), String>,
 ) -> Result<Block, String> {
+    let mut block = begin_block(s, parent)?;
+    let w = &mut block.state;
+    let mut used = Amount::ZERO;
+    let mut receipts = vec![];
+    let mut rejected = vec![];
+    for tx in txs {
+        if let Err(reason) = inclusion(s, w, tx, s.chain.block_limit.checked_sub(used)?) {
+            rejected.push(Rejected {
+                tx_id: tx.id.clone(),
+                reason,
+            });
+            continue;
+        }
+        let r = execute(s, w, tx)?;
+        used = used.checked_add(r.used)?;
+        receipts.push(r);
+        check(w)?;
+    }
+    w.invariant(s)?;
+    block.used = used;
+    block.receipts = receipts;
+    block.rejected = rejected;
+    Ok(block)
+}
+/// Shared system transition, exactly once for each canonical candidate block.
+pub(crate) fn begin_block(s: &Scenario, parent: &World) -> Result<Block, String> {
     parent.invariant(s)?;
     let mut w = parent.clone();
     w.block = w.block.checked_add(1.into())?;
@@ -926,34 +957,19 @@ fn build_with_check(
     let mut system_events = crate::credit::accrue(s, &mut w)?;
     system_events.extend(crate::twap::advance(s, &mut w)?);
     w.invariant(s)?;
-    let mut used = Amount::ZERO;
-    let mut receipts = vec![];
-    let mut rejected = vec![];
-    for tx in txs {
-        if let Err(reason) = inclusion(s, &w, tx, s.chain.block_limit.checked_sub(used)?) {
-            rejected.push(Rejected {
-                tx_id: tx.id.clone(),
-                reason,
-            });
-            continue;
-        }
-        let r = execute(s, &mut w, tx)?;
-        used = used.checked_add(r.used)?;
-        receipts.push(r);
-        check(&w)?;
-    }
-    w.invariant(s)?;
     Ok(Block {
+        scheduler: None,
         system_events,
         decisions: vec![],
         number: w.block,
         timestamp: w.timestamp,
-        receipts,
-        rejected,
-        used,
+        receipts: vec![],
+        rejected: vec![],
+        used: Amount::ZERO,
         state: w,
     })
 }
+
 #[cfg(test)]
 mod tests {
     use super::*;

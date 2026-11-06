@@ -189,6 +189,13 @@ impl AgentPolicy for ArbitragePolicy {
 /// Controller supplies the restricted observation and a read-only executor simulation.
 /// The policy itself never receives a World or Scenario.
 pub fn decisions(s: &Scenario, parent: &World) -> Result<Vec<Decision>, String> {
+    decisions_unless(s, parent, &|_, _, _| false)
+}
+pub(crate) fn decisions_unless(
+    s: &Scenario,
+    parent: &World,
+    busy: &dyn Fn(&str, &str, Amount) -> bool,
+) -> Result<Vec<Decision>, String> {
     let mut result = vec![];
     let agents: std::collections::BTreeSet<_> = s
         .policies
@@ -207,6 +214,14 @@ pub fn decisions(s: &Scenario, parent: &World) -> Result<Vec<Decision>, String> 
                 (p, &p.account, &s.chain.fee_asset)
             };
         let obs = Observation::capture(s, parent, account)?;
+        if busy(agent, account, obs.nonce) {
+            result.push(Decision::new(
+                agent,
+                &obs,
+                "unfinished own intent at current nonce",
+            ));
+            continue;
+        }
         let simulate = |tx: &Transaction| -> Result<Simulation, String> {
             let b = engine::build_block(s, parent, std::slice::from_ref(tx))?;
             Ok(Simulation {

@@ -2,6 +2,7 @@ pub mod amount;
 pub mod engine;
 pub mod model;
 pub mod run;
+pub mod scheduler;
 pub use amount::Amount;
 pub use model::*;
 pub use run::Run;

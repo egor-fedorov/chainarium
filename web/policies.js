@@ -9,8 +9,9 @@ export function renderPolicies(run) {
 }
 export function decisionCard(d,run,block) {
  const tx=d.transaction,receipt=tx?block.receipts.find(r=>r.tx_id===tx.id):null,rejection=tx?block.rejected.find(r=>r.tx_id===tx.id):null;
+ const pending=tx?block.scheduler?.state.known[tx.id]?.status:null;
  let html=`<div class="decision"><strong>${esc(d.agent)} · ${esc(d.action??(tx?'Submit':'Skip'))}</strong><p>Наблюдал блок ${esc(d.observed_block)} · ${esc(d.reason)}</p>`;
- if(tx)html+=`<p>Кандидат ${esc(tx.id)} · ${receipt?esc(receipt.status):rejection?'Rejected: '+esc(rejection.reason):'ожидает исполнения'}</p>`;
+ if(tx)html+=`<p>Кандидат ${esc(tx.id)} · ${receipt?esc(receipt.status):rejection?'Rejected: '+esc(rejection.reason):pending?esc(pending.type)+(pending.reason?' · '+esc(pending.reason):''):'ожидает исполнения'}</p>`;
  if(d.expected_net_gain!==null)html+=`<p>Ожидание после комиссии: +${esc(d.expected_net_gain)} atoms ${esc(run.scenario.chain.fee_asset)}</p>`;
  if(d.details?.target)html+=`<p>${target(d.details.target)}</p>`;
  const a=d.details?.anchor;

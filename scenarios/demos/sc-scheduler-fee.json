@@ -1,0 +1,205 @@
+{
+  "schema_version": "chainarium-scenario-m1-v1",
+  "model_versions": [
+    "native-execution-v1",
+    "native-cost-v1",
+    "cpmm-v1",
+    "chacha12-v1",
+    "cpmm-lp-v1",
+    "bounded-route-v1",
+    "strict-flash-provider-v1",
+    "event-scheduler-v1",
+    "bounded-mempool-v1",
+    "basic-builders-v1",
+    "heterogeneous-route-v1"
+  ],
+  "name": "M4 · FeePriority: конфликт одинаковых nonce",
+  "seed": "42",
+  "assets": {
+    "X": {
+      "decimals": 0
+    },
+    "Q": {
+      "decimals": 0
+    }
+  },
+  "accounts": {
+    "alice": {
+      "balances": {
+        "X": "1000",
+        "Q": "1000"
+      },
+      "nonce": "0"
+    },
+    "bob": {
+      "balances": {
+        "X": "0",
+        "Q": "0"
+      },
+      "nonce": "0"
+    },
+    "builder": {
+      "balances": {
+        "X": "0",
+        "Q": "0"
+      },
+      "nonce": "0"
+    },
+    "pool": {
+      "balances": {
+        "X": "1000",
+        "Q": "1000"
+      },
+      "nonce": "0"
+    },
+    "pool-b": {
+      "nonce": "0",
+      "balances": {
+        "X": "1000",
+        "Q": "1000"
+      }
+    }
+  },
+  "protocols": {
+    "cpmm": {
+      "account": "pool",
+      "x": "X",
+      "y": "Q",
+      "fee_bps": 0,
+      "owner": "alice"
+    },
+    "second": {
+      "account": "pool-b",
+      "x": "X",
+      "y": "Q",
+      "fee_bps": 0,
+      "owner": "alice"
+    }
+  },
+  "agents": {
+    "trader": {
+      "controlled_accounts": [
+        "alice"
+      ]
+    },
+    "recipient": {
+      "controlled_accounts": [
+        "bob"
+      ]
+    }
+  },
+  "chain": {
+    "id": "lab-1",
+    "fee_asset": "Q",
+    "fee_account": "builder",
+    "block_limit": "500",
+    "interval": "10"
+  },
+  "blocks": [],
+  "policies": {},
+  "scheduler": {
+    "rounds": 3,
+    "builder": {
+      "type": "FeePriority"
+    },
+    "limits": {
+      "agents": 64,
+      "emissions": 4096,
+      "rounds": 10000,
+      "pending": 1024,
+      "queue": 4096,
+      "visible": 256,
+      "known": 65536,
+      "events_per_round": 4096,
+      "reactions_per_round": 64,
+      "depth": 8,
+      "intents_per_agent": 1,
+      "retention": 32,
+      "inclusion_attempts": 256,
+      "eligibility_checks": 65536
+    },
+    "agents": {
+      "trader": {
+        "observe_public": false,
+        "observation_delay": "1",
+        "outgoing": {
+          "channel": {
+            "type": "Public"
+          },
+          "builder_delay": "1"
+        }
+      },
+      "recipient": {
+        "observe_public": false,
+        "observation_delay": "1",
+        "outgoing": {
+          "channel": {
+            "type": "Public"
+          },
+          "builder_delay": "1"
+        }
+      }
+    },
+    "emissions": [
+      {
+        "at": "1",
+        "producer_id": "script",
+        "producer_sequence": "1",
+        "transaction": {
+          "id": "early",
+          "agent": "trader",
+          "sender": "alice",
+          "chain": "lab-1",
+          "nonce": "0",
+          "limit": "200",
+          "price": "1",
+          "deadline": "100",
+          "program": [
+            {
+              "type": "Transfer",
+              "to": "bob",
+              "asset": "Q",
+              "amount": "10"
+            }
+          ]
+        },
+        "delivery": {
+          "channel": {
+            "type": "Public"
+          },
+          "builder_delay": "0"
+        }
+      },
+      {
+        "at": "2",
+        "producer_id": "script",
+        "producer_sequence": "2",
+        "transaction": {
+          "id": "expensive",
+          "agent": "trader",
+          "sender": "alice",
+          "chain": "lab-1",
+          "nonce": "0",
+          "limit": "200",
+          "price": "2",
+          "deadline": "100",
+          "program": [
+            {
+              "type": "Transfer",
+              "to": "bob",
+              "asset": "Q",
+              "amount": "10"
+            }
+          ]
+        },
+        "delivery": {
+          "channel": {
+            "type": "Public"
+          },
+          "builder_delay": "0"
+        }
+      }
+    ],
+    "reactive": {}
+  }
+}

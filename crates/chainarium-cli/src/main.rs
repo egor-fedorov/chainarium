@@ -82,6 +82,16 @@ async fn wire(Json(value): Json<Wire>) -> Json<Wire> {
 }
 async fn preset(ApiPath(id): ApiPath<String>) -> Result<impl IntoResponse, ApiError> {
     let data = match id.as_str() {
+        "sc-scheduler-public" => include_str!("../../../scenarios/demos/sc-scheduler-public.json"),
+        "sc-scheduler-private" => {
+            include_str!("../../../scenarios/demos/sc-scheduler-private.json")
+        }
+        "sc-scheduler-delayed" => {
+            include_str!("../../../scenarios/demos/sc-scheduler-delayed.json")
+        }
+        "sc-scheduler-nonce" => include_str!("../../../scenarios/demos/sc-scheduler-nonce.json"),
+        "sc-scheduler-fifo" => include_str!("../../../scenarios/demos/sc-scheduler-fifo.json"),
+        "sc-scheduler-fee" => include_str!("../../../scenarios/demos/sc-scheduler-fee.json"),
         "sc-01" => include_str!("../../../scenarios/demos/sc-01.json"),
         "sc-lp" => include_str!("../../../scenarios/demos/sc-lp.json"),
         "sc-03-route" => include_str!("../../../scenarios/demos/sc-03-route.json"),
@@ -386,6 +396,15 @@ fn app() -> Router {
             }),
         )
         .route(
+            "/scheduler.js",
+            get(|| async {
+                (
+                    [(header::CONTENT_TYPE, "text/javascript; charset=utf-8")],
+                    include_str!("../../../web/scheduler.js"),
+                )
+            }),
+        )
+        .route(
             "/policies.js",
             get(|| async {
                 (
@@ -466,7 +485,7 @@ async fn command() -> Result<(), String> {
             let n: usize = required(&args, 2)?
                 .parse()
                 .map_err(|_| "invalid block count")?;
-            if n > r.scenario.blocks.len() {
+            if n > r.scenario.rounds() {
                 return Err("block count exceeds scenario".into());
             }
             for _ in 0..n {
@@ -494,7 +513,7 @@ async fn command() -> Result<(), String> {
             let n: usize = required(&args, 2)?
                 .parse()
                 .map_err(|_| "invalid block count")?;
-            if n > r.scenario.blocks.len() {
+            if n > r.scenario.rounds() {
                 return Err("block count exceeds scenario".into());
             }
             for _ in 0..n {
@@ -520,7 +539,7 @@ async fn command() -> Result<(), String> {
             let listener = tokio::net::TcpListener::bind((std::net::Ipv4Addr::LOCALHOST, port))
                 .await
                 .map_err(|e| e.to_string())?;
-            println!("Chainarium M1–M3d inspector listening on port {port}");
+            println!("Chainarium M1–M4a inspector listening on port {port}");
             axum::serve(listener, app())
                 .await
                 .map_err(|e| e.to_string())?;
@@ -622,7 +641,7 @@ async fn command() -> Result<(), String> {
             );
         }
         "--help" | "help" => println!(
-            "Chainarium M1–M3d (v1.0 in development)\n  run SCENARIO NEW_OUTPUT_DIR\n  routes SCENARIO BLOCKS QUERY_JSON\n  checkpoint SCENARIO BLOCKS NEW_FILE\n  resume CHECKPOINT NEW_OUTPUT_DIR\n  serve [PORT]\n  benchmark [BLOCKS]"
+            "Chainarium M1–M4a (v1.0 in development)\n  run SCENARIO NEW_OUTPUT_DIR\n  routes SCENARIO BLOCKS QUERY_JSON\n  checkpoint SCENARIO BLOCKS NEW_FILE\n  resume CHECKPOINT NEW_OUTPUT_DIR\n  serve [PORT]\n  benchmark [BLOCKS]"
         ),
         _ => return Err("unknown command; use --help".into()),
     }

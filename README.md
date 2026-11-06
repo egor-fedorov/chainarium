@@ -1,10 +1,11 @@
 # Chainarium
 
 Локальная лаборатория DeFi с Rust-ядром. **v1.0 в разработке.**
-Сейчас исполняются M1–M3d: CPMM swaps/LP, маршруты, арбитражная политика
+Сейчас исполняются M1–M4a: CPMM swaps/LP, маршруты, арбитражная политика
 на собственных средствах, flash loans, lending, oracle, проценты и ликвидации, StableSwap, TWAP и flash-ликвидация,
 стакан GTC/IOC/FOK, CLMM и общий partial-fill router, rollback, fees/nonce и
-исчерпание ресурса. Полный объём и приёмка: [спецификация](docs/spec.md).
+исчерпание ресурса. Добавлены event scheduler, mempool, Public/Private delivery,
+FIFO/Fixed/FeePriority и сценарный ответ на видимое сообщение. Полный объём и приёмка: [спецификация](docs/spec.md).
 
 ## Запуск
 
@@ -30,11 +31,13 @@ scripts/cargo.sh run --locked --bin chainarium -- routes scenarios/demos/sc-03-h
 ```
 
 Экспорт создаёт **новую** папку: manifest, scenario, run, checkpoint, events JSONL,
-аналитический CSV и отчёт. Для повторного запуска выберите новое имя папки.
+аналитический CSV и отчёт. M4 добавляет `delivery.jsonl` с scheduler diagnostics;
+`run.json` содержит per-block queue snapshots и метрики. Для повторного запуска
+выберите новое имя папки.
 Checkpoint восстанавливается только на committed-границе; checksum и повторное
 исполнение проверяют его целостность. CSV не является форматом восстановления.
 
-Доступны шестнадцать presets в UI и CLI:
+Доступны двадцать два presets в UI и CLI:
 
 | Файл | Демонстрация |
 | --- | --- |
@@ -54,6 +57,12 @@ Checkpoint восстанавливается только на committed-гра
 | `scenarios/demos/sc-03-heterogeneous.json` | Book/CPMM: выход 165 R и остаток 15 X; CLMM/CPMM: выход 3327 R и остаток 4971 X; strict/late rollback и маршрут через StableSwap |
 | `scenarios/demos/sc-lp-policies.json` | Пассивный LP удерживает позицию; второй LP переставляет диапазон в блоке 3 и выходит в блоке 5 |
 | `scenarios/demos/sc-mm-oracle.json` | Oracle 10→12, реальные bid/ask 45/55→55/65, арбитраж 10 X→108 Q→11 X и отмена quotes при stale feed |
+| `scenarios/demos/sc-scheduler-public.json` | Arrival ответа ровно в cutoff10: victim200 Q→166 X, ответ100 Q→116 Q |
+| `scenarios/demos/sc-scheduler-private.json` | Private без searcher в recipients: ответ отсутствует |
+| `scenarios/demos/sc-scheduler-delayed.json` | Arrival11: ответ переносится в блок с timestamp20 |
+| `scenarios/demos/sc-scheduler-nonce.json` | Nonce1 приходит раньше0; оба исполняются, fee230 Q |
+| `scenarios/demos/sc-scheduler-fifo.json` | Конфликт nonce0: ранний кандидат выигрывает, fee115 Q |
+| `scenarios/demos/sc-scheduler-fee.json` | Тот же конфликт: ставка2 выигрывает, fee230 Q |
 
 В SC-05 аналитическая ставка 12.5% за модельную секунду и reserve factor 20%;
 это fixture, не рыночный прогноз. UI показывает C/D/S/E, отдельный залог,
@@ -85,9 +94,10 @@ checkpoint/resume, fork, A/B и мобильную верстку. Снимки 
 
 ## Границы текущего среза
 
-- M1 использует версию сценария `chainarium-scenario-m1-v1` и фиксированные
-  списки кандидатов блоков. Полный scheduler/mempool и реагирующие агенты M4 ещё
-  не реализованы; отклонённые кандидаты показаны отдельно от receipts.
+- Сценарии сохраняют envelope `chainarium-scenario-m1-v1`. Профиль
+  `scheduler-m1-v1` использует списки кандидатов блоков; `event-scheduler-v1`
+  задаётся полем `scheduler` и требует пустой `blocks`. Профили взаимоисключающие.
+  Admission не резервирует баланс; включённый revert сохраняет fee/nonce.
 - Реализованы LP mint/burn, маршруты до 3 hops / 64 кандидатов, ограниченная
   arbitrage policy и отдельные flash providers. SC-07 объединяет flash/lending и три площадки.
 - Lending хранит отдельный escrow каждой позиции, C/D/S/E, deposit shares,
@@ -112,9 +122,12 @@ checkpoint/resume, fork, A/B и мобильную верстку. Снимки 
   наблюдение и создают не более одного intent после пробного исполнения.
   Hold/Skip/Submit, фактическое включение и источник цены видны в UI.
   Heterogeneous arbitrage использует RequireFull и проверку прибыли на входе tx.
-- Полный scheduler/mempool, остальные политики M4, MEV и hooks ещё не реализованы.
+- M4a: включительный cutoff, детерминированные EventIds, bounded mempool/queues,
+  Public/Private visibility, delayed OnVisibleProgram и FIFO/Fixed/FeePriority.
+  Поисковые backrun/liquidator policies, bundles, greedy и hooks — следующие срезы.
+  OnVisibleProgram исполняет явное правило, не оптимизирует стратегию.
 - Исследовательский MTM/PnL не рассчитывается; баланс не называется прибылью.
-- UI — прототип M1–M3d с шестнадцатью presets. Полный explorer M5 впереди.
+- UI — прототип M1–M4a с двадцатью двумя presets. Полный explorer M5 впереди.
 - Критерии всей v1.0 не объявляются выполненными. Независимый review и следующие
   открытые экономические контракты фиксируются согласно §23–24 спецификации.
 
@@ -123,6 +136,8 @@ checkpoint/resume, fork, A/B и мобильную верстку. Снимки 
 Для DEC-20/M3c–M3d выполнен [отдельный review](docs/reviews/dec20-independent-review.md)
 без подтверждённых findings. Шесть независимых тестов с 4504 аналитическими
 случаями и граничными LP/MM-сценариями добавлены в обычную suite.
+
+Независимый review DEC-21/M4a ещё предстоит; предыдущие reviews его не охватывают.
 
 Фактические результаты и оставшиеся проверки: [журнал прогресса](docs/progress.md).
 Сценарий CLI ограничен 64 MiB, отдельная транзакция — 1 MiB. Web restore

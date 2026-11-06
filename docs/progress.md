@@ -1,13 +1,14 @@
 # Прогресс Chainarium — 2026-11-06
 
-Цель: весь v1.0 из §2.1. Текущий результат — **исполняемый прототип M1–M3d**.
+Цель: весь v1.0 из §2.1. Текущий результат — **исполняемый прототип M1–M4a**.
 Это не готовая v1.0. Независимый review M1–M3b завершён, три findings исправлены
 и перепроверены. Отдельный review M3c–M3d завершён без подтверждённых findings;
 область и ограничения сохранены в `docs/reviews/dec20-independent-review.md`.
 DEC-05–DEC-21 приняты владельцем.
 Общий partial-fill router, LP/MM-политики и heterogeneous arbitrage реализованы.
 Контракт M4a принят как **DEC-21** (§23.2.9) 2026-11-06;
-реализация scheduler/mempool/basic builders начата.
+scheduler/mempool/basic builders реализованы и функционально проверены.
+Независимый review M4a ещё предстоит.
 
 ## Что работает
 
@@ -44,7 +45,7 @@ fees/nonce/resource accounting и deterministic replay. Канонические
   arbitrage с фактической native fee. Одно намерение на AgentId, Hold/Skip/Submit,
   старое committed observation и повторная проверка включения.
 
-UI содержит шестнадцать presets, play/pause/step, просмотр block→tx→call, балансы, сравнение котировок и трасса solver,
+UI содержит двадцать два presets, play/pause/step, просмотр block→tx→call, балансы, сравнение котировок и трасса solver,
 LP shares, C/D/S/E, escrow, точный HF и запись oracle, фактически использованную
 в конкретном вызове. Расчёт риска выполняет Rust; JS отображает готовые строки.
 Есть export/checkpoint/restore/fork и A/B параметров SC-01.
@@ -52,14 +53,14 @@ LP shares, C/D/S/E, escrow, точный HF и запись oracle, фактич
 ## Фактическая проверка
 
 - `scripts/cargo.sh fmt --check` и Clippy всех targets с `-D warnings` — прошли.
-- Основная suite `scripts/cargo.sh test --workspace --locked --offline` — **148 tests passed**:
-  5 unit fault-injection, 19 acceptance, 20 composition, 19 credit, 10 stable,
-  10 twap, 7 flash_liquidation, 14 book, 17 clmm, 11 heterogeneous, 16 policies; ignored=0.
-- Ещё **6 independent_dec20 tests passed**, сохранённых из отдельного review:
-  4504 аналитически рассчитанных случая и граничные integrations. Всего 154 tests.
+- `scripts/cargo.sh test --workspace --locked --offline` — **174 tests passed**:
+  7 unit tests (включая fault injection), 19 acceptance, 20 composition, 19 credit,
+  10 stable, 10 twap, 7 flash_liquidation, 14 book, 17 clmm, 11 heterogeneous,
+  16 policies, 6 independent_dec20, 18 scheduler; ignored=0.
+  Независимые DEC-20 tests сохраняют 4504 аналитических случая и LP/MM границы.
 - `node --test web/wire.test.mjs` — канонические строки, диапазоны и точный
   decimal conversion прошли; JS экономические команды не проходят через Number.
-- `python3 scripts/check-ui.py` — пройден путь всех шестнадцати presets, readonly
+- `python3 scripts/check-ui.py` — пройден путь всех двадцати двух presets, readonly
   просмотр, trace, checkpoint/resume, fork/A-B, точные Amount/Price через HTTP,
   desktop/mobile; ошибок JavaScript и горизонтального overflow нет.
 - Release build и `git diff --check` — прошли.
@@ -361,18 +362,74 @@ heterogeneous route): каждый `run.json` побайтно совпал. И�
 новых файлов в build fingerprint: добавление файла меняет hash, удаление
 восстанавливает исходный; проверка сохранена в `fingerprint-check.json`.
 
+### M4a / DEC-21 — scheduler, mempool и базовый builder
+
+`event-scheduler-v1`, `bounded-mempool-v1`, `basic-builders-v1` и опциональный
+`on-visible-program-v1` реализованы отдельно от legacy scheduler M1. Сценарий
+явно задаёт rounds, network, emissions, reactive rules и все caps. Cutoff
+включительный; очередь упорядочена `(max(due_at,parent_timestamp), event_id)`.
+Отложенные события сохраняют due_at; trace показывает фактическое время и lateness.
+
+Public доставляется подписанным агентам, Private — только recipients; builder
+имеет свою задержку. `AgentObservation` содержит parent market/own property,
+доставленные сообщения и own outbox; статусы включения/отказа доступны после
+commit. `ReactivePolicy::decide` не получает Scenario/World. Queued reaction
+хранит разрешённый delivery trigger, но не копию скрытого mempool; visible payloads
+вытесняются/истекают отдельно. Один policy intent на агента за раунд, bounded
+reaction/depth; повторный trigger не создаёт новый ответ.
+
+Admission отклоняет неверный envelope, deadline, stale nonce и невместимый limit;
+будущий nonce и нехватка fee budget ожидают. Нет reserve, fee или nonce до
+включения. Дубликат не обновляет arrival; конфликт payload сохраняет первую
+запись. FIFO, fee-per-unit priority и Fixed выбирают сейчас включаемый кандидат,
+затем пересчитывают eligibility. Declared limit должен помещаться, actual used
+уменьшает ресурс блока. Protocol revert включается, ModelError отменяет весь
+рабочий раунд вместе с queue/cursor/memory. `begin_block` и executor общие с M1;
+системное начисление выполняется ровно один раз на канонический блок.
+
+| Демо | Проверенный результат |
+| --- | --- |
+| Public: send7, visible8, reaction9, arrival10 | В блоке1 victim200 Q→166 X; ответ100 Q→90 X→116 Q, net16 Q, units120+160=280 |
+| Private без searcher | Один receipt; нет реакции, капитал searcher неизменен |
+| Response delay2 | Arrival11 остаётся в queue после блока1; ответ включается в блок2, timestamp20, deadline39 |
+| Nonce1 arrival1, nonce0 arrival2 | Порядок0,1; sender740 Q, recipient30 Q, builder230 Q |
+| Два кандидата nonce0 / FIFO | Ранний price1; sender875 Q, fee115 Q, конкурент stale без fee |
+| Те же кандидаты / FeePriority | Price2; sender760 Q, fee230 Q, конкурент stale без fee |
+
+18 integration tests и 2 новых unit tests покрывают численные fixtures,
+нулевые delays, private recipients, funding wakeup, declared-limit carry,
+TTL, dedup/conflicting IDs, Fixed, queue/known/mempool/visible/event/reaction/
+intent/depth/attempt/check caps, outbox status boundary, busy periodic policies,
+единственное accrual, checkpoint/tamper/read-only/fork и ModelError после
+реального исполнения/при EventId overflow. Все прежние тесты также прошли.
+
+CLI исполнил все 22 demos; шесть M4 exports/resumes после блока1 совпали побайтно
+по `run.json`, `events.jsonl`, `delivery.jsonl`, `transactions.csv`.
+Артефакты: `output/m4a-final/`. Release fingerprint:
+`c48aac062243de0279c1045ea287b170f4fa5d703898cbd1080419015d972c9d`.
+Browser прошёл все 22 presets, просмотр прошлого состояния без продвижения
+очереди, checkpoint каждого M4 demo и mobile без overflow/JS errors. Снимки:
+`output/m4-public-delivery.png`, `output/m4-delayed-queue.png`,
+`output/m4-delayed-mobile.png`; delayed desktop/mobile просмотрены.
+
+Результат — M4a, не весь M4. Bundles/greedy, поисковые backrun/liquidator policies,
+hooks и дальнейшие роли не реализованы. Исчерпывающая performance-приёмка G-16
+не выполнена: caps определяют результат, но не обещают latency на максимальных
+размерах payload/очереди/истории. Независимый review DEC-21 требуется отдельно;
+reviews M1–M3b и DEC-20 эту новую реализацию не охватывают.
+
 ### Fixtures и границы доказательства
 
 | Проверка | Доказательство | Ограничение |
 | --- | --- | --- |
-| Ledger/auth/execution/block | acceptance + 5 injected ModelErrors после успешной tx, включая accrual/oracle | Полного scheduler M4 ещё нет |
+| Ledger/auth/execution/block | acceptance + 5 injected ModelErrors после успешной tx, включая accrual/oracle | M4a проверен; bundles/greedy впереди |
 | CPMM/LP/router/flash | composition: rounding/minima/ownership/reentry/actual output/rollback; 500 CPMM invariant cases | Native models; совместимость с внешним deployment не заявлена |
 | Lending accounting | exact fixture, caps/HF/LTV/cash, aggregate rates, multiple escrow, fractional carry, no-holder income | Прямой долг, заранее зарегистрированные позиции, максимум 1024/reserve |
 | Liquidation/loss | exact waterfall, partial close, dust, min_collateral, fee-preserving rollback, 256 deterministic boundary cases | Нет recovery/treasury; вывод equity запрещён |
 | Deposit shares | zero mint, minima, cash shortage без burn, last exit, bootstrap с E | Bankrupt проверен на invariant-valid defensive snapshot, не заявлен достижимым из genesis этого positive-payment preset |
 | Oracle | unauthorized/source/pair/future/duplicate/out-of-order; возраст 60/61; safe stale operations; consumer trace | External/native spot/TWAP; bounded history и однократное floor проверены |
-| Checkpoint/export | replay/resume/fork/tamper, протоколы, LP/MM schedules/decisions | Состояние M1–M3d; queues/memory M4 потребуют новых fixtures |
-| UI | реальные balances/trace, шестнадцать presets, desktop/mobile, exact HTTP wire | Прототип; полная приёмка M5 не закрыта |
+| Checkpoint/export | replay/resume/fork/tamper, протоколы, LP/MM schedules/decisions | M4a queues/inflight/seen IDs проверены; bundles потребуют новых fixtures |
+| UI | реальные balances/trace, 22 presets, desktop/mobile, exact HTTP wire | Прототип; полная приёмка M5 не закрыта |
 
 Численные ожидания следуют §6/§8/§20 и принятым DEC; тесты не заменяют
 независимый review. Analytical sweep — детерминированная проверка инвариантов,
@@ -410,13 +467,11 @@ latency UI и полные workloads M5 ещё не измерены/не при
    границы review — `docs/reviews/dec20-independent-review.md`.
 3. M2f/M2g входят в завершённый review M1–M3b; ограничения проверки указаны
    в его отчёте. Новые механизмы M4 потребуют отдельного review.
-4. Следующий срез M4a: **Accepted DEC-21** в `docs/spec.md` §23.2.9 —
-   event scheduler, bounded mempool, Public/Private delivery, базовые
-   FIFO/Fixed/FeePriority builders и явный OnVisibleProgram. Численные ожидания
-   `docs/reviews/scheduler-reference.py`/`.json` пересчитаны и совпали.
-   Владелец согласовал контракт по §23.7; реализация начата.
-   После него остаются bundles/greedy, поисковые backrun/liquidator policies,
-   hooks и M5: MTM, эксперименты, полный explorer и приёмка.
+4. M4a / DEC-21 реализован, все функциональные проверки пройдены;
+   следующий шаг — независимый read-only review этого diff в отдельном контексте.
+   Затем M4: bundles/greedy, поисковые backrun/liquidator policies, hooks;
+   M5: MTM, эксперименты, полный explorer и приёмка. Новые существенные
+   архитектурные решения требуют конкретных карточек и согласования по §23.7.
 5. Полные user-task/latency/performance budgets и независимое review должны
    быть выполнены до приёмки целевой v1.0. SC-06 с конкуренцией — этап M4.
 

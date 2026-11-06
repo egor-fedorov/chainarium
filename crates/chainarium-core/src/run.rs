@@ -60,6 +60,8 @@ pub struct Run {
     pub initial: World,
     pub state: World,
     pub blocks: Vec<Block>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub scheduler: Option<crate::scheduler::State>,
     rng: Streams,
 }
 #[derive(Serialize, Deserialize)]
@@ -78,6 +80,10 @@ impl Run {
             build_id: crate::BUILD_ID.into(),
             run_id,
             parent_checkpoint: None,
+            scheduler: s
+                .scheduler
+                .as_ref()
+                .map(|_| crate::scheduler::State::default()),
             scenario: s,
             initial: initial.clone(),
             state: initial,
@@ -87,6 +93,17 @@ impl Run {
     }
     pub fn step(&mut self) -> Result<Option<&Block>, String> {
         let i = self.blocks.len();
+        if i >= self.scenario.rounds() {
+            return Ok(None);
+        }
+        if let Some(scheduler) = &self.scheduler {
+            let (block, next) = crate::scheduler::advance(&self.scenario, &self.state, scheduler)
+                .map_err(|e| format!("ModelError: {e}"))?;
+            self.state = block.state.clone();
+            self.scheduler = Some(next);
+            self.blocks.push(block);
+            return Ok(self.blocks.last());
+        }
         let Some(txs) = self.scenario.blocks.get(i) else {
             return Ok(None);
         };
@@ -127,7 +144,7 @@ impl Run {
             cp.run.scenario.validate()?;
             // Re-execution validates ledger, protocol state, receipts and cursor, not only a checksum.
             let mut replay = Self::new(cp.run.scenario.clone())?;
-            if cp.run.blocks.len() > replay.scenario.blocks.len() {
+            if cp.run.blocks.len() > replay.scenario.rounds() {
                 return Err("checkpoint cursor".into());
             }
             for _ in &cp.run.blocks {
@@ -137,6 +154,7 @@ impl Run {
                 || cp.run.blocks != replay.blocks
                 || cp.run.state != replay.state
                 || cp.run.rng != replay.rng
+                || cp.run.scheduler != replay.scheduler
             {
                 return Err("checkpoint replay mismatch".into());
             }
@@ -192,14 +210,29 @@ impl Run {
                 ));
             }
         }
+        if self.scheduler.is_some() {
+            let mut delivery = String::new();
+            for block in &self.blocks {
+                if let Some(report) = &block.scheduler {
+                    for entry in &report.trace {
+                        delivery.push_str(&serde_json::to_string(&serde_json::json!({"block":block.number,"phase":"SchedulerDiagnostic","entry":entry})).map_err(|e|e.to_string())?);
+                        delivery.push('\n');
+                    }
+                }
+            }
+            write("delivery.jsonl", delivery.as_bytes())?;
+        }
         write("events.jsonl", events.as_bytes())?;
         write("transactions.csv", csv.as_bytes())?;
-        let report = format!(
+        let mut report = format!(
             "# {}\n\nNative DeFi demonstration; v1.0 is incomplete.\n\n{} committed blocks; {} receipts. Amounts are exact atoms. PnL is not computed.\n",
             self.scenario.name,
             self.blocks.len(),
             self.blocks.iter().map(|b| b.receipts.len()).sum::<usize>()
         );
+        if let Some(state) = &self.scheduler {
+            report.push_str(&format!("\nScheduler: {} pending entries, {} in-flight events, {} known TxIds.\n\nDelivery, visibility, admission, ordering and cap outcomes: `delivery.jsonl`. Per-block metrics and queue snapshots: `run.json`. Canonical financial events: `events.jsonl`.\n",state.pending.len(),state.queue.len(),state.known.len()));
+        }
         write("report.md", report.as_bytes())
     }
 }
