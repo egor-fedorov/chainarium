@@ -4,7 +4,7 @@
 Это не готовая v1.0. Независимый review M1–M3b завершён, три findings исправлены
 и перепроверены. Отдельный review M3c–M3d завершён без подтверждённых findings;
 область и ограничения сохранены в `docs/reviews/dec20-independent-review.md`.
-DEC-05–DEC-25 приняты владельцем.
+DEC-05–DEC-26 приняты владельцем.
 Общий partial-fill router, LP/MM-политики и heterogeneous arbitrage реализованы.
 Контракт M4a принят как **DEC-21** (§23.2.9) 2026-11-06;
 scheduler/mempool/basic builders реализованы и функционально проверены.
@@ -31,8 +31,9 @@ findings. Отчёт — `docs/reviews/dec24-independent-review.md`; сохра�
 согласован владельцем 2026-11-06. M4e реализован и функционально проверен;
 отдельный read-only review hooks diff `145ea8a..d4a4709` завершён без подтверждённых
 findings. Отчёт — `docs/reviews/dec25-independent-review.md`; сохранены13 независимых
-integration tests и unit fault injection. Для M4f подготовлен Proposed DEC-26 (§23.2.14): scripted/random
-user, target borrower и native oracle publisher; согласование ещё не получено.
+integration tests и unit fault injection. Для M4f принят Accepted DEC-26 (§23.2.14): scripted/random
+user, target borrower и native oracle publisher; владелец согласовал контракт
+2026-11-06, реализация начата.
 
 ## Что работает
 
@@ -839,10 +840,10 @@ latency UI и полные workloads M5 ещё не измерены/не при
    Для hooks принят DEC-25 (§23.2.13), M4e реализован и функционально проверен;
    отдельный независимый review этого среза завершён без подтверждённых findings;
    отчёт и14 дополнительных tests сохранены.
-   Для user/random/borrower/oracle ролей подготовлен Proposed DEC-26 (§23.2.14),
+   Для user/random/borrower/oracle ролей принят Accepted DEC-26 (§23.2.14),
    независимые численные ожидания — `docs/reviews/baseline-agents-reference.py`/`.json`.
    Reference ChaCha12 совпал с12 существующими DEC-10 draws; новые политики
-   ещё не реализованы. Следом остаётся optional arbitrage Flash;
+   реализуются отдельным срезом M4f. Следом остаётся optional arbitrage Flash;
    M5: MTM, эксперименты, полный explorer и приёмка. Новые существенные решения
    требуют конкретных карточек и согласования по §23.7.
 5. Полные user-task/latency/performance budgets и независимое review должны

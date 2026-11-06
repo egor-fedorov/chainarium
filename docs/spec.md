@@ -2517,11 +2517,11 @@ point/instruction trace, effective fee, реальные transfers/counter, от
 Независимый review hooks требуется по §23.4. Borrower/user/oracle policies,
 MTM/experiments/explorer и performance gates остаются следующими срезами.
 
-### 23.2.14. Предложенный контракт M4f — Proposed DEC-26
+### 23.2.14. Принятый контракт M4f — Accepted DEC-26
 
 **DEC-26 / G-09/G-10/G-15, базовые политики пользователей, borrower и publisher.**
 Подготовлено после реализации M4e, пока идёт отдельный review DEC-25.
-Статус **Proposed**: реализация требует согласования владельца по §23.7.
+Согласован владельцем 2026-11-06 в чате до реализации; статус **Accepted**.
 `baseline-agents-v1` дополняет `event-scheduler-v1` четырьмя объяснимыми ролями
 §13, не меняя экономические calls. M1 scheduler этот профиль не принимает.
 Фиксированные external oracle updates остаются обычными PublishOracle в scripted
@@ -2709,7 +2709,7 @@ openspec/                   # опционально, после решения 
 
 **Уже закрытые требования:** единый ledger; разделение origin/caller/callee и явная авторизация; точная передача atoms/цен без потери целых; native fee/nonce и ресурсный профиль `100 / 10 / 5 / 1` (§5–§6); изолированный collateral, уравнение `C + D = S + E`, распределение процентов и убытков, атомарность liquidation+writeoff (§8); возраст цены по observation time, полномочия publisher и validity oracle (§10); раздельные committed events/attempt trace и полные checkpoints (§15–§17). Выбор конкретного Rust crate или UI-транспорта обязан сохранить эти требования.
 
-**Состояние решений на 2026-11-06:** DEC-05–DEC-25 приняты. Для текущих
+**Состояние решений на 2026-11-06:** DEC-05–DEC-26 приняты. Для текущих
 профилей определены G-01/G-02, CPMM/LP часть G-03, прототип G-04,
 reference lending G-05, external oracle часть G-06, router budget часть G-09,
 базовый checkpoint G-10 и RNG часть G-15. Реализация/fixtures отражены в §20
@@ -2729,9 +2729,9 @@ pre-implementation ожиданиями; M4c реализован, два P2 н�
 Для liquidator competition и продажи фактического залога принят
 **DEC-24** (§23.2.12); M4d реализован, независимый review завершён без подтверждённых
 findings (`docs/reviews/dec24-independent-review.md`). Hooks определены **Accepted DEC-25** (§23.2.13); M4e реализован, независимый review diff145ea8a..d4a4709 завершён без подтверждённых findings (docs/reviews/dec25-independent-review.md).
-Для оставшихся базовых ролей подготовлен **Proposed DEC-26** (§23.2.14):
+Для оставшихся базовых ролей принят **Accepted DEC-26** (§23.2.14):
 scripted/random user orderflow, target borrower и native oracle publisher.
-Численные ожидания сохранены до реализации; согласование ещё не получено.
+Численные ожидания сохранены до реализации; владелец согласовал контракт 2026-11-06.
 Остальные механизмы и бюджеты остаются открытыми. Таблица ниже сохраняет
 исходные условия gates и критерии их полной приёмки.
 
