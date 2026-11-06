@@ -29,7 +29,9 @@ liquidator, Own/Flash funding и SC-06 competition реализованы. До 
 findings. Отчёт — `docs/reviews/dec24-independent-review.md`; сохранены7 независимых
 тестов, включая768 integer cases и344 resource-boundary executions. **DEC-25** (§23.2.13), hooks CPMM с независимыми численными примерами,
 согласован владельцем 2026-11-06. M4e реализован и функционально проверен;
-отдельный независимый review hooks впереди.
+отдельный read-only review hooks diff `145ea8a..d4a4709` разрешён владельцем
+и выполняется. Для M4f подготовлен Proposed DEC-26 (§23.2.14): scripted/random
+user, target borrower и native oracle publisher; согласование ещё не получено.
 
 ## Что работает
 
@@ -753,7 +755,8 @@ Browser проверял build `4bd7b91e71395b583a6febb2b88b1bb2269f0dd569975298
 Артефакты: `output/m4e-validated-final/`; логи полного прогона и браузера
 `/tmp/chainarium-m4e-{full-tests,browser}.log`, финальных адресных проверок
 `/tmp/chainarium-m4e-{hooks,clippy,release}-final.log`.
-Независимый review DEC-25 ещё не выполнен. Hooks ограничены CPMM; остальные
+Независимый review DEC-25 разрешён владельцем и выполняется на diff
+`145ea8a..d4a4709`; итог ещё не получен. Hooks ограничены CPMM; остальные
 роли M4, MTM/эксперименты/explorer и performance/user-task gates M5 остаются открытыми.
 
 ### Fixtures и границы доказательства
@@ -816,12 +819,17 @@ latency UI и полные workloads M5 ещё не измерены/не при
    DEC-24 (§23.2.12) с численными ожиданиями; M4d реализован,
    независимый review нового среза завершён без подтверждённых findings.
    Для hooks принят DEC-25 (§23.2.13), M4e реализован и функционально проверен;
-   нужен отдельный независимый review этого среза.
-   Затем M4: остальные user/random/borrower/oracle роли и optional arbitrage Flash;
+   разрешённый отдельный независимый review этого среза выполняется.
+   Для user/random/borrower/oracle ролей подготовлен Proposed DEC-26 (§23.2.14),
+   независимые численные ожидания — `docs/reviews/baseline-agents-reference.py`/`.json`.
+   Reference ChaCha12 совпал с12 существующими DEC-10 draws; новые политики
+   ещё не реализованы. Следом остаётся optional arbitrage Flash;
    M5: MTM, эксперименты, полный explorer и приёмка. Новые существенные решения
    требуют конкретных карточек и согласования по §23.7.
 5. Полные user-task/latency/performance budgets и независимое review должны
    быть выполнены до приёмки целевой v1.0. SC-06 с конкуренцией исполняется в M4d и отдельно проверен.
 
-Изменения находятся в рабочем checkout. Среда не публиковалась, push и публикация релизов
-не выполнялись. Ранее опубликованная конфигурация среды не изменялась повторно.
+По новому явному поручению владельца готовые Conventional Commits периодически
+отправляются в GitHub. После обновления прав записи успешно создана
+`origin/work` на `d4a4709`; remote SHA подтверждён отдельно. Среда и релизы
+не публиковались. Ранее опубликованная конфигурация среды не изменялась повторно.

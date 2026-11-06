@@ -2517,6 +2517,134 @@ point/instruction trace, effective fee, реальные transfers/counter, от
 Независимый review hooks требуется по §23.4. Borrower/user/oracle policies,
 MTM/experiments/explorer и performance gates остаются следующими срезами.
 
+### 23.2.14. Предложенный контракт M4f — Proposed DEC-26
+
+**DEC-26 / G-09/G-10/G-15, базовые политики пользователей, borrower и publisher.**
+Подготовлено после реализации M4e, пока идёт отдельный review DEC-25.
+Статус **Proposed**: реализация требует согласования владельца по §23.7.
+`baseline-agents-v1` дополняет `event-scheduler-v1` четырьмя объяснимыми ролями
+§13, не меняя экономические calls. M1 scheduler этот профиль не принимает.
+Фиксированные external oracle updates остаются обычными PublishOracle в scripted
+программах; новые native publishers используют существующие Spot/Twap sources.
+
+**Общий контракт.** На AgentId разрешена ровно одна policy среди всех семейств.
+Account должен принадлежать агенту и не быть защищённым protocol/hook account.
+Общие параметры: account, resource limit/price, положительное lifetime и режим
+preflight `SuccessfulOnly` либо `AnyReceipt` для пользовательских программ.
+Borrower и NativeOracle всегда SuccessfulOnly. Limit/price/программы проходят
+существующие exact-wire, authority, node/depth и block-limit проверки.
+
+Периодические роли задают first_block>=1, last_block<=rounds и every>=1;
+решение положено при `first<=k<=last && (k-first)%every==0`.
+Scripted использует собственное расписание по точному номеру k. Обход всех
+периодических семейств — в существующем порядке AgentId, после постановки
+emissions и до dispatch очереди. Не более одного нового intent на агента
+за раунд; общие caps DEC-21 не увеличиваются. TxId имеет зарезервированный
+префикс `policy:baseline:` и однозначно зависит от AgentId/номера раунда.
+Deadline=`parent_timestamp+lifetime`, отправка — в parent_timestamp через
+настроенный Public/Private channel и задержки; equality deadline допустима.
+BusyNonce, исчерпание nonce, deadline/delivery overflow дают явный Skip.
+
+Наблюдение содержит parent block/time, собственные balances/nonce, публичные
+venues/feeds и, для borrower, только свою позицию в выбранном reserve.
+Для расчёта долга и preflight используется одна системная проекция parent
+на cutoff (тот же begin_block, что в DEC-24, без pending/user transactions).
+Parent и preview timestamps явно различены. Проекция не публикует цену,
+не расходует канонический процент повторно и не открывает future emissions,
+чужие wallets, private messages или reference valuation. Старые LP/MM/arbitrage
+сохраняют ранее принятый parent-observation контракт.
+
+Для выбранного intent выполняется не более одной полной simulation на копии
+этой проекции. Inclusion rejection даёт Skip. SuccessfulOnly отправляет только
+Success; AnyReceipt разрешает также предсказанный ProtocolRevert/ResourceExhausted
+для демонстрации оплачиваемой неудачи. ModelError прерывает весь раунд.
+Simulation не списывает реальные fees и не запускает scheduler/RNG повторно.
+Включение всегда перепроверяется на актуальном builder prefix: даже успешный
+preflight не обещает Success или включение. Decision сохраняет выбор, причину,
+observation/preview, пробный receipt и связь с фактическим TxId/status.
+
+**ScriptedUser.** До1024 событий `block → nonempty native program`, номера
+уникальны и находятся внутри запуска. Событие — один intent с текущим nonce.
+Пропуск из-за BusyNonce, неудачного preflight или отказа отправки не переносит
+событие; для retry нужен следующий явно заданный event. Собственная программа
+является планом действий, не разрешением читать будущие данные среды.
+
+**RandomUser и RNG.** От1 до16 упорядоченных непустых native program templates,
+probability_ppm в диапазоне0..1000000. Используется принятый DEC-10 ChaCha12
+stream `agent/<AgentId>`; алгоритм seed/word-position не меняется. На каждом
+eligible round контроллер выбирает сначала gate равномерно из0..999999, затем
+template index из0..N−1. Оба выбора выполняются даже при probability0/1000000,
+Hold или BusyNonce, до проверок текущего nonce/funding; на неeligible rounds
+draws отсутствуют. Выбранный template рассматривается при gate<probability_ppm.
+Это фиксирует случайные заявки при сравнении builders, хотя их допустимость
+и включение могут различаться. Другие агенты и environment stream не сдвигаются.
+
+Равномерная выборка n использует u64 draw x, принимает только
+`x < floor(2^64/n)*n`, возвращает `x mod n`. Bound вычисляется в расширенном
+целом, включая n=1/2/16. Не более32 draws на одну выборку: после32 rejects —
+Skip RngBudget, без скрытого fallback/modulo bias; следующий выбор не начинается.
+Итого не более64 raw draws на eligible RandomUser и4096 на раунд при64 агентах.
+Политика получает только текущие результаты выборки, не seed/будущие draws.
+Расход RNG и параметры/индексы сохраняются в decision и checkpoint. При protocol
+revert включённого intent выборка остаётся совершённой. При ModelError весь раунд,
+очередь, память и RNG возвращаются к parent checkpoint. Физическое исчерпание
+принятого stream — ModelError, а не wrap или выбор другого seed.
+
+**BorrowerTarget.** Один reserve и собственная зарегистрированная позиция;
+положительные max_debt_step/max_collateral_step. До1024 уникальных целевых
+событий `block → (debt_target,collateral_target)` в порядке номера блока.
+Последняя цель с block<=k действует до следующей; до первой цели — Hold.
+Цели — atoms, а не стоимость по скрытой цене. На eligible round из accrued
+preview выбирается ровно один call по следующему приоритету:
+
+1. Если debt>target_debt: Repay за себя на min(diff,max_debt_step).
+2. Иначе если collateral<target_collateral: DepositCollateral на min(diff,max_collateral_step).
+3. Иначе если debt<target_debt: Borrow на min(diff,max_debt_step).
+4. Иначе если collateral>target_collateral: WithdrawCollateral на min(diff,max_collateral_step).
+5. При равенстве обоих значений — Hold.
+
+Нулевая разница не создаёт call. Core сохраняет LTV/HF/oracle/caps/ownership
+и native fee reserve; policy не уменьшает сумму по cash, не включает collateral
+автоматически, не выдаёт flash funding и не продаёт активы для погашения.
+Неуспешная simulation даёт Skip; на следующем eligible round та же сохраняющаяся
+цель рассматривается заново по новому состоянию. Процент между rounds может
+изменить требуемый шаг, поэтому repayment определяется после единственного accrual.
+
+**NativeOraclePublisher.** От1 до16 уникальных feeds, только NativeSpot/NativeTwap;
+account обязан быть разрешённым publisher каждого. В eligible round строится
+одна атомарная программа в порядке FeedId. Sequence=previous+1 либо1 при пустой
+record, update_id — SHA-256 канонического JSON tuple (TxId,FeedId); overflow
+sequence даёт Skip. Для Spot отправляется PublishSpot, цену и observed_at
+определяет сам native call при фактическом исполнении. Для TWAP отправляется
+PublishTwap с end=cutoff наблюдаемого round; этот end остаётся неизменным при
+задержке доставки. NotReady/нет spot history/иной отказ любой publication
+даёт Skip всего preflight, без частичной отправки ready feeds. Конкурирующий
+publisher может сделать sequence устаревшим после preflight; включённый revert
+оплачивается по общим правилам. Native публикация не обращается к внешней сети.
+
+**Ожидания до кода.** Независимый scalar ChaCha12 и integer ledger расчёт
+сохранены в `docs/reviews/baseline-agents-reference.py`/`.json`.
+12 первых u64 reference совпали с уже принятым Streams DEC-10; новая policy
+этим не считается реализованной. Проверяемые исходы:
+
+| Fixture | Ожидаемый результат |
+| --- | --- |
+| RandomUser: seed42, agent/trader, 6 rounds, probability500000, templates Transfer10/20 Q; sender1000 Q, limit200, price1 | Gate41542/769541/966069/475919/922990/769445; отправки20 Q в rounds1/4; sender730, recipient40, builder230, nonce2; word position24 |
+| Scripted Transfer10 Q → false AssertCondition, sender1000 Q, price1 | AnyReceipt: включённый revert125 units, sender875, recipient0, builder125, nonce1; SuccessfulOnly: Skip и канонических расходов нет |
+| Borrower: cash100/claims100, own1000 Q/6 X, debt0, price20 Q/X, LTV75%, LT80%, rate0; цели (6,80) с round1 и (0,0) с round4, steps6/80, price1 | Deposit6 → Borrow80 → Hold → Repay80 → Withdraw6 → Hold; по115 units, финал own540 Q/6 X, collateral/debt0, C/D/S/E=100/0/100/0, builder460, nonce4 |
+| NativeSpot: pool10 X/200 Q, fee0; swap10 X→100 Q | Publication до swap даёт20 Q/X, после swap —5; preflight не фиксирует цену; publication110 units |
+| NativeTwap: постоянная цена20, W2 s, interval1 s, одна history segment | Round1 NotReady/Skip без fee; round2 price20, sequence1, observed_at=published_at=2,111 units |
+
+Acceptance включает boundaries0/1000000 ppm,1/16/17 templates,1024/1025 events,
+1/16/17 feeds, raw-draw rejection и32-reject exhaustion, stream/nonce/time/sequence
+overflow, BusyNonce и delayed/expired intents, preflight vs actual paid failure,
+collateral/HF/LTV/cash/stale/interest cases, private/future noninterference,
+RNG invariance при просмотре и смене builder, ModelError rollback после draws,
+checkpoint/resume с inflight intent и изменение RNG/cursor с новым checksum.
+UI показывает роль/цель/выборку/Skip, пробный и фактический результат отдельно;
+CLI/browser demos и независимый review §23.4 обязательны. Optional flash-funded
+arbitrage, MTM/experiments/full explorer и M5 gates остаются следующими срезами.
+
 ### 23.3. Вертикальные срезы и Definition of Done
 
 Работа дробится на сквозные сценарии **требование → состояние → действие → исполнение → тесты → trace → визуальное объяснение**. Новый компонент не считается завершённым по одному лишь trait, mock API или графическому экрану. На один срез — один проверяемый вопрос и минимальное число новых механизмов.
@@ -2600,7 +2728,10 @@ pre-implementation ожиданиями; M4c реализован, два P2 н�
 исправлены и адресно перепроверены (`docs/reviews/dec23-independent-review.md`).
 Для liquidator competition и продажи фактического залога принят
 **DEC-24** (§23.2.12); M4d реализован, независимый review завершён без подтверждённых
-findings (`docs/reviews/dec24-independent-review.md`). Hooks определены **Accepted DEC-25** (§23.2.13); M4e реализован, отдельный независимый review впереди.
+findings (`docs/reviews/dec24-independent-review.md`). Hooks определены **Accepted DEC-25** (§23.2.13); M4e реализован, отдельный независимый review выполняется с разрешения владельца.
+Для оставшихся базовых ролей подготовлен **Proposed DEC-26** (§23.2.14):
+scripted/random user orderflow, target borrower и native oracle publisher.
+Численные ожидания сохранены до реализации; согласование ещё не получено.
 Остальные механизмы и бюджеты остаются открытыми. Таблица ниже сохраняет
 исходные условия gates и критерии их полной приёмки.
 

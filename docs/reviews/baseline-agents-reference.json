@@ -1,0 +1,259 @@
+{
+  "status": "pre-implementation expectations for Proposed DEC-26",
+  "rng": {
+    "root": "42",
+    "stream": "agent/trader",
+    "first_12_u64": [
+      "11729336778421041542",
+      "14258507343877448331",
+      "9280264728334769541",
+      "8838916219647877259",
+      "3766986303278966069",
+      "934251813875140384",
+      "1924424728251475919",
+      "10369520286385702583",
+      "9004069342076922990",
+      "11968732259513314332",
+      "17978013453144769445",
+      "3916387816287995510"
+    ],
+    "sample": "reject x >= floor(2^64/n)*n; return x mod n; at most 32 draws"
+  },
+  "random_user": {
+    "probability_ppm": "500000",
+    "templates_Q": [
+      "10",
+      "20"
+    ],
+    "resource_price": "1",
+    "resource_limit": "200",
+    "initial_sender_Q": "1000",
+    "rounds": [
+      {
+        "round": "1",
+        "gate": "41542",
+        "choice": "1",
+        "amount": "20",
+        "submit": true,
+        "position_before": "0",
+        "position_after": "4",
+        "sender_Q": "865",
+        "recipient_Q": "20",
+        "builder_Q": "115",
+        "nonce": "1"
+      },
+      {
+        "round": "2",
+        "gate": "769541",
+        "choice": "1",
+        "amount": "20",
+        "submit": false,
+        "position_before": "4",
+        "position_after": "8",
+        "sender_Q": "865",
+        "recipient_Q": "20",
+        "builder_Q": "115",
+        "nonce": "1"
+      },
+      {
+        "round": "3",
+        "gate": "966069",
+        "choice": "0",
+        "amount": "10",
+        "submit": false,
+        "position_before": "8",
+        "position_after": "12",
+        "sender_Q": "865",
+        "recipient_Q": "20",
+        "builder_Q": "115",
+        "nonce": "1"
+      },
+      {
+        "round": "4",
+        "gate": "475919",
+        "choice": "1",
+        "amount": "20",
+        "submit": true,
+        "position_before": "12",
+        "position_after": "16",
+        "sender_Q": "730",
+        "recipient_Q": "40",
+        "builder_Q": "230",
+        "nonce": "2"
+      },
+      {
+        "round": "5",
+        "gate": "922990",
+        "choice": "0",
+        "amount": "10",
+        "submit": false,
+        "position_before": "16",
+        "position_after": "20",
+        "sender_Q": "730",
+        "recipient_Q": "40",
+        "builder_Q": "230",
+        "nonce": "2"
+      },
+      {
+        "round": "6",
+        "gate": "769445",
+        "choice": "0",
+        "amount": "10",
+        "submit": false,
+        "position_before": "20",
+        "position_after": "24",
+        "sender_Q": "730",
+        "recipient_Q": "40",
+        "builder_Q": "230",
+        "nonce": "2"
+      }
+    ]
+  },
+  "scripted_failure": {
+    "program": "Transfer10 Q then false AssertCondition",
+    "used": "125",
+    "sender_Q": "875",
+    "recipient_Q": "0",
+    "builder_Q": "125",
+    "nonce": "1",
+    "require_success": "Skip; no canonical fee/nonce",
+    "submit_failure": "Submit; included ProtocolRevert, transfer rolled back"
+  },
+  "borrower": {
+    "price_Q_per_X": "20",
+    "ltv_bps": "7500",
+    "lt_bps": "8000",
+    "rate": "0",
+    "target_round_1": {
+      "collateral": "6",
+      "debt": "80"
+    },
+    "target_round_4": {
+      "collateral": "0",
+      "debt": "0"
+    },
+    "rounds": [
+      {
+        "round": "1",
+        "action": "DepositCollateral",
+        "amount": "6",
+        "used": "115",
+        "sender_Q": "885",
+        "sender_X": "0",
+        "collateral": "6",
+        "debt": "0",
+        "cash": "100",
+        "claims": "100",
+        "equity": "0",
+        "builder_Q": "115",
+        "nonce": "1"
+      },
+      {
+        "round": "2",
+        "action": "Borrow",
+        "amount": "80",
+        "used": "115",
+        "sender_Q": "850",
+        "sender_X": "0",
+        "collateral": "6",
+        "debt": "80",
+        "cash": "20",
+        "claims": "100",
+        "equity": "0",
+        "builder_Q": "230",
+        "nonce": "2"
+      },
+      {
+        "round": "3",
+        "action": "Hold",
+        "amount": "0",
+        "used": "0",
+        "sender_Q": "850",
+        "sender_X": "0",
+        "collateral": "6",
+        "debt": "80",
+        "cash": "20",
+        "claims": "100",
+        "equity": "0",
+        "builder_Q": "230",
+        "nonce": "2"
+      },
+      {
+        "round": "4",
+        "action": "Repay",
+        "amount": "80",
+        "used": "115",
+        "sender_Q": "655",
+        "sender_X": "0",
+        "collateral": "6",
+        "debt": "0",
+        "cash": "100",
+        "claims": "100",
+        "equity": "0",
+        "builder_Q": "345",
+        "nonce": "3"
+      },
+      {
+        "round": "5",
+        "action": "WithdrawCollateral",
+        "amount": "6",
+        "used": "115",
+        "sender_Q": "540",
+        "sender_X": "6",
+        "collateral": "0",
+        "debt": "0",
+        "cash": "100",
+        "claims": "100",
+        "equity": "0",
+        "builder_Q": "460",
+        "nonce": "4"
+      },
+      {
+        "round": "6",
+        "action": "Hold",
+        "amount": "0",
+        "used": "0",
+        "sender_Q": "540",
+        "sender_X": "6",
+        "collateral": "0",
+        "debt": "0",
+        "cash": "100",
+        "claims": "100",
+        "equity": "0",
+        "builder_Q": "460",
+        "nonce": "4"
+      }
+    ]
+  },
+  "oracle": {
+    "spot_before_swap": "20",
+    "swap_input_X": "10",
+    "swap_output_Q": "100",
+    "pool_after_X": "20",
+    "pool_after_Q": "100",
+    "spot_after_swap": "5",
+    "publish_spot_used": "110",
+    "twap_constant_price": "20",
+    "twap_window": "2",
+    "interval": "1",
+    "round_1": "NotReady; Skip, no fee/nonce",
+    "round_2": {
+      "price": "20",
+      "sequence": "1",
+      "observed_at": "2",
+      "published_at": "2",
+      "used": "111"
+    }
+  },
+  "boundaries": {
+    "templates": "1..16",
+    "schedule": "0..1024 unique rounds",
+    "feeds": "1..16 unique native feeds",
+    "samples_per_eligible_round": "two, even on Hold/BusyNonce",
+    "draws_per_sample": "32 maximum",
+    "raw_draws_per_round": "4096 maximum for 64 agents",
+    "simulation": "at most one per selected nonempty intent",
+    "overflow": "Nonce/Deadline/Delivery/OracleSequence => Skip; stream exhaustion => ModelError",
+    "rollback": "ModelError rolls back RNG with the round; included protocol failure does not undo decisions"
+  }
+}
