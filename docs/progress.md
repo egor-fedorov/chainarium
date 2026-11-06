@@ -4,7 +4,7 @@
 Это не готовая v1.0. Независимый review M1–M3b завершён, три findings исправлены
 и перепроверены. Отдельный review M3c–M3d завершён без подтверждённых findings;
 область и ограничения сохранены в `docs/reviews/dec20-independent-review.md`.
-DEC-05–DEC-23 приняты владельцем.
+DEC-05–DEC-24 приняты владельцем.
 Общий partial-fill router, LP/MM-политики и heterogeneous arbitrage реализованы.
 Контракт M4a принят как **DEC-21** (§23.2.9) 2026-11-06;
 scheduler/mempool/basic builders реализованы и функционально проверены.
@@ -21,9 +21,9 @@ M4c — **Accepted DEC-23** (§23.2.11): поиск backrun,
 Подтверждён P2: переполнение при построении payment nonce останавливало раунд.
 Исправление `467876f` (Skip NonceExhausted для невозможной own sequence)
 прошло адресный тест и Clippy, передано reviewer для перепроверки.
-Следующий M4d: **Proposed DEC-24** (§23.2.12), LiquidateAndSell + bounded
+Следующий M4d: **Accepted DEC-24** (§23.2.12), LiquidateAndSell + bounded
 liquidator, Own/Flash funding и SC-06 competition. До реализации сохранены
-`docs/reviews/liquidator-reference.py`/`.json`; согласование ожидается.
+`docs/reviews/liquidator-reference.py`/`.json`; контракт согласован, реализация начата.
 
 ## Что работает
 
@@ -648,8 +648,8 @@ latency UI и полные workloads M5 ещё не измерены/не при
    M4c / DEC-23 (§23.2.11) реализован: поиск backrun по видимой victim,
    sizes/route caps, bundle и net после fees/bid. Независимый
    read-only review этого среза разрешён и выполняется; исправление nonce
-   finding передано на адресную перепроверку. Для M4d подготовлен Proposed
-   DEC-24 (§23.2.12) с численными ожиданиями, без реализации.
+   finding передано на адресную перепроверку. Для M4d принят
+   DEC-24 (§23.2.12) с численными ожиданиями, реализация начата.
    Затем M4: liquidator policies, hooks и остальные роли;
    M5: MTM, эксперименты, полный explorer и приёмка. Новые существенные решения
    требуют конкретных карточек и согласования по §23.7.
