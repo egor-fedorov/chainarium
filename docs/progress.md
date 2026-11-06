@@ -2,7 +2,9 @@
 
 Цель: весь v1.0 из §2.1. Текущий результат — **исполняемый прототип M1–M3d**.
 Это не готовая v1.0. Независимый review M1–M3b завершён, три findings исправлены
-и перепроверены; M3c–M3d в его область не входили. DEC-05–DEC-20 приняты владельцем.
+и перепроверены. Отдельный review M3c–M3d завершён без подтверждённых findings;
+область и ограничения сохранены в `docs/reviews/dec20-independent-review.md`.
+DEC-05–DEC-20 приняты владельцем.
 Общий partial-fill router, LP/MM-политики и heterogeneous arbitrage реализованы.
 
 ## Что работает
@@ -48,9 +50,11 @@ LP shares, C/D/S/E, escrow, точный HF и запись oracle, фактич
 ## Фактическая проверка
 
 - `scripts/cargo.sh fmt --check` и Clippy всех targets с `-D warnings` — прошли.
-- `scripts/cargo.sh test --workspace --locked --offline` — **148 tests passed**:
+- Основная suite `scripts/cargo.sh test --workspace --locked --offline` — **148 tests passed**:
   5 unit fault-injection, 19 acceptance, 20 composition, 19 credit, 10 stable,
   10 twap, 7 flash_liquidation, 14 book, 17 clmm, 11 heterogeneous, 16 policies; ignored=0.
+- Ещё **6 independent_dec20 tests passed**, сохранённых из отдельного review:
+  4504 аналитически рассчитанных случая и граничные integrations. Всего 154 tests.
 - `node --test web/wire.test.mjs` — канонические строки, диапазоны и точный
   decimal conversion прошли; JS экономические команды не проходят через Number.
 - `python3 scripts/check-ui.py` — пройден путь всех шестнадцати presets, readonly
@@ -300,7 +304,7 @@ Browser прошёл все 14 presets, route search/strict/partial/readonly/rep
 Снимки `output/m3-route-search.png`, `output/m3-route-partial.png`,
 `output/m3-route-mobile.png`; desktop/mobile просмотрены.
 LP/MM-политики и heterogeneous arbitrage integration добавлены в M3d ниже.
-Независимый review DEC-20 остаётся отдельным критерием приёмки этого среза.
+Независимый review DEC-20 выполнен после M3d, см. отдельный отчёт.
 
 ### M3d: LP/MM-политики и heterogeneous arbitrage
 
@@ -340,6 +344,21 @@ Browser прошёл все 16 presets, планы LP, решения Hold/Skip/
 MM desktop/mobile просмотрены. Full scheduler, pending visibility, bundles,
 greedy builder, hooks, остальные агенты и MTM остаются M4–M5.
 
+Независимый reviewer проверил снимок `1bc17ee`, diff `3827f63..1bc17ee`, без
+подтверждённых P0–P3 findings. Его отдельные тесты теперь включены в обычную suite
+как `tests/independent_dec20.rs`: 3384 sell и 1120 buy cases, промежуточные residuals
+15 X + 111 Q, prefix fill/SelfTrade rollback, LP/MM границы ровно 16 собственных
+объектов с сохранением чужого имущества. Большие topology/performance и полный
+U256-domain этим sweep не доказаны; число DFS prefixes отдельно не ограничено
+64 полными пробами. Это сохраняется как ограничение G-16, не скрытая гарантия latency.
+
+После переноса независимых тестов пересобран release:
+`ade3682708627f5fc4807cb28e860445c00646a446163d8abf186eab02a8bb6a`.
+В `output/m3d-reviewed/` повторены три CLI exports/resumes (LP, MM/oracle,
+heterogeneous route): каждый `run.json` побайтно совпал. Исправлено отслеживание
+новых файлов в build fingerprint: добавление файла меняет hash, удаление
+восстанавливает исходный; проверка сохранена в `fingerprint-check.json`.
+
 ### Fixtures и границы доказательства
 
 | Проверка | Доказательство | Ограничение |
@@ -350,8 +369,8 @@ greedy builder, hooks, остальные агенты и MTM остаются M
 | Liquidation/loss | exact waterfall, partial close, dust, min_collateral, fee-preserving rollback, 256 deterministic boundary cases | Нет recovery/treasury; вывод equity запрещён |
 | Deposit shares | zero mint, minima, cash shortage без burn, last exit, bootstrap с E | Bankrupt проверен на invariant-valid defensive snapshot, не заявлен достижимым из genesis этого positive-payment preset |
 | Oracle | unauthorized/source/pair/future/duplicate/out-of-order; возраст 60/61; safe stale operations; consumer trace | External/native spot/TWAP; bounded history и однократное floor проверены |
-| Checkpoint/export | replay/resume/fork/tamper и кредитные states/receipts/system events | Состояние M1–M3b; queues/memory новых agents потребуют новых fixtures |
-| UI | реальные balances/trace, тринадцать presets, desktop/mobile, exact HTTP wire | Прототип; полная приёмка M5 не закрыта |
+| Checkpoint/export | replay/resume/fork/tamper, протоколы, LP/MM schedules/decisions | Состояние M1–M3d; queues/memory M4 потребуют новых fixtures |
+| UI | реальные balances/trace, шестнадцать presets, desktop/mobile, exact HTTP wire | Прототип; полная приёмка M5 не закрыта |
 
 Численные ожидания следуют §6/§8/§20 и принятым DEC; тесты не заменяют
 независимый review. Analytical sweep — детерминированная проверка инвариантов,
@@ -385,8 +404,10 @@ latency UI и полные workloads M5 ещё не измерены/не при
    DEC-20 принят владельцем в `docs/spec.md` §23.2.8: контракт остатков,
    bounded search и политики. Аналитические ожидания до реализации сохранены
    в `docs/reviews/heterogeneous-route-reference.py`/`.json` и совпали при
-   пересчёте. M3c/M3d реализованы и функционально проверены; нужен отдельный review.
-3. M2f/M2g функционально проверены; независимый review остаётся обязательным.
+   пересчёте. M3c/M3d реализованы, функционально и независимо проверены;
+   границы review — `docs/reviews/dec20-independent-review.md`.
+3. M2f/M2g входят в завершённый review M1–M3b; ограничения проверки указаны
+   в его отчёте. Новые механизмы M4 потребуют отдельного review.
 4. M4–M5: MEV/builders/bundles, hooks, остальные
    политики agents, полный scheduler, MTM, эксперименты и explorer.
 5. Полные user-task/latency/performance budgets и независимое review должны
