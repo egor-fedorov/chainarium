@@ -2100,6 +2100,155 @@ target range, оба search budgets, deterministic tie-break/truncation, ModelEr
 после успешного префикса, replay с overlapping groups, UI/CLI без вымышленных fees
 от отклонённых probes. Контракт согласован владельцем; результаты реализации фиксируются в журнале прогресса.
 
+### 23.2.11. Предложенный контракт M4c — Proposed DEC-23
+
+**DEC-23 / G-09/G-10, ограниченный backrun searcher.** Предложение подготовлено
+после реализации DEC-22; **ожидает согласования владельца, код не реализован**.
+Новый явно выбираемый профиль `bounded-backrun-v1` дополняет event scheduler и
+native bundles. Его вопрос: какой из заданных размеров и исполнимых маршрутов
+выгоден после одной разрешённо видимой транзакции и может быть отправлен общей
+группой? Liquidator competition, borrower/user/oracle baseline policies и hooks
+остаются следующими самостоятельными срезами M4.
+
+**Триггер и информация.** Один AgentId выбирает одну policy; backrun нельзя
+совмещать с periodic LP/MM/arbitrage либо OnVisibleProgram. Явно задаются
+управляемый account, положительные input sizes, minimum net profit, bid,
+resource limit/price ответа и платежа, reaction delay, lifetime, directional
+CLMM/book limits и search caps. Account отличается от fee account. Актив цикла
+равен fee asset; funding — собственный капитал. Оптимизация размера вне списка,
+flash funding и оценка residual inventory в эту policy не входят.
+
+Триггер — первая разрешённая доставка отдельного native message от другого
+AgentId, sender которого не управляется searcher. Bundle message не создаёт
+скрытые native triggers. Private без searcher в recipients, будущая emission
+и чужой outbox не запускают поиск. Реакция использует DEC-21 event ordering,
+reaction delay, depth/reaction/intent caps и dedup по `(AgentId, TxId)`.
+Один и тот же trigger повторно не ищется даже после Skip. При actual reaction
+time сообщение должно оставаться в разрешённых visible messages: eviction/TTL
+даёт `TriggerUnavailable`, без fallback в общий registry. Это необходимо для
+последующего `VisibleTxId` по DEC-22. Busy guard проверяет незавершённую
+собственную отправку с текущим nonce, включая group members; новый ответ при
+занятости не создаётся. Skip не расходует intent cap, но расходует уже
+выполненные search/event budgets.
+
+Policy получает ограниченное Observation parent committed state, доступный
+payload с delivery time и узкий callback симуляции. Ни полный World, ни
+канонический префикс, который builder выберет позднее, ни undisclosed pending
+не передаются. Контроллер на копии parent применяет общий `begin_block` для
+**текущего** round k=parent.block+1 и пробует только этот trigger через обычные
+inclusion/executor checks. Preview не включает другие pending transactions
+и будущие внешние inputs. Trigger должен завершиться Success; отказ, revert,
+exhaustion либо уже stale nonce даёт Skip. Admission и execution не выдумывают
+средства/nonce victim. Prefix simulation разрешена только для закреплённого
+доставленного payload; policy не может подставить иной чужой transaction.
+
+Результат preview раскрывает policy только публичные рынки, собственные
+balances/nonce после trigger, remaining block resource и итог trigger. Полные
+чужие accounts/positions и общий registry не возвращаются. Другие private
+messages не меняют preview. Изменение собственной суммы от самой victim
+не считается прибылью поиска: baseline — свой баланс **после trigger**.
+Каждая проба ответа начинается с одной и той же копии этого preview;
+системное начисление не повторяется внутри неё. ModelError в prefix/response/
+payment simulation отменяет весь рабочий раунд, вместе с queue/memory/cursors.
+
+**Перебор и исполнение.** Конфигурация содержит 1..8 различных положительных
+размеров input, канонически сортируемых по возрастанию. Для каждого размера
+выполняется детерминированный DFS по public venue IDs: 1..3 hops, без повторения
+venue, остановка пути при первом возвращении в fee asset. Общий ExecuteRoute
+DEC-20 использует `RequireFull`; CLMM/book без явно заданного directional limit
+не входят в поиск. Перебираются размер по возрастанию, затем DFS в порядке
+VenueId, без перестановки по результату предыдущего probe.
+
+Ответ содержит ровно `ExecuteRoute` и финальный `AssertTransactionNetGain`.
+Следующий nonce нужен для payment только при положительном bid. Программа
+payment — ровно Transfer bid в fee asset builder, как DEC-22; sender тот же
+searcher account. При bid=0 payment отсутствует. Ответ/платёж имеют явно
+заданные limits/prices; полный limit проверяется в remaining перед каждым
+member, расходуется actual used. Учитываются доступность fee reserve и input,
+фактический результат всего маршрута, fee refund и платежа. Любой неуспех
+ответа/payment исключает кандидат; allowed_reverts всегда пуст.
+
+При положительном bid native fee неизменной успешной payment-программы равна
+`115 * payment_price` в `native-cost-v1`. Guard ответа требует минимум
+`minimum_net_profit + bid + payment_fee`; при bid=0 два последних слагаемых
+равны нулю. Сам guard уже учитывает фактическую native fee ответа. Поэтому
+изменение solver work либо состояния перед включением не позволяет сохранить
+ответ с net gain ниже минимума после оплаты bid. Checked overflow параметров
+не превращается в выгодный кандидат. Итоговая оценка дополнительно сверяет
+собственный баланс после ответа/payment с baseline после trigger.
+
+Из полностью успешных кандидатов выбирается максимальный conditional net gain,
+затем меньшие actual used **собственных** members, меньший input и
+лексикографический путь VenueIds. Minimum net profit положителен. Оценка —
+результат условной симуляции на известном parent+trigger, а не гарантия
+включения или attribution всей прибыли victim. Непроверенный кандидат не
+объявляется убыточным. Имеющийся лучший завершённый кандидат можно отправить
+при исчерпании бюджета, с явным `truncated`.
+
+**Выход и конфликты.** Policy отправляет один bundle через собственный outgoing
+channel/delay: `[VisibleTxId(trigger), Own(response), Own(payment?)]`.
+Детерминированные IDs используют зарезервированный policy namespace и stable
+AgentId/trigger/reaction event; внешняя emission не может занять эти IDs.
+`min_block=max_block=k`, deadline собственных members и группы — actual reaction
+time плюс положительный lifetime; deadline victim не меняется. Задержка,
+пропустившая cutoff k, не переносит цель автоматически и не выпускает response
+standalone. Registry, доступ к VisibleTxId в момент send, терминальные статусы,
+повторные native IDs, пересечение групп и вся builder selection — DEC-22.
+Даже выгодный найденный ответ может проиграть ordinary victim или другой
+группе. Builder заново проверяет группу на своём текущем префиксе; при её
+отказе searcher не платит канонических fees. Несколько searchers с общей victim
+соревнуются по принятой builder policy, без двойного исполнения victim.
+
+**Модельные бюджеты.** Caps указываются явно и могут быть снижены; нули
+запрещены. Они отдельны от builder probes DEC-22 и общие для всех backrun
+searchers за раунд, в порядке scheduler reactions. Память dedup/очереди/
+доставки/новые intents остаётся в DEC-21/22 caps.
+
+| Предел | Cap | Правило |
+| --- | --- | --- |
+| Input sizes / hops | 8 / 3 | Неверная конфигурация отклоняется |
+| Проверки venue в DFS за раунд | 4096 | Считается каждая просмотренная venue, включая повтор/неподходящий актив/отсутствующий limit; остановка с truncated |
+| Начатые полные route candidates за реакцию / раунд | 64 / 64 | После исчерпания новая проба не начинается |
+| Native inclusion attempts поиска за раунд | 256 | Prefix расходует 1; перед route trial резервируется вся длина response+payment, затем оплачиваются только фактические attempts |
+
+Prefix пробуется один раз за принятую reaction evaluation, в пределах прежнего
+лимита 64 reactions/round. Обычные ProtocolRevert/ResourceExhausted и inclusion
+failures тоже расходуют соответствующие attempts; canonical native fees от
+поиска не появляются. При исчерпании бюджета до prefix — Skip SearchLimit.
+Неиспользованная часть резерва member attempts освобождается. Truncated
+означает остановку по пределу с неисследованным либо неустановленно исчерпанным
+пространством, не доказательство отсутствия более выгодного ответа. Метрики
+отдельно показывают prefix/candidate/member attempts, просмотренные venues,
+actual trial work и причину остановки. Checkpoint хранит trigger dedup, queued
+reaction, отправленную группу и outcomes; read-only UI не запускает поиск.
+
+**Ожидания до кода.** `docs/reviews/backrun-reference.py`/`.json` выводят точные
+integer CPMM ожидания без импорта реализации. Два пула A/B по1000 X/1000 Q,
+fee0; victim продаёт200 Q в A; searcher имеет10000 Q, minimum=1 Q, bid5 Q,
+native prices0, sizes25/50/100/150/200 Q, route limits не нужны:
+
+| Fixture | Ожидание |
+| --- | --- |
+| Десять полных двухшаговых кандидатов A→B/B→A | Лучший100 Q→90 X→116 Q; net11 Q после bid. Для B→A по sizes: net3/9/11/6/−6 Q |
+| Victim send7, observation delay1, reaction delay1, outgoing builder delay1, cutoff10; Greedy | Bundle arrival10, target1; victim включена один раз; searcher10011 Q, builder5 Q, units120/160/115, всего395; A924 X/1084 Q, B910 X/1100 Q |
+| Private victim без searcher в recipients | 0 поисковых кандидатов/групп, только victim, searcher10000 Q, builder0 |
+| Тот же public поток, outgoing delay2 | Arrival11; target1 истёк, только victim, searcher10000 Q, без response/payment fees |
+| FIFO при standalone victim arrival9 и bundle arrival10 | Victim включается первой, общая группа больше не исполняется; searcher10000 Q, builder0 |
+| Два searchers с теми же sizes и bid5/7 Q, Greedy | Оба выбирают input100; conditional net11/9 Q. Выбирается bid7, победитель10009 Q, проигравший10000 Q, builder7 Q; victim ровно один раз |
+| Native price1 ответа/payment, прежние малые резервы | Гипотетический net лучшего100 Q равен16−160−115−5=−264 Q; policy пропускает, fees поиска не канонические |
+| Резервы/victim/input×1000, только input100000 Q, own prices1, victim price0, bid5 | Victim166666 X; ответ100000 Q→90909 X→118032 Q; fees160+115 Q, guard121 Q, net17752 Q; builder280 Q, searcher1000000→1017752 Q |
+| Limits victim500/response500/payment200 | Block limit619 не вмещает response после victim120 used;620 достаточно, суммарный actual used395 |
+
+Дополнительно обязательны fee/reserve/capital shortage, prefix failure,
+nonce gap/stale, private noninterference, eviction между delivery/reaction,
+TriggerUnavailable, own-sender filter, busy guard и повтор trigger, bid0,
+каждый budget на границе, поздний guard revert при изменённом builder prefix,
+CLMM/book partial refusal, stable solver fees, ModelError внутри каждого типа
+probe, checkpoint с отложенной реакцией и byte-identical replay. UI/CLI должны
+связать разрешённую видимость, условный прогноз, выбранный input/маршрут,
+отправку, фактическое включение/отказ и конечный ledger. Независимое review
+нового search slice требуется отдельно по §23.4.
+
 ### 23.3. Вертикальные срезы и Definition of Done
 
 Работа дробится на сквозные сценарии **требование → состояние → действие → исполнение → тесты → trace → визуальное объяснение**. Новый компонент не считается завершённым по одному лишь trait, mock API или графическому экрану. На один срез — один проверяемый вопрос и минимальное число новых механизмов.
@@ -2177,6 +2326,8 @@ reference lending G-05, external oracle часть G-06, router budget част�
 независимый review завершён без подтверждённых findings (docs/progress.md).
 Для bundles/greedy принят **DEC-22** (§23.2.10) с аналитическими
 ожиданиями; M4b реализован и функционально проверен, независимый review впереди.
+Для backrun searcher подготовлен **Proposed DEC-23** (§23.2.11) с точными
+pre-implementation ожиданиями; согласование и реализация ещё не выполнены.
 Остальные механизмы и бюджеты остаются открытыми. Таблица ниже сохраняет
 исходные условия gates и критерии их полной приёмки.
 

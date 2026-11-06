@@ -1,0 +1,402 @@
+{
+  "status": "pre-implementation expectations for Proposed DEC-23",
+  "grid": [
+    {
+      "input_Q": "25",
+      "path": [
+        "A",
+        "B"
+      ],
+      "victim_output_X": "166",
+      "intermediate_X": "17",
+      "output_Q": "16",
+      "conditional_net_Q": "-14",
+      "meets_minimum_1": false,
+      "own_units": "275",
+      "pools_after_success": {
+        "A": {
+          "X": "817",
+          "Q": "1225"
+        },
+        "B": {
+          "X": "1017",
+          "Q": "984"
+        }
+      }
+    },
+    {
+      "input_Q": "25",
+      "path": [
+        "B",
+        "A"
+      ],
+      "victim_output_X": "166",
+      "intermediate_X": "24",
+      "output_Q": "33",
+      "conditional_net_Q": "3",
+      "meets_minimum_1": true,
+      "own_units": "275",
+      "pools_after_success": {
+        "A": {
+          "X": "858",
+          "Q": "1167"
+        },
+        "B": {
+          "X": "976",
+          "Q": "1025"
+        }
+      }
+    },
+    {
+      "input_Q": "50",
+      "path": [
+        "A",
+        "B"
+      ],
+      "victim_output_X": "166",
+      "intermediate_X": "33",
+      "output_Q": "31",
+      "conditional_net_Q": "-24",
+      "meets_minimum_1": false,
+      "own_units": "275",
+      "pools_after_success": {
+        "A": {
+          "X": "801",
+          "Q": "1250"
+        },
+        "B": {
+          "X": "1033",
+          "Q": "969"
+        }
+      }
+    },
+    {
+      "input_Q": "50",
+      "path": [
+        "B",
+        "A"
+      ],
+      "victim_output_X": "166",
+      "intermediate_X": "47",
+      "output_Q": "64",
+      "conditional_net_Q": "9",
+      "meets_minimum_1": true,
+      "own_units": "275",
+      "pools_after_success": {
+        "A": {
+          "X": "881",
+          "Q": "1136"
+        },
+        "B": {
+          "X": "953",
+          "Q": "1050"
+        }
+      }
+    },
+    {
+      "input_Q": "100",
+      "path": [
+        "A",
+        "B"
+      ],
+      "victim_output_X": "166",
+      "intermediate_X": "64",
+      "output_Q": "60",
+      "conditional_net_Q": "-45",
+      "meets_minimum_1": false,
+      "own_units": "275",
+      "pools_after_success": {
+        "A": {
+          "X": "770",
+          "Q": "1300"
+        },
+        "B": {
+          "X": "1064",
+          "Q": "940"
+        }
+      }
+    },
+    {
+      "input_Q": "100",
+      "path": [
+        "B",
+        "A"
+      ],
+      "victim_output_X": "166",
+      "intermediate_X": "90",
+      "output_Q": "116",
+      "conditional_net_Q": "11",
+      "meets_minimum_1": true,
+      "own_units": "275",
+      "pools_after_success": {
+        "A": {
+          "X": "924",
+          "Q": "1084"
+        },
+        "B": {
+          "X": "910",
+          "Q": "1100"
+        }
+      }
+    },
+    {
+      "input_Q": "150",
+      "path": [
+        "A",
+        "B"
+      ],
+      "victim_output_X": "166",
+      "intermediate_X": "92",
+      "output_Q": "84",
+      "conditional_net_Q": "-71",
+      "meets_minimum_1": false,
+      "own_units": "275",
+      "pools_after_success": {
+        "A": {
+          "X": "742",
+          "Q": "1350"
+        },
+        "B": {
+          "X": "1092",
+          "Q": "916"
+        }
+      }
+    },
+    {
+      "input_Q": "150",
+      "path": [
+        "B",
+        "A"
+      ],
+      "victim_output_X": "166",
+      "intermediate_X": "130",
+      "output_Q": "161",
+      "conditional_net_Q": "6",
+      "meets_minimum_1": true,
+      "own_units": "275",
+      "pools_after_success": {
+        "A": {
+          "X": "964",
+          "Q": "1039"
+        },
+        "B": {
+          "X": "870",
+          "Q": "1150"
+        }
+      }
+    },
+    {
+      "input_Q": "200",
+      "path": [
+        "A",
+        "B"
+      ],
+      "victim_output_X": "166",
+      "intermediate_X": "119",
+      "output_Q": "106",
+      "conditional_net_Q": "-99",
+      "meets_minimum_1": false,
+      "own_units": "275",
+      "pools_after_success": {
+        "A": {
+          "X": "715",
+          "Q": "1400"
+        },
+        "B": {
+          "X": "1119",
+          "Q": "894"
+        }
+      }
+    },
+    {
+      "input_Q": "200",
+      "path": [
+        "B",
+        "A"
+      ],
+      "victim_output_X": "166",
+      "intermediate_X": "166",
+      "output_Q": "199",
+      "conditional_net_Q": "-6",
+      "meets_minimum_1": false,
+      "own_units": "275",
+      "pools_after_success": {
+        "A": {
+          "X": "1000",
+          "Q": "1001"
+        },
+        "B": {
+          "X": "834",
+          "Q": "1200"
+        }
+      }
+    }
+  ],
+  "best": {
+    "input_Q": "100",
+    "path": [
+      "B",
+      "A"
+    ],
+    "victim_output_X": "166",
+    "intermediate_X": "90",
+    "output_Q": "116",
+    "conditional_net_Q": "11",
+    "meets_minimum_1": true,
+    "own_units": "275",
+    "pools_after_success": {
+      "A": {
+        "X": "924",
+        "Q": "1084"
+      },
+      "B": {
+        "X": "910",
+        "Q": "1100"
+      }
+    }
+  },
+  "public_greedy": {
+    "send": "7",
+    "visible": "8",
+    "reaction": "9",
+    "bundle_arrival": "10",
+    "cutoff": "10",
+    "target_block": "1",
+    "canonical_receipts": "3",
+    "victim_receipts": "1",
+    "searcher_initial_Q": "10000",
+    "searcher_final_Q": "10011",
+    "builder_Q": "5",
+    "native_fees_Q": "0",
+    "units": [
+      "120",
+      "160",
+      "115"
+    ],
+    "total_used": "395",
+    "searcher_nonce": "2",
+    "victim_nonce": "1",
+    "search_prefix_attempts": "1",
+    "search_candidates": "10"
+  },
+  "private_without_searcher": {
+    "search_candidates": "0",
+    "submitted_bundles": "0",
+    "canonical_receipts": "1",
+    "searcher_final_Q": "10000",
+    "builder_Q": "0",
+    "pools": {
+      "A": {
+        "X": "834",
+        "Q": "1200"
+      },
+      "B": {
+        "X": "1000",
+        "Q": "1000"
+      }
+    }
+  },
+  "late_bundle": {
+    "builder_delay": "2",
+    "arrival": "11",
+    "target_block": "1",
+    "canonical_receipts": "1",
+    "searcher_final_Q": "10000",
+    "builder_Q": "0",
+    "outcome": "target expired, no standalone response or payment"
+  },
+  "fifo_same_inputs": {
+    "chosen": "standalone victim at 9 before bundle at 10",
+    "canonical_receipts": "1",
+    "searcher_final_Q": "10000",
+    "builder_Q": "0",
+    "outcome": "group invalidated by already included shared victim"
+  },
+  "competing_searchers": {
+    "bids_Q": [
+      "5",
+      "7"
+    ],
+    "best_input_Q_each": "100",
+    "conditional_net_Q_each": [
+      "11",
+      "9"
+    ],
+    "greedy_winner_bid_Q": "7",
+    "winner_Q": "10009",
+    "loser_Q": "10000",
+    "builder_Q": "7",
+    "victim_receipts": "1",
+    "canonical_receipts": "3"
+  },
+  "priced_small": {
+    "counterfactual_candidate": {
+      "input_Q": "100",
+      "path": [
+        "B",
+        "A"
+      ],
+      "victim_output_X": "166",
+      "intermediate_X": "90",
+      "output_Q": "116",
+      "conditional_net_Q": "-264",
+      "meets_minimum_1": false,
+      "own_units": "275",
+      "pools_after_success": {
+        "A": {
+          "X": "924",
+          "Q": "1084"
+        },
+        "B": {
+          "X": "910",
+          "Q": "1100"
+        }
+      }
+    },
+    "submitted_bundles": "0",
+    "searcher_canonical_fees_Q": "0"
+  },
+  "priced_large": {
+    "candidate": {
+      "input_Q": "100000",
+      "path": [
+        "B",
+        "A"
+      ],
+      "victim_output_X": "166666",
+      "intermediate_X": "90909",
+      "output_Q": "118032",
+      "conditional_net_Q": "17752",
+      "meets_minimum_1": true,
+      "own_units": "275",
+      "pools_after_success": {
+        "A": {
+          "X": "924243",
+          "Q": "1081968"
+        },
+        "B": {
+          "X": "909091",
+          "Q": "1100000"
+        }
+      }
+    },
+    "victim_price": "0",
+    "own_price": "1",
+    "response_fee_Q": "160",
+    "payment_fee_Q": "115",
+    "bid_Q": "5",
+    "builder_Q": "280",
+    "searcher_initial_Q": "1000000",
+    "searcher_final_Q": "1017752",
+    "minimum_guard_Q": "121"
+  },
+  "declared_limit_boundary": {
+    "victim_limit": "500",
+    "response_limit": "500",
+    "payment_limit": "200",
+    "minimum_block_limit": "620",
+    "used_if_success": "395",
+    "block_limit_619": "response envelope cannot fit after victim; no search bundle",
+    "block_limit_620": "all three members fit sequentially"
+  }
+}
