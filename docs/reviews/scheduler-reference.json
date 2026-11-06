@@ -1,0 +1,61 @@
+{
+  "status": "pre-implementation expectations for Proposed DEC-21",
+  "inclusive_cutoff": {
+    "cutoff": "10",
+    "victim_sent_at": "7",
+    "victim_builder_arrival": "9",
+    "visible_at": "8",
+    "reaction_at": "9",
+    "response_builder_arrival": "10",
+    "delayed_response_arrival": "11",
+    "next_block_timestamp": "20",
+    "response_deadline_with_lifetime_30": "39"
+  },
+  "public_response": {
+    "victim_Q_in": "200",
+    "victim_X_out": "166",
+    "response_Q_in": "100",
+    "response_X_mid": "90",
+    "response_Q_out": "116",
+    "response_net_Q": "16",
+    "pool_A_X_Q": [
+      "924",
+      "1084"
+    ],
+    "pool_B_X_Q": [
+      "910",
+      "1100"
+    ],
+    "victim_units": "120",
+    "response_units": "160",
+    "block_used": "280"
+  },
+  "nonce_gap": {
+    "included_nonces": [
+      "0",
+      "1"
+    ],
+    "sender_Q": "740",
+    "recipient_Q": "30",
+    "builder_Q": "230",
+    "next_nonce": "2",
+    "declared_limits": [
+      "200",
+      "200"
+    ],
+    "block_limit": "500"
+  },
+  "same_nonce_conflict": {
+    "fifo": {
+      "winner_price": "1",
+      "sender_Q": "875",
+      "fee_Q": "115"
+    },
+    "fee_priority": {
+      "winner_price": "2",
+      "sender_Q": "760",
+      "fee_Q": "230"
+    },
+    "loser_fee": "0"
+  }
+}

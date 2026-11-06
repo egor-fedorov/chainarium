@@ -1013,7 +1013,7 @@ agents:
 | REQ-CPMM-01 | §7.1 | cpmm-v1 | M1 | VF-CPMM-01 | **Т:** при reserves 1000/1000, input 100 и нулевой swap fee output равен 90, новые reserves 1100/910; **О:** `min_out = 91`; **И:** неуменьшение произведения при swap и точный учёт ненулевой fee | M1: zero/nonzero fee, min_out и 500 invariant cases пройдены (docs/progress.md) |
 | REQ-CPMM-02 | §7.1 | LP-правила cpmm-v1 | M2a | VF-CPMM-LP-01 | **Т:** mint/burn, округление, dust и последний выход по принятому LP-профилю; **О:** положительный ввод с нулём shares, нарушение min_shares/min_assets, недостаточный баланс; **И:** claims согласованы с reserves, поздний отказ откатывает LP-операцию | M2a: analytical/boundary/rollback tests и LP demo пройдены; review M1–M3b выполнен, см. docs/reviews/m1-m3b-independent-review.md (docs/progress.md) |
 | REQ-ROUTE-01 | §7.5 | Router native, v1 | M2a, M2e | VF-ROUTE-01 | **Т:** каждый hop получает фактический output предыдущего; **И:** маршрут между несколькими CPMM, затем CPMM/StableSwap сохраняет учёт; stale quote исполняется с повторными проверками; существующий баланс кошелька не присваивается output операции | M2a/e: CPMM/StableSwap, реальные outputs, stale minimum и общий rollback проверены; review M1–M3b выполнен, см. docs/reviews/m1-m3b-independent-review.md (docs/progress.md) |
-| REQ-ROUTE-02 | §4.2, §7.5 | Router с partial fill, v1 | M3 | VF-ROUTE-PARTIAL-01 | **Т:** filled/unspent и адрес возврата остатков; **О:** обязательный full fill вызывает полный revert при недостатке; **И:** разрешённый partial fill не маскируется под полное исполнение | M3c: RequireFull/KeepResiduals, ledger results, bounded search, rollback и UI/CLI проверены; независимый review DEC-20 впереди (docs/progress.md) |
+| REQ-ROUTE-02 | §4.2, §7.5 | Router с partial fill, v1 | M3 | VF-ROUTE-PARTIAL-01 | **Т:** filled/unspent и адрес возврата остатков; **О:** обязательный full fill вызывает полный revert при недостатке; **И:** разрешённый partial fill не маскируется под полное исполнение | M3c: RequireFull/KeepResiduals, ledger results, bounded search, rollback и UI/CLI проверены; независимый review DEC-20 завершён без подтверждённых findings; границы в docs/reviews/dec20-independent-review.md (docs/progress.md) |
 | REQ-FLASH-01 | §9 | strict-flash-provider-v1 | M2b | VF-FLASH-01 | **Т:** principal и fee погашены до выхода из scope; **О:** недоплата и поздняя ошибка callback; **И:** rollback затрагивает все вызванные протоколы, незакрытый flash debt не коммитится, fee/nonce включённой попытки сохраняются по §6 | M2b: success/shortfall/reentry/exhaustion/rollback проверены; SC-04 и UI; review M1–M3b выполнен, см. docs/reviews/m1-m3b-independent-review.md (docs/progress.md) |
 | REQ-LEND-01 | §8.1–8.2 | isolated-collateral-lending-v1 | M2c | VF-LEND-OPS-01 | **Т:** Supply/Borrow/Repay/Withdraw и возврат переплаты; **О:** нарушение LTV/HF/caps, нехватка cash и чужие права; **И:** collateral escrow отделён от lendable cash, безопасные операции допустимы при stale oracle по §10 | M2c: операции/caps/права/escrow/stale cases проверены в tests/credit.rs; review M1–M3b выполнен, см. docs/reviews/m1-m3b-independent-review.md (docs/progress.md) |
 | REQ-LEND-02 | §8.3, §14.1 | Начисление и claims isolated-collateral-lending-v1 | M2d | VF-LEND-ACCOUNT-01 | **Т:** `(C,D,S,E): (20,80,100,0) → (20,90,108,2)` при начислении 10 и reserve factor 20%; **И:** cash не появляется от процентов, `C + D = S + E`; постоянная и kink utilization-based ставки проверяются отдельно | M2d: exact accounting, constant/kink, aggregate accrual, overflow и block rollback проверены; review M1–M3b выполнен, см. docs/reviews/m1-m3b-independent-review.md (docs/progress.md) |
@@ -1835,6 +1835,132 @@ oracle freshness, delayed reaction, владение позициями, schedul
 внешних RNG streams при разном числе simulation calls. Независимый review
 остаётся отдельным обязательным gate §23.4.
 
+### 23.2.9. Следующий контракт M4a — Proposed
+
+**DEC-21 / G-09/G-10/G-15, scheduler, mempool и базовые builders.** Предложение
+подготовлено после реализации DEC-20; ещё не согласовано и не реализовано.
+Вместо скрытого расширения `scheduler-m1-v1` предлагается явно выбираемый
+`event-scheduler-v1` с `bounded-mempool-v1` и `basic-builders-v1`. Профили M1 и
+M4 взаимоисключающие; прежние сценарии сохраняют прежний порядок исполнения.
+Полный greedy/bundles, поисковые backrun/liquidator-политики и hooks — следующие
+срезы M4 с отдельными карточками. Этот срез проверяет доставку, доступ к pending
+и исполняемый ответ до cutoff, а не заявляет оптимальный MEV-поиск.
+
+**Время и очередь.** В M4 сценарий задаёт число раундов и расписание внешних
+emissions (`at`, stable producer ID, producer sequence, transaction, channel),
+вместо прямого списка кандидатов `blocks`. Интервал и timestamp блока остаются
+из Chain. Раунд k работает от parent timestamp до timestamp следующего блока;
+cutoff **включительный**, `due_at <= block_timestamp`. Только после обработки
+очереди builder начинает каноническое исполнение с системными переходами §11.2.
+
+При начале раунда контроллер ставит в очередь ещё не потреблённые emissions
+этого интервала (`parent_timestamp < at <= block_timestamp`, в первом раунде
+также `at = 0`) в порядке `(at, producer_id, producer_sequence)`, затем решения
+периодических политик по parent state в порядке AgentId. ID каждого события —
+checked монотонный U256. Дальнейшие dispatch/delivery/reaction события получают
+ID в момент постановки, назначения одной отправки перечисляются в порядке
+builder, затем AgentId. Обработка — `(max(due_at,parent_timestamp),event_id)`.
+Нулевая задержка допустима: порождённое событие при cutoff может попасть в тот
+же блок, если не исчерпан модельный бюджет. Wall-clock в порядок не входит.
+
+**Каналы.** Emission/intent явно выбирает Public либо Private с перечисленными
+AgentIds. Builder получает payload по `builder_delay`; Public доставляется
+агентам с `observe_public=true`, Private — только указанным получателям.
+У каждого получателя явно задан `observation_delay`, у reactive policy —
+`reaction_delay`, у её нового intent — канал и `builder_delay`. Задержки
+складываются, не подменяют друг друга. Sender знает собственный outbox.
+Observation содержит parent block/time, собственное имущество, public market
+и только уже доставленные этому агенту messages с временем доставки. Будущие
+emissions, чужой outbox и полный private mempool в Observation не передаются.
+Исследовательский UI вправе видеть полную очередь с пометками видимости.
+
+**Численные пределы.** Все значения указываются в конфигурации; разрешено
+уменьшать их относительно caps ниже. Нули запрещены, кроме сетевых задержек.
+
+| Предел профиля | Cap / reference preset | Исчерпание |
+| --- | --- | --- |
+| Агенты / внешние emissions / раунды | 64 / 4096 / 10000 | Неверный сценарий отклоняется до запуска |
+| Pending entries | 1024 | Новая запись отклоняется; существующие не вытесняются по fee |
+| Очередь доставки и реакций | 4096 | Новое событие получает QueueLimit и не ставится в очередь |
+| Сохранённые visible messages на агента | 256 | Удаляется самое старое по delivery time, event ID |
+| Уникальные TxIds за запуск | 65536 | Новый ID отклоняется с KnownTransactionsLimit |
+| События на раунд | 4096 | Остаток очереди переносится; due_at сохраняется, фактическое время следующей обработки не раньше parent timestamp, опоздание видно |
+| Pending reaction evaluations на раунд | 64 | Следующая реакция отмечается ReactionLimit без intent |
+| Глубина цепочки ответов | 8 | Ответ глубины 9 не отправляется, DepthLimit |
+| Новые policy intents на AgentId за раунд | 1 | Следующие ответы отмечаются IntentLimit; внешние emissions ограничены отдельно |
+| Retention pending / visible messages | 32 раунда | При age_blocks >= retention запись удаляется с TTLExpired |
+| Inclusion attempts / eligibility checks на раунд | 256 / 65536 | Builder останавливает выбор, неизбранные остаются pending |
+
+Удаления/отказы/переносы входят в scheduler trace и метрики, не создают native
+fees и не меняют nonce. Исчерпание будущего checked EventId — ModelError, а не
+wrap. Память dedup/terminal dispositions ограничена known-TxId cap; повторная
+доставка завершённого или отклонённого TxId не является неявной повторной попыткой.
+
+**Admission и конфликты.** Builder admission проверяет структуру/авторство/chain,
+native program limits и deadline относительно фактического delivery time;
+`limit > chain.block_limit` отклоняется как невместимый конверт. Сверяется
+канонический nonce parent state. Старый nonce отклоняется, будущий nonce и
+нехватка fee budget дают Waiting. Ни balance reserve, ни nonce при этом нет.
+Одинаковый TxId и одинаковый payload — Duplicate без изменения first arrival;
+тот же ID с другим payload — ConflictingTxId. Разные IDs с одинаковым
+sender/nonce сосуществуют: автоматического replace-by-fee нет.
+
+Перед выбором в блок удаляются expired, stale и TTL-expired entries. Retention
+считается от номера раунда первого admission: возраст 0 в этом раунде, 32 в
+первом запрещённом. Deadline equality допустима. Статусы собственных отправок
+становятся доступны sender на следующей committed-границе. Периодические
+LP/MM/arbitrage политики из DEC-20 сохраняют parent observation; если их текущий
+nonce уже имеет незавершённый собственный intent в outbox/pending, новая
+отправка пропускается с явной причиной. Событие LP не переносится скрыто на
+другой блок. После delivery delay состояние всё равно проверяется заново.
+
+**Builder.** FIFO сортирует по first builder arrival, admission event ID, TxId.
+FeePriority сортирует по убыванию `resource_price`, затем FIFO; это ставка за
+unit, не вымышленный доход `limit*price`. Fixed задаёт явный список приоритетов
+TxIds; не перечисленные кандидаты ожидают. Каждый раз выбирается первый
+**сейчас включаемый** кандидат по выбранному приоритету; после его исполнения
+nonce/funding eligibility пересчитывается. Поэтому nonce gap может разрешиться
+в том же блоке. Перебор и каждый eligibility check ограничены таблицей выше.
+
+Включение требует полного declared limit в оставшемся ресурсе; списывается
+actual used, включая revert/exhaustion. Обычный protocol revert включается и
+расходует fee/nonce по §6; победивший nonce делает конкурентов stale. Применяются
+общие journal/executor и системные переходы ровно один раз на parent snapshot.
+ModelError отменяет весь раунд, включая рабочие queue/cursors/agent memory/RNG,
+без частичного commit. Admission, подбор порядка и UI-просмотр не платят
+канонические fees. Никаких bundle bids или дополнительного builder дохода
+помимо настоящего fee settlement в M4a нет.
+
+**Минимальная реактивная политика.** `on-visible-program-v1` — явный сценарный
+ответ, а не поиск: до 16 правил `visible_tx_id → program`. Правило срабатывает
+только после разрешённой доставки указанного сообщения и reaction_delay;
+программа фиксирована в конфигурации, nonce берётся из собственного committed
+состояния, ID генерируется детерминированно, deadline — actual reaction time
+плюс явно заданное положительное lifetime. Повторный trigger не создаёт второй
+intent. Все новые программы проходят те же authority/admission/execution
+проверки. Один AgentId не сочетает эту роль с другой policy; периодические
+политики вызываются не более одного раза за раунд. Реакция на pending не меняет
+committed World и не получает право читать скрытые сообщения.
+
+**Ожидания до кода.** `docs/reviews/scheduler-reference.py`/`.json` фиксируют:
+
+| Fixture | Ожидание |
+| --- | --- |
+| Cutoff10, victim отправлена7; builder delay2, observer delay1; reaction delay1, response builder delay1 | Victim arrival9, видимость8, реакция9, response arrival10; обе включаются в блок1 |
+| Два CPMM 1000 X/1000 Q, fee0; victim продаёт200 Q в A; ответ ExecuteRoute RequireFull на100 Q через B→A с финальным AssertTransactionNetGain(minimum=1 Q), native price0 | Victim получает166 X; ответ100 Q→90 X→116 Q, net16 Q. A=924 X/1084 Q, B=910 X/1100 Q; actual units120+160=280 |
+| Та же victim по Private без searcher в recipients | Searcher не получает сообщение и не отправляет ответ; один receipt, его капитал не меняется |
+| Response builder delay2 при остальных прежних условиях | Arrival11 пропускает cutoff10, доставка остаётся в очереди; при lifetime30 ответ допустим в блоке2 с timestamp20 |
+| Нулевые delays и отправка ровно в cutoff | Доставка и ответ возможны в том же блоке; цикл ответов останавливается budget/depth/intent limits |
+| Nonce1 arrival1, nonce0 arrival2; nonce0 Transfer20 Q, nonce1 Transfer10 Q, limit200, price1, balance1000 Q, block limit500 | FIFO сначала исполняет nonce0 (20 Q), затем nonce1 (10 Q): sender740 Q, recipient30 Q, builder230 Q, nonce2; admission ничего не резервирует |
+| Два конфликта nonce0, Transfer10 Q, price1/2, limit200, баланс1000 Q | FIFO раннего price1: sender875 Q, fee115 Q; FeePriority price2: sender760 Q, fee230 Q; проигравший не платит |
+
+Дополнительно обязательны funding-wakeup, declared-limit wait, duplicate/conflict,
+TTL и очередь на границах, невидимость Private, задержанная/нулевая цепочка,
+пустой Fixed, отсутствие двойного accrual при selection, ModelError всего раунда,
+checkpoint с pending/inflight/seen IDs и независимость от UI/числа read-only
+запросов. UI/CLI должны объяснять отправку, видимость, arrival, Waiting/rejection,
+порядок, receipt и фактические fees одним воспроизводимым результатом.
+
 ### 23.3. Вертикальные срезы и Definition of Done
 
 Работа дробится на сквозные сценарии **требование → состояние → действие → исполнение → тесты → trace → визуальное объяснение**. Новый компонент не считается завершённым по одному лишь trait, mock API или графическому экрану. На один срез — один проверяемый вопрос и минимальное число новых механизмов.
@@ -1907,6 +2033,8 @@ reference lending G-05, external oracle часть G-06, router budget част�
 принятый DEC-16 и аналитические ожидания; TWAP часть G-06 определена DEC-17,
 стакан G-08 — DEC-18, CLMM — DEC-19. Для partial router и LP/MM baseline
 принят DEC-20 (§23.2.8); реализация и проверка отражаются в журнале прогресса.
+Для scheduler/mempool/basic builders подготовлен **Proposed DEC-21** (§23.2.9)
+с численными ожиданиями; согласование владельца и реализация ещё впереди.
 Остальные механизмы и бюджеты остаются открытыми. Таблица ниже сохраняет
 исходные условия gates и критерии их полной приёмки.
 
