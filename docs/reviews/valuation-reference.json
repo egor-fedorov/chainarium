@@ -1,0 +1,498 @@
+{
+  "status": "Proposed",
+  "decision": "DEC-28",
+  "model": "reference-mtm-v1",
+  "cases": {
+    "two_wallet_halves": {
+      "status": "Priced",
+      "reason": null,
+      "missing_assets": [],
+      "value": {
+        "numerator": "1",
+        "denominator": "1",
+        "floor_atoms": "1"
+      },
+      "priced_part": {
+        "numerator": "1",
+        "denominator": "1",
+        "floor_atoms": "1"
+      }
+    },
+    "negative_half": {
+      "status": "Priced",
+      "reason": null,
+      "missing_assets": [],
+      "value": {
+        "numerator": "-1",
+        "denominator": "2",
+        "floor_atoms": "-1"
+      },
+      "priced_part": {
+        "numerator": "-1",
+        "denominator": "2",
+        "floor_atoms": "-1"
+      }
+    },
+    "zero_without_price": {
+      "status": "Priced",
+      "reason": null,
+      "missing_assets": [],
+      "value": {
+        "numerator": "0",
+        "denominator": "1",
+        "floor_atoms": "0"
+      },
+      "priced_part": {
+        "numerator": "0",
+        "denominator": "1",
+        "floor_atoms": "0"
+      }
+    },
+    "missing_with_priced_part": {
+      "status": "Unpriced",
+      "reason": "MissingPrice",
+      "missing_assets": [
+        "X"
+      ],
+      "value": null,
+      "priced_part": {
+        "numerator": "7",
+        "denominator": "1",
+        "floor_atoms": "7"
+      }
+    },
+    "missing_gross_offset": {
+      "status": "Unpriced",
+      "reason": "MissingPrice",
+      "missing_assets": [
+        "X"
+      ],
+      "value": null,
+      "priced_part": {
+        "numerator": "0",
+        "denominator": "1",
+        "floor_atoms": "0"
+      }
+    },
+    "two_half_inflows": {
+      "initial": {
+        "numerator": "0",
+        "denominator": "1",
+        "floor_atoms": "0"
+      },
+      "end": {
+        "numerator": "1",
+        "denominator": "1",
+        "floor_atoms": "1"
+      },
+      "inflows": {
+        "numerator": "1",
+        "denominator": "1",
+        "floor_atoms": "1"
+      },
+      "outflows": {
+        "numerator": "0",
+        "denominator": "1",
+        "floor_atoms": "0"
+      },
+      "pnl": {
+        "numerator": "0",
+        "denominator": "1",
+        "floor_atoms": "0"
+      }
+    },
+    "flow_time_price": {
+      "initial": {
+        "numerator": "100",
+        "denominator": "1",
+        "floor_atoms": "100"
+      },
+      "end": {
+        "numerator": "130",
+        "denominator": "1",
+        "floor_atoms": "130"
+      },
+      "inflows": {
+        "numerator": "20",
+        "denominator": "1",
+        "floor_atoms": "20"
+      },
+      "outflows": {
+        "numerator": "0",
+        "denominator": "1",
+        "floor_atoms": "0"
+      },
+      "pnl": {
+        "numerator": "10",
+        "denominator": "1",
+        "floor_atoms": "10"
+      }
+    },
+    "rounding_is_presentation": {
+      "initial": {
+        "numerator": "1",
+        "denominator": "2",
+        "floor_atoms": "0"
+      },
+      "end": {
+        "numerator": "1",
+        "denominator": "1",
+        "floor_atoms": "1"
+      },
+      "inflows": {
+        "numerator": "1",
+        "denominator": "2",
+        "floor_atoms": "0"
+      },
+      "outflows": {
+        "numerator": "0",
+        "denominator": "1",
+        "floor_atoms": "0"
+      },
+      "pnl": {
+        "numerator": "0",
+        "denominator": "1",
+        "floor_atoms": "0"
+      }
+    },
+    "failed_capital_transfer": {
+      "initial": {
+        "numerator": "1000",
+        "denominator": "1",
+        "floor_atoms": "1000"
+      },
+      "end": {
+        "numerator": "885",
+        "denominator": "1",
+        "floor_atoms": "885"
+      },
+      "inflows": {
+        "numerator": "0",
+        "denominator": "1",
+        "floor_atoms": "0"
+      },
+      "outflows": {
+        "numerator": "0",
+        "denominator": "1",
+        "floor_atoms": "0"
+      },
+      "pnl": {
+        "numerator": "-115",
+        "denominator": "1",
+        "floor_atoms": "-115"
+      }
+    },
+    "borrow_is_not_capital": {
+      "initial": {
+        "numerator": "220",
+        "denominator": "1",
+        "floor_atoms": "220"
+      },
+      "end": {
+        "numerator": "220",
+        "denominator": "1",
+        "floor_atoms": "220"
+      },
+      "inflows": {
+        "numerator": "0",
+        "denominator": "1",
+        "floor_atoms": "0"
+      },
+      "outflows": {
+        "numerator": "0",
+        "denominator": "1",
+        "floor_atoms": "0"
+      },
+      "pnl": {
+        "numerator": "0",
+        "denominator": "1",
+        "floor_atoms": "0"
+      }
+    },
+    "interest_is_not_capital": {
+      "initial": {
+        "numerator": "220",
+        "denominator": "1",
+        "floor_atoms": "220"
+      },
+      "end": {
+        "numerator": "210",
+        "denominator": "1",
+        "floor_atoms": "210"
+      },
+      "inflows": {
+        "numerator": "0",
+        "denominator": "1",
+        "floor_atoms": "0"
+      },
+      "outflows": {
+        "numerator": "0",
+        "denominator": "1",
+        "floor_atoms": "0"
+      },
+      "pnl": {
+        "numerator": "-10",
+        "denominator": "1",
+        "floor_atoms": "-10"
+      }
+    },
+    "flash_cycle_with_self_owned_pools": {
+      "wallet_cycle_net": "24104",
+      "portfolio": {
+        "initial": {
+          "numerator": "4501000",
+          "denominator": "1",
+          "floor_atoms": "4501000"
+        },
+        "end": {
+          "numerator": "4500760",
+          "denominator": "1",
+          "floor_atoms": "4500760"
+        },
+        "inflows": {
+          "numerator": "0",
+          "denominator": "1",
+          "floor_atoms": "0"
+        },
+        "outflows": {
+          "numerator": "0",
+          "denominator": "1",
+          "floor_atoms": "0"
+        },
+        "pnl": {
+          "numerator": "-240",
+          "denominator": "1",
+          "floor_atoms": "-240"
+        }
+      }
+    },
+    "post_loss_deposit": {
+      "claim_atoms": "21",
+      "reserve_cash": "10",
+      "cash_bound": "10",
+      "mark": {
+        "status": "Priced",
+        "reason": null,
+        "missing_assets": [],
+        "value": {
+          "numerator": "28",
+          "denominator": "1",
+          "floor_atoms": "28"
+        },
+        "priced_part": {
+          "numerator": "28",
+          "denominator": "1",
+          "floor_atoms": "28"
+        }
+      },
+      "change": {
+        "initial": {
+          "numerator": "37",
+          "denominator": "1",
+          "floor_atoms": "37"
+        },
+        "end": {
+          "numerator": "28",
+          "denominator": "1",
+          "floor_atoms": "28"
+        },
+        "inflows": {
+          "numerator": "0",
+          "denominator": "1",
+          "floor_atoms": "0"
+        },
+        "outflows": {
+          "numerator": "0",
+          "denominator": "1",
+          "floor_atoms": "0"
+        },
+        "pnl": {
+          "numerator": "-9",
+          "denominator": "1",
+          "floor_atoms": "-9"
+        }
+      }
+    },
+    "fractional_cpmm_claim": {
+      "mark": {
+        "status": "Priced",
+        "reason": null,
+        "missing_assets": [],
+        "value": {
+          "numerator": "3303",
+          "denominator": "11",
+          "floor_atoms": "300"
+        },
+        "priced_part": {
+          "numerator": "3303",
+          "denominator": "11",
+          "floor_atoms": "300"
+        }
+      },
+      "burn_without_execution_cost": {
+        "numerator": "299",
+        "denominator": "1",
+        "floor_atoms": "299"
+      }
+    },
+    "fractional_stable_claim": {
+      "status": "Priced",
+      "reason": null,
+      "missing_assets": [],
+      "value": {
+        "numerator": "1169",
+        "denominator": "100",
+        "floor_atoms": "11"
+      },
+      "priced_part": {
+        "numerator": "1169",
+        "denominator": "100",
+        "floor_atoms": "11"
+      }
+    },
+    "clmm_principal_and_collectable_fees": {
+      "mark": {
+        "status": "Priced",
+        "reason": null,
+        "missing_assets": [],
+        "value": {
+          "numerator": "9977",
+          "denominator": "1",
+          "floor_atoms": "9977"
+        },
+        "priced_part": {
+          "numerator": "9977",
+          "denominator": "1",
+          "floor_atoms": "9977"
+        }
+      },
+      "excluded_rounding_surplus": {
+        "X": "2",
+        "Q": "1"
+      }
+    },
+    "resting_sell_order": {
+      "status": "Priced",
+      "reason": null,
+      "missing_assets": [],
+      "value": {
+        "numerator": "67",
+        "denominator": "1",
+        "floor_atoms": "67"
+      },
+      "priced_part": {
+        "numerator": "67",
+        "denominator": "1",
+        "floor_atoms": "67"
+      }
+    },
+    "resting_buy_order": {
+      "status": "Priced",
+      "reason": null,
+      "missing_assets": [],
+      "value": {
+        "numerator": "307",
+        "denominator": "1",
+        "floor_atoms": "307"
+      },
+      "priced_part": {
+        "numerator": "307",
+        "denominator": "1",
+        "floor_atoms": "307"
+      }
+    },
+    "freshness_60_61_and_delayed_record": {
+      "60": {
+        "status": "Priced",
+        "value": {
+          "numerator": "2",
+          "denominator": "1",
+          "floor_atoms": "2"
+        },
+        "age": "60",
+        "sequence": "1"
+      },
+      "61": {
+        "status": "Unpriced",
+        "reason": "Stale",
+        "age": "61"
+      },
+      "62": {
+        "status": "Priced",
+        "value": {
+          "numerator": "3",
+          "denominator": "1",
+          "floor_atoms": "3"
+        },
+        "age": "3",
+        "sequence": "2"
+      }
+    },
+    "future_observation": {
+      "9": {
+        "status": "Unpriced",
+        "reason": "FutureObservation"
+      },
+      "10": {
+        "status": "Priced",
+        "value": {
+          "numerator": "3",
+          "denominator": "1",
+          "floor_atoms": "3"
+        },
+        "age": "0",
+        "sequence": "1"
+      }
+    },
+    "no_available_record": {
+      "status": "Unpriced",
+      "reason": "NoAvailableRecord"
+    },
+    "historical_unpriced_flow": {
+      "current": {
+        "status": "Priced",
+        "reason": null,
+        "missing_assets": [],
+        "value": {
+          "numerator": "10",
+          "denominator": "1",
+          "floor_atoms": "10"
+        },
+        "priced_part": {
+          "numerator": "10",
+          "denominator": "1",
+          "floor_atoms": "10"
+        }
+      },
+      "flow_price_at_execution": {
+        "status": "Unpriced",
+        "reason": "NoAvailableRecord"
+      },
+      "pnl": {
+        "status": "Unpriced",
+        "reason": "HistoricalFlowUnpriced"
+      }
+    },
+    "wide_signed_report": {
+      "status": "Priced",
+      "reason": null,
+      "missing_assets": [],
+      "value": {
+        "numerator": "13407807929942597099574024998205846127479365820592393377723561443721764030073431184712636981971479856705023170278632780869088242247907112362425735876444160",
+        "denominator": "1",
+        "floor_atoms": "13407807929942597099574024998205846127479365820592393377723561443721764030073431184712636981971479856705023170278632780869088242247907112362425735876444160"
+      },
+      "priced_part": {
+        "numerator": "13407807929942597099574024998205846127479365820592393377723561443721764030073431184712636981971479856705023170278632780869088242247907112362425735876444160",
+        "denominator": "1",
+        "floor_atoms": "13407807929942597099574024998205846127479365820592393377723561443721764030073431184712636981971479856705023170278632780869088242247907112362425735876444160"
+      }
+    },
+    "bounded_exact_arithmetic": {
+      "status": "Unpriced",
+      "reason": "ArithmeticLimit",
+      "value": null,
+      "priced_part": null
+    }
+  }
+}

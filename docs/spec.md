@@ -1028,7 +1028,7 @@ agents:
 | REQ-MEV-01 | §12 | Bundles и builder policies, v1 | M4 | VF-MEV-01 | **Т:** выбранный порядок и обеспеченный переводами builder revenue; **О:** конфликты tx/nonce и запрещённый revert; **И:** FIFO/fixed/fee/greedy воспроизводимы, bundle не interleave, разрешённый revert не отменяет ранее успешную tx, bid не учитывается дважды | M4b / DEC-22: bundles/paid bid/allowed reverts, FIFO/Fixed/FixedItems/FeePriority/Greedy, conflicts, bounded probes, ledger и replay проверены; независимый review без подтверждённых findings (docs/reviews/dec22-independent-review.md) |
 | REQ-HOOK-01 | §7.6 | Hook capabilities, v1 | M4 | VF-HOOK-01 | **Т:** изменение fee/лимита либо заданный отказ; **О:** эффект вне capabilities; **И:** состояние hook и его переводы полностью откатываются при поздней ошибке, ресурс учитывается; event observer не изменяет состояние | M4e / DEC-25: CPMM hooks, typed capabilities, limited context, own counter/cash, effective fee, payouts, node/depth/resource caps, full rollback, common search и read-only observation реализованы; независимый review без подтверждённых findings (docs/reviews/dec25-independent-review.md) |
 | REQ-AGENT-01 | §13 | Observation/Intent и политики, v1 | M2a–M4 | VF-AGENT-01 | **И:** user/LP/borrower/arbitrageur/liquidator/market-maker/oracle/searcher/builder действуют через общий executor; нет future/private leakage; память и именованные RNG воспроизводимы; решения сериализуемы | M3d: restricted Observation, passive/scheduled LP, Fixed/PublicOracle MM, heterogeneous arbitrage, Hold/Skip/Submit и replay; M4a добавляет restricted delivered messages/outbox, OnVisibleProgram и очередь; M4c добавляет bounded backrun с conditional net после fees/bid, caps, privacy и checkpoints; review M4c завершён, два P2 исправлены и перепроверены; M4d добавляет bounded liquidator Own/Flash, actual seizure sale и конкуренцию; его отдельный review завершён без findings (docs/reviews/dec24-independent-review.md); M4f / DEC-26 добавляет scripted/random user, target borrower и native oracle publisher, bounded RNG и atomic round rollback, preflight/actual receipts; review M4f выявил P1/P2; исправления ce78187 независимо перепроверены и закрыты (docs/reviews/dec26-fix-verification.md); M4g/DEC-27 добавляет bounded flash arbitrage, свой fee reserve, RequireFull и net после settlement; функциональная проверка пройдена, независимый review нового среза впереди |
-| REQ-METRICS-01 | §14, §15.4 | reference-mtm-v1 после G-11 | При первых MTM-метриках; M5 | VF-METRICS-01 | **Т:** MTM, post-loss claims, округление и оценка внешнего капитала на момент потока; **О:** Unpriced без fallback; **И:** borrow не капитал, fees не дублируются, MTM отличается от closed-cycle результата и доступного cash; A/B имеет общую политику оценки | Запланировано; не выполнено |
+| REQ-METRICS-01 | §14, §15.4 | reference-mtm-v1 после G-11 | При первых MTM-метриках; M5 | VF-METRICS-01 | **Т:** MTM, post-loss claims, округление и оценка внешнего капитала на момент потока; **О:** Unpriced без fallback; **И:** borrow не капитал, fees не дублируются, MTM отличается от closed-cycle результата и доступного cash; A/B имеет общую политику оценки | Proposed DEC-28 (§23.2.16) и24 pre-implementation arithmetic cases подготовлены; согласование G-11 и production реализация ещё не выполнены |
 | REQ-WIRE-01 | §5.2, §17 | Точный сериализуемый контракт, v1 | M1 | VF-WIRE-01 | **Т:** round-trip `2^53−1`, `2^53+1`, `U256::MAX`, рациональной Price и разных decimals без потерь; **О:** выход за диапазон и запрещённое числовое представление; **И:** тот же контракт используют Rust, web UI и CLI | M1: U256/Price Rust→браузер→Rust и decimal helpers пройдены (docs/progress.md) |
 | REQ-CHECKPOINT-01 | §13.1, §15.3, §17.2 | Полный checkpoint, v1 | M1, повторно M2/M4 | VF-CHECKPOINT-01 | **Т:** продолжение checkpoint совпадает с непрерывным запуском по canonical state/events/receipts/метрикам; **И:** восстановлены память агентов, RNG, очереди, расписания и cursor внешних данных; просмотр/число UI-запросов не меняют результат | M1–M3d: replay/resume/fork/corruption, StableSwap, TWAP, SC-07, стакан, CLMM, routes, LP/MM schedules/decisions проверены; M4a pending/inflight/seen IDs, trigger memory/cursor/metrics и replay проверены; M4b добавляет groups/member registry/probes; M4c queued search reaction, trigger dedup и search reports; M4d targets/preview/trials/inflight liquidation; M4e hook state/cash; M4f named RNG positions, targets, scheduled decisions и inflight intents (docs/progress.md) |
 | REQ-UI-01 | §15 | Локальный UI/CLI, v1 | M1, M5 | VF-UI-01 | **И:** сценарий запускается, доступны play/pause и переходы блок→tx→call→баланс; committed/attempt различимы; A/B показывает изменённый фактор и причину результата; обязательные пользовательские задачи §15 выполнены | Прототип M1–M4f: 52 presets, котировки/solver/credit/oracle/book/CLMM/routes/policy inspection, scheduler delivery/visibility/queue/status, bundles/bid/probe inspection и backrun search/conditional net/actual inclusion, liquidator targets/preview/funding/actual paid-seized-sale/paid loser, hook capabilities/counter/cash/point trace и отменённые effects, baseline targets/RNG choices/preflight/actual receipts; полная приёмка M5 впереди (docs/progress.md) |
@@ -2768,6 +2768,176 @@ trial costs и actual receipt, выбранный путь/net и truncation; pr
 называются фактическими сделками. Нужны сквозные demos и независимый review §23.4.
 MTM/experiments/full explorer и M5 gates остаются следующими срезами.
 
+### 23.2.16. Предлагаемый контракт M5a — Proposed DEC-28
+
+**DEC-28 / G-11/G-10, reference MTM и внешний капитал.** Статус **Proposed**;
+не согласован владельцем, production evaluator ещё не реализован.
+Закрывает численную семантику §14.3 до реализации метрик. Это read-only оценка
+канонических состояний, а не новый способ исполнения или источник ликвидности.
+Сравнительные серии, HODL benchmark, полный explorer и performance gates —
+следующие срезы M5; их готовность этим решением не объявляется.
+
+**Конфигурация и цена.** Необязательный `Scenario.valuation_policy` с version
+`reference-mtm-v1` и таким же model_versions entry; отсутствие policy сохраняет
+старые scenarios/exports. Явные поля: numeraire=Q, evaluation_point=
+committed-block-end, source=environment-reference, max_age_seconds, limits,
+portfolios, reference_feeds и capital_transfers. Q обязан быть зарегистрирован;
+его цена к себе ровно1, override запрещён. Genesis получает отдельную оценку V0.
+
+`portfolios` — карта PortfolioId→{accounts}: непустой список зарегистрированных
+обычных accounts без duplicates. Protected protocol/hook/escrow/provider accounts
+напрямую в границу не входят; соответствующие права учитываются через позиции
+их владельцев. Fee account может входить как обычный счёт. Граница неизменна
+на всём запуске. Пересекающиеся portfolios разрешены как независимые views,
+но их значения не суммируются в общий капитал; пересечение видно в отчёте.
+
+`reference_feeds` задаёт максимум один source_id и последовательность records
+для каждого non-Q asset. Record содержит available_at, observed_at, sequence
+и рациональную Price asset/Q в atoms. SourceId и asset pair постоянны;
+source_id непустой, numerator/denominator положительны и проходят U256 wire
+validation. Records упорядочены по (available_at,sequence), sequence строго
+возрастает; равные available_at разрешены. Все исходные records сохраняются
+в Scenario; manifest содержит hash reference inputs и valuation policy.
+Внешнего сетевого запроса при исполнении/оценке нет.
+
+В момент t берётся последний record с available_at<=t. Если такого нет —
+Unpriced NoAvailableRecord. Если у выбранного record observed_at>t —
+Unpriced FutureObservation; если t−observed_at>max_age_seconds — Unpriced Stale.
+Равенство max_age допустимо. Назад к более раннему record или к spot/lending
+oracle evaluator не переключается. SourceId, sequence, обе временные метки,
+возраст и использованная цена входят в результат. Отсутствующая binding даёт
+Unpriced MissingPrice. Для ненулевого gross asset/обязательства цена нужна
+даже при взаимном netting +X/−X; нулевому компоненту цена не требуется.
+
+Reference records не попадают в Agent Observation, native oracle/HF или
+execution quotes. При валидных конфигурациях изменение только valuation inputs
+может менять run_id и оценку, но не canonical worlds/receipts, scheduler decisions
+или RNG draws.
+
+**Извлечение позиции без двойного счёта.** Компоненты имеют стабильный ключ
+(account,kind,protocol,position/order,asset); quantities и liabilities показаны
+раздельно. Обход не выполняет calls и не меняет позицию:
+
+| Компонент | Количество для MTM |
+| --- | --- |
+| Wallet | Собственные ledger balances обычного account |
+| CPMM/StableSwap LP | Точная рациональная доля каждого текущего reserve: own_shares×reserve/total_shares, без промежуточного floor; swap fees уже внутри reserves, повторно не добавляются |
+| CLMM | Native floor principal при текущем sqrt price, с clamping диапазона, плюс уже owed и collectable fees по принятому Q128 accrue на копии Position; rounding_surplus исключён |
+| Resting book order | Только собственный remaining escrow: Sell=remaining_lots×lot_atoms в base; Buy=remaining_lots×price_ticks×quote_tick_atoms в quote; исполненные fills уже отражены в wallet |
+| Lending collateral | Баланс собственного изолированного escrow, независимо от collateral_enabled; escrow не считается ещё одним wallet |
+| Deposit shares | floor(own_shares×current claims S/total_shares) по §8.2, уже после распределения потерь; при отсутствии shares компонент0 |
+| Liability | Минус собственный active debt по каждому reserve; дополнительный accrual при просмотре не выполняется, дробный remainder не признаётся вторым долгом |
+
+CPMM/StableSwap MTM оценивает пропорциональное право, а не целочисленный payout
+конкретного burn. Native exit quote и его расходы показываются отдельно, если
+пользователь запрашивает исполнимый выход. Для deposit shares показываются
+claim, reserve cash C и cash_bound=min(claim,C); bound не является обещанием
+исполнения определённого числа shares. Equity E не приписывается депозитору.
+У CLMM используются именно признанные native claims; невыводимый surplus
+не становится стоимостью LP. Эти различия явно названы в valuation policy.
+
+**Точная арифметика и округление.** Quantity LP может быть дробной. Каждый
+component value = signed quantity×reference price вычисляется как точная
+сокращённая рациональная величина. Компоненты группируются по asset и portfolio
+без округления при суммировании; liabilities вычитаются с тем же курсом.
+V, V0, накопленные inflows/outflows и PnL сохраняют exact fractions. Формула
+`PnL=V−V0−Σin+Σout` применяется к ним, не к округлённым строкам.
+
+Wire результата: {numerator: signed decimal string, denominator: positive
+decimal string, floor_atoms: signed decimal string}. Denominator>0, fraction
+reduced, ноль записывается0/1; negative zero запрещён. Floor направлен к −∞
+и выполняется только для представления итоговой величины в целых atoms Q:
+−1/2 → −1, +1/2 →0. Финансовый ledger остаётся U256; derived значения могут
+быть отрицательными или шире U256. Float/JSON Number для финансовых значений
+не используется. UI показывает точную дробь для нецелого результата; если
+показывает floor, явно помечает округление и не складывает округлённые строки.
+
+**Внешний капитал — явная привязка.** `capital_transfers` содержит пары
+{portfolio,tx_id}. В первом профиле binding разрешена только к единственной
+заранее заданной literal transaction из M1 blocks либо scheduler.emissions,
+с программой ровно `[Transfer]`, положительным amount и обычными endpoints.
+Указанный TxId должен быть однозначным во входах; повтор пары запрещён.
+Transaction, заданная только как Own bundle member, generated policy/reactive
+intent, TransferFrom, Sequence, flash callback или протокольный call не может
+получить такую метку. Любой TxId, названный payment_tx_id в bundle inputs,
+запрещён для capital binding; generated bid IDs не являются literal targets.
+Если уже помеченная ordinary transaction включена через VisibleTxId как
+неплатёжный member, её flow учитывается ровно один раз после commit всей группы.
+Для выбранного portfolio ровно один endpoint лежит внутри границы: это
+определяет inflow/outflow. Внутренний Transfer не является внешним капиталом.
+Одному переводу между двумя portfolios можно задать две соответствующие метки.
+
+Метка не меняет authority, стоимость или settlement Transfer. Flow возникает
+только из его фактического committed ledger transfer при Success. Revert или
+inclusion/submit rejection не создаёт flow; оплаченная native fee остаётся
+результатом деятельности. Fee settlement, swap/LP fees, hook payouts, bids,
+borrow/repay, liquidity operations, interest и write-off не превращаются
+во внешний капитал. Непомеченные переводы через границу отражаются в PnL
+как обычные денежные потоки; отчёт явно показывает их отсутствие capital label.
+
+Цена flow фиксируется на его фактическом execution time — timestamp committed
+блока native backend. Delivery time не считается временем перевода. Используются
+records, доступные именно на этом timestamp; цена конца более позднего периода
+не заменяет цену flow. Каждый flow хранит amount, направление, TxId и точную
+оценку/provenance. Накопление не округляет отдельные inflows/outflows.
+Если V0, текущий компонент или произошедший capital flow не оценён, полный PnL
+Unpriced; текущее V может позднее стать Priced, но исторический неоценённый flow
+не переоценивается задним числом по запоздавшему feed.
+
+**Bounded read-only computation.** Hard caps/defaults: portfolios16,
+accounts_per_portfolio64, reference_assets64, updates_total16384,
+capital_transfers4096, component_checks_per_portfolio4096, rational_bits32768;
+не более10000 committed blocks в запуске с этой policy. Численные limits
+явно присутствуют в конфигурации; можно уменьшать, rational_bits>=512.
+Каждая осмотренная wallet asset entry или запись claim/position/order расходует
+component check, включая нулевую или отфильтрованную по владельцу запись;
+это ограничивает также непродуктивный scan, а не только число выведенных строк.
+Ограничение rational_bits проверяется после сокращения при каждой операции,
+порядок — стабильные component keys, затем flow execution block/TxId.
+Превышение component/арифметического budget даёт Unpriced с причиной и
+truncated=true, а не ноль или приближённый float; canonical блок не отменяется.
+Накопленный недоступный flow сохраняет PnL Unpriced. Частично оценённые суммы
+помечены priced_part и никогда не выдаются за полную стоимость.
+
+Evaluator является чистой функцией Scenario + сохранённых genesis/blocks.
+Отдельной mutable финансовой книги нет: checkpoint содержит достаточные
+входы для точного восстановления valuations, чтение UI/export не расходует RNG
+и не начисляет проценты/fees повторно. Export добавляет valuation-policy.json,
+valuations.jsonl и capital-flows.jsonl; HTTP read показывает выбранную boundary
+и её компоненты/причины Unpriced. Незавершённый или откатившийся round не даёт
+новой регулярной оценки. Используются только committed states/receipts.
+
+**Независимые ожидания до реализации.** `docs/reviews/valuation-reference.py`
+использует Python Fraction без импорта simulator; JSON содержит24 cases.
+Это арифметические компоненты/снимки, не утверждение о реализации extractor.
+
+| Fixture | Точный результат |
+| --- | --- |
+| Два своих wallet по1 X, цена1/2 Q/X | V=1 Q; округление каждого wallet до0 запрещено |
+| Liability1 X, assets0, цена1/2 | V=−1/2 Q, floor_atoms=−1 |
+| Нет цены для gross +1 X и −1 X | Unpriced, несмотря на нулевой net X |
+| Два capital inflows по1 X при цене1/2 | Σin=1 Q, V=1 Q, PnL0; отдельные floor0 не складываются |
+| V0=100 Q, inflow2 X по10, финальная цена15 | V=130 Q, flow20 Q, PnL10 Q |
+| V0=1/2 Q, V=1 Q, inflow1/2 Q | PnL0; арифметика над floor полями ошибочно дала бы1 |
+| Sole Transfer900 Q из own1000, native limit200/price1; actual insufficient spendable balance | Revert115 units: V885, flow0, PnL−115; запрос900 не записывается outflow |
+| Own100 Q + collateral6 X по20; borrow80 Q, затем interest10 | V220 →220 →210; capital flows0; PnL0 и−10 |
+| Deposit shares30/100, S100→70, C10; wallet7 Q | Claim30→21, V37→28, PnL−9; cash_bound10, claim не обнуляется |
+| CPMM reserves1102 X/1099 Q, own shares100/1100, X=2 Q | MTM3303/11 Q (floor300); отдельный native burn100 X+99 Q даёт299 Q до execution costs |
+| Stable LP7/100, reserves101 Q/99 R, R=2/3 Q | MTM1169/100 Q (floor11), без solver call |
+| CLMM DEC-19: principal5984 X/3991 Q, collectable2 X, X=1 Q | V9977 Q; surplus2 X/1 Q исключён, fee не добавлена дважды |
+| Resting Sell3 lots×10 X, X=2 Q, wallet7 Q | V67 Q; учитывается собственный escrow, не весь book account |
+| Resting Buy3 lots×50 ticks×2 Q, wallet7 Q | V307 Q |
+| Record observed0, max_age60 | t60 Priced, t61 Unpriced; новый record observed59/available62 не помогает в t61 |
+| M4g success, trader владеет обоими CPMM целиком, X=1 Q | Wallet cycle net+24104 Q, но полный portfolio4501000→4500760 Q, MTM PnL−240 Q: потери своих LP и fee50+190 нельзя игнорировать |
+
+Acceptance включает все случаи reference, extraction каждого вида позиции,
+no-double-count и изменяемую цену, record availability/future/stale boundaries,
+wide signed fractions/ArithmeticLimit, missing-price partial report, правильное
+время capital flow, rejected/reverted/duplicate bindings, delayed execution,
+Unpriced исторический flow, internal transfer/borrow/interest/fees/write-off,
+readonly noninterference для agents/RNG, replay и exact CLI/UI wire.
+Нужны сквозные demos и независимый review перед принятием результатов M5a.
+
 ### 23.3. Вертикальные срезы и Definition of Done
 
 Работа дробится на сквозные сценарии **требование → состояние → действие → исполнение → тесты → trace → визуальное объяснение**. Новый компонент не считается завершённым по одному лишь trait, mock API или графическому экрану. На один срез — один проверяемый вопрос и минимальное число новых механизмов.
@@ -2832,7 +3002,9 @@ openspec/                   # опционально, после решения 
 
 **Уже закрытые требования:** единый ledger; разделение origin/caller/callee и явная авторизация; точная передача atoms/цен без потери целых; native fee/nonce и ресурсный профиль `100 / 10 / 5 / 1` (§5–§6); изолированный collateral, уравнение `C + D = S + E`, распределение процентов и убытков, атомарность liquidation+writeoff (§8); возраст цены по observation time, полномочия publisher и validity oracle (§10); раздельные committed events/attempt trace и полные checkpoints (§15–§17). Выбор конкретного Rust crate или UI-транспорта обязан сохранить эти требования.
 
-**Состояние решений на 2026-11-06:** DEC-05–DEC-27 приняты владельцем. Для текущих
+**Состояние решений на 2026-11-06:** DEC-05–DEC-27 приняты владельцем;
+DEC-28 (§23.2.16, G-11) подготовлен как Proposed, требует согласования до
+реализации MTM. Для текущих
 профилей определены G-01/G-02, CPMM/LP часть G-03, прототип G-04,
 reference lending G-05, external oracle часть G-06, router budget часть G-09,
 базовый checkpoint G-10 и RNG часть G-15. Реализация/fixtures отражены в §20

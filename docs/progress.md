@@ -940,6 +940,40 @@ readonly просмотр, restore с genesis, реальные route cards/от
 Независимый review DEC-27 ещё не выполнен;
 MTM/experiments/full explorer и M5 gates остаются открытыми.
 
+### Подготовлен M5a / Proposed DEC-28 — reference MTM
+
+Контракт `docs/spec.md` §23.2.16 подготовлен до реализации. Статус **Proposed**:
+новая production valuation policy/evaluator/API/UI ещё не реализованы и не
+согласованы владельцем. Открытый G-11 остаётся gate этого среза.
+
+Предложены exact signed rational quantities/values и floor только для
+представления, restricted reference inputs с availability/observation time,
+фиксированная граница portfolio и явные capital-transfer bindings. CPMM/Stable
+LP оцениваются по точной доле reserves; CLMM principal/collectable fees и
+post-loss deposit claims следуют своим принятым native claim правилам.
+LP mark, исполнимый exit и доступный reserve cash различены. Hidden reference
+не входит в agent observations; evaluator производен от committed snapshots.
+
+Независимый Python Fraction reference `docs/reviews/valuation-reference.py`/`.json`
+содержит24 arithmetic cases: положительные/отрицательные дроби, отсутствие цены,
+gross offset, flow-time prices и накопление без промежуточного floor,
+borrow/interest, post-loss shares, LP/CLMM/order escrow, freshness/availability,
+wide report и ArithmeticLimit. Он не импортирует simulator и не реализует
+production extractor. Повторный вывод совпадает побайтно.
+
+Два примера сопоставлены с уже существующим native executor:
+
+- Sole Transfer900 Q из own1000 при limit200/price1 даёт actual revert115,
+  own885/Bob0. Capital amount не исполнен; предполагаемый MTM PnL−115.
+- В M4g success Alice владеет обоими CPMM. При reference X/Q=1 полный portfolio
+  имеет4501000→4500760 Q, MTM PnL−240, хотя wallet cycle net равен+24104 Q.
+  Это отдельные метрики; LP losses и flash/native fees не исчезают из MTM.
+
+Артефакты этих сверок: `output/valuation-reference-check/`. Полный Rust suite
+не повторялся: изменения только в Proposed docs/reference, production код не
+менялся. Для M4g остаётся ранее запрошенное разрешение на отдельный read-only
+review diff `d4d5726..5d183ef`; новый агент без него не запускался.
+
 ### Fixtures и границы доказательства
 
 | Проверка | Доказательство | Ограничение |
