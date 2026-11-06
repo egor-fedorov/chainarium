@@ -183,7 +183,29 @@ impl Run {
         )?;
         write("run.json", &json(self)?)?;
         write("checkpoint.json", &self.checkpoint()?)?;
-        let manifest = serde_json::json!({"schema":"chainarium-run-m1-v1","run_id":self.run_id,"parent_checkpoint":self.parent_checkpoint,"scenario_sha256":digest(&json(&self.scenario)?),"model_versions":self.scenario.model_versions,"build":crate::BUILD_ID,"package_version":env!("CARGO_PKG_VERSION"),"seed":self.scenario.seed,"traces":"complete","valuation_policy":"not-implemented-no-PnL-claims","checkpoint_boundary":"committed-block-end"});
+        let mut manifest = serde_json::json!({"schema":"chainarium-run-m1-v1","run_id":self.run_id,"parent_checkpoint":self.parent_checkpoint,"scenario_sha256":digest(&json(&self.scenario)?),"model_versions":self.scenario.model_versions,"build":crate::BUILD_ID,"package_version":env!("CARGO_PKG_VERSION"),"seed":self.scenario.seed,"traces":"complete","valuation_policy":"not-implemented-no-PnL-claims","checkpoint_boundary":"committed-block-end"});
+        if let Some(policy) = &self.scenario.valuation_policy {
+            use std::io::{BufWriter, Write};
+            manifest["valuation_policy"] = serde_json::json!({"model":crate::valuation::MODEL,"policy_sha256":digest(&json(policy)?),"reference_inputs_sha256":digest(&json(&policy.reference_feeds)?)});
+            write("valuation-policy.json", &json(policy)?)?;
+            let mut valuations = BufWriter::new(
+                fs::File::create(path.join("valuations.jsonl")).map_err(|e| e.to_string())?,
+            );
+            let mut flows = BufWriter::new(
+                fs::File::create(path.join("capital-flows.jsonl")).map_err(|e| e.to_string())?,
+            );
+            crate::valuation::visit(self, self.blocks.len(), false, |boundary| {
+                serde_json::to_writer(&mut valuations, &boundary).map_err(|e| e.to_string())?;
+                valuations.write_all(b"\n").map_err(|e| e.to_string())?;
+                for flow in &boundary.capital_flows {
+                    serde_json::to_writer(&mut flows, flow).map_err(|e| e.to_string())?;
+                    flows.write_all(b"\n").map_err(|e| e.to_string())?;
+                }
+                Ok(())
+            })?;
+            valuations.flush().map_err(|e| e.to_string())?;
+            flows.flush().map_err(|e| e.to_string())?;
+        }
         write("manifest.json", &json(&manifest)?)?;
         let mut events = String::new();
         let mut csv = String::from("block,tx,status,used,fee,refund\n");
@@ -339,6 +361,9 @@ impl Run {
             self.blocks.len(),
             self.blocks.iter().map(|b| b.receipts.len()).sum::<usize>()
         );
+        if self.scenario.valuation_policy.is_some() {
+            report = report.replace("PnL is not computed.", "Reference MTM/PnL is derived from committed boundaries: `valuation-policy.json`, `valuations.jsonl`, `capital-flows.jsonl`. Values are exact signed fractions; floor_atoms is presentation only. Unpriced/partial results are explicit. LP marks and deposit claims do not promise immediately withdrawable cash. Overlapping portfolios are independent views and must not be summed.");
+        }
         if let Some(state) = &self.scheduler {
             report.push_str(&format!("\nScheduler: {} pending entries, {} in-flight events, {} known TxIds.\n\nDelivery, visibility, admission, ordering and cap outcomes: `delivery.jsonl`. Per-block metrics and queue snapshots: `run.json`. Canonical financial events: `events.jsonl`.\n",state.pending.len()+state.bundle_pending.len(),state.queue.len(),state.known.len()));
         }

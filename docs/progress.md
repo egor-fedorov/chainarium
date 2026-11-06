@@ -1052,3 +1052,26 @@ latency UI и полные workloads M5 ещё не измерены/не при
 отправляются в GitHub. После обновления прав записи успешно создана
 `origin/work` на `d4a4709`; remote SHA подтверждён отдельно. Среда и релизы
 не публиковались. Ранее опубликованная конфигурация среды не изменялась повторно.
+
+### M5a / DEC-28 — согласование и ядро оценки
+
+Владелец согласовал DEC-28 ответом «Ок» 2026-11-06. Контракт теперь Accepted;
+это не означает прохождения независимого review реализации.
+
+Добавлен чистый evaluator `valuation`: reduced signed fractions, provenance
+reference records, bounded extraction wallet/LP/CLMM/order/deposit/collateral/debt,
+помеченные committed capital transfers и точный PnL. Export потоково сохраняет
+policy, каждую committed boundary (включая genesis) и capital flows; manifest
+содержит hashes policy/reference inputs. Mutable valuation state в Run отсутствует.
+
+15 интеграционных тестов прошли: arithmetic reference, native claims, failed fees,
+delayed transfer/VisibleTxId bundle, historical Unpriced, caps/foreign zero scans,
+validation mutations, agent/RNG noninterference, replay и byte-identical exports.
+Clippy all-targets с `-D warnings` прошёл. Общий regression suite и шесть UI demos
+проверяются следующим шагом; независимый review DEC-27/DEC-28 ещё не выполнен.
+
+Порядок bounded extraction определён реализацией: wallet, LP, CLMM, book,
+lending, внутри — BTreeMap keys; затем расчёт суммы по стабильным component keys.
+Помимо каждой просмотренной записи счётчик включает lookup account/protocol
+container: пустые контейнеры также не обходят cap. Quantity/value каждой строки
+проверяются отдельно, агрегация проходит без промежуточного floor.
