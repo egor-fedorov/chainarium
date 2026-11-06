@@ -1,4 +1,4 @@
-"""M1–M3a browser/API acceptance. Run against `chainarium serve 8080`. Requires Playwright + Chromium."""
+"""M1–M3b browser/API acceptance. Run against `chainarium serve 8080`. Requires Playwright + Chromium."""
 import json
 from pathlib import Path
 from playwright.sync_api import sync_playwright, expect
@@ -385,6 +385,91 @@ with sync_playwright() as p:
     for _ in range(5):
         assert page.request.post('http://127.0.0.1:8080/api/step',data={}).ok
     assert page.request.get('http://127.0.0.1:8080/api/run').json()==book_full
+    page.set_viewport_size({'width':1440,'height':1100})
+    page.locator('#preset').select_option('sc-02-clmm')
+    page.locator('#new').click()
+    expect(page.locator('#position')).to_contain_text('Исполнено 0 / 5')
+    page.locator('#step').click()
+    expect(page.locator('#clmm-view')).to_contain_text('#1 alice · Active')
+    expect(page.locator('#clmm-view')).to_contain_text('1000000')
+    if not page.locator('#clmm-input').is_visible():
+        page.locator('#clmm-panel > details > summary').click()
+    before_clmm_quote=page.request.get('http://127.0.0.1:8080/api/run').json()
+    page.locator('#clmm-quote-form button').click()
+    expect(page.locator('#clmm-quote-result')).to_contain_text('Выход: 996 Q · fee: 3 X')
+    assert page.request.get('http://127.0.0.1:8080/api/run').json()==before_clmm_quote
+    clmm_checkpoint=page.request.get('http://127.0.0.1:8080/api/checkpoint').json()
+    page.locator('#step').click()
+    expect(page.locator('#receipt')).to_contain_text('ProtocolRevert')
+    page.locator('#attempt').click()
+    expect(page.locator('#detail')).to_contain_text('не вошли в состояние')
+    expect(page.locator('#detail')).to_contain_text('Выход: 996 Q')
+    page.locator('#transactions button[data-tx="1"]').click()
+    expect(page.locator('#receipt')).to_contain_text('Success')
+    view=page.request.get('http://127.0.0.1:8080/api/clmm/2').json()['pools'][0]
+    assert view['positions'][0]['collectable']==['2','0']
+    assert view['rounding_surplus']==['2','1']
+    page.screenshot(path='output/m3-clmm-position.png',full_page=True)
+    page.locator('#step').click()
+    expect(page.locator('#clmm-view')).to_contain_text('Открытых позиций нет')
+    page.locator('#calls button[data-call="1"]').click()
+    expect(page.locator('#detail')).to_contain_text('Расчёт: 2 X + 0 Q')
+    state=page.request.get('http://127.0.0.1:8080/api/run').json()['state']
+    assert state['accounts']['clmm-account']['balances']=={'X':'2','Q':'1'}
+    page.locator('#step').click()
+    expect(page.locator('#receipt')).to_contain_text('NoExecutableOutput')
+    expect(page.locator('#clmm-view')).to_contain_text('#2 alice · Active')
+    after_bootstrap=page.request.get('http://127.0.0.1:8080/api/run').json()['state']
+    page.locator('#step').click()
+    expect(page.locator('#receipt')).to_contain_text('ResourceExhausted')
+    page.locator('#transactions button[data-tx="1"]').click()
+    expect(page.locator('#receipt')).to_contain_text('ProtocolRevert')
+    clmm_full=page.request.get('http://127.0.0.1:8080/api/run').json()
+    assert clmm_full['state']['clmm']==after_bootstrap['clmm']
+    assert clmm_full['state']['accounts']['clmm-account']==after_bootstrap['accounts']['clmm-account']
+    response=page.request.post('http://127.0.0.1:8080/api/restore',data=clmm_checkpoint)
+    assert response.ok, response.text()
+    for _ in range(4):
+        assert page.request.post('http://127.0.0.1:8080/api/step',data={}).ok
+    assert page.request.get('http://127.0.0.1:8080/api/run').json()==clmm_full
+    page.locator('#preset').select_option('sc-clmm-crossing')
+    page.locator('#new').click()
+    page.locator('#step').click()
+    page.locator('#step').click()
+    expect(page.locator('#detail')).to_contain_text('Выход: 15755 Q')
+    expect(page.locator('#detail')).to_contain_text('crossing -100')
+    expect(page.locator('#detail')).to_contain_text('crossing -200')
+    expect(page.locator('#clmm-view')).to_contain_text('#3 carol · Active')
+    expect(page.locator('#clmm-view')).to_contain_text('#1 alice · Inactive')
+    if not page.locator('#clmm-input').is_visible():
+        page.locator('#clmm-panel > details > summary').click()
+    page.locator('#clmm-input').select_option('Q')
+    page.locator('#clmm-amount').fill('50000')
+    page.locator('#clmm-limit').fill('100')
+    page.locator('#clmm-quote-form button').click()
+    expect(page.locator('#clmm-quote-result')).to_contain_text('CLMM partial fill disabled')
+    before_partial_quote=page.request.get('http://127.0.0.1:8080/api/run').json()
+    page.locator('#clmm-partial').select_option('true')
+    page.locator('#clmm-quote-form button').click()
+    expect(page.locator('#clmm-quote-result')).to_contain_text('Success')
+    assert page.request.get('http://127.0.0.1:8080/api/run').json()==before_partial_quote
+    page.screenshot(path='output/m3-clmm-crossing.png',full_page=True)
+    page.set_viewport_size({'width':390,'height':844})
+    assert page.evaluate('document.documentElement.scrollWidth <= innerWidth'), 'CLMM mobile horizontal overflow'
+    page.locator('#clmm-panel').evaluate("el=>el.scrollIntoView({block:'start'})")
+    page.screenshot(path='output/m3-clmm-mobile.png')
+    page.set_viewport_size({'width':1440,'height':1100})
+    page.locator('#step').click()
+    expect(page.locator('#receipt')).to_contain_text('CLMM partial fill disabled')
+    page.locator('#transactions button[data-tx="1"]').click()
+    expect(page.locator('#receipt')).to_contain_text('Success')
+    partial=page.request.get('http://127.0.0.1:8080/api/run').json()['blocks'][2]['receipts'][1]['trace'][0]['clmm']
+    assert int(partial['remainder'])>0
+    assert int(partial['spent'])+int(partial['remainder'])==50000
+    page.locator('#step').click()
+    expect(page.locator('#clmm-view')).to_contain_text('Открытых позиций нет')
+    page.reload()
+    expect(page.locator('#preset')).to_have_value('sc-clmm-crossing')
     assert not errors, errors
     browser.close()
-print('PASS: browser run, trace, read-only viewing, checkpoint/resume, A/B, fork, exact U256 HTTP round-trip, mobile layout, LP, route policy, flash success/shortfall/rollback, credit interest/loss/redemption, exact oracle use, credit checkpoint replay, StableSwap curves/solver/LP/route/replay/depeg/mobile, TWAP 150/175/rollback/stale/readonly/checkpoint/mobile, flash liquidation real legs/loss/shortfall/rollback/checkpoint/mobile, order book levels/quote/fills/escrow/FOK/IOC/GTC/cancel/self-trade/rollback/replay/mobile')
+print('PASS: browser run, trace, read-only viewing, checkpoint/resume, A/B, fork, exact U256 HTTP round-trip, mobile layout, LP, route policy, flash success/shortfall/rollback, credit interest/loss/redemption, exact oracle use, credit checkpoint replay, StableSwap curves/solver/LP/route/replay/depeg/mobile, TWAP 150/175/rollback/stale/readonly/checkpoint/mobile, flash liquidation real legs/loss/shortfall/rollback/checkpoint/mobile, order book levels/quote/fills/escrow/FOK/IOC/GTC/cancel/self-trade/rollback/replay/mobile, CLMM ranges/fees/surplus/crossings/partial/quote/rollback/replay/mobile')

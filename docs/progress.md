@@ -1,9 +1,9 @@
 # Прогресс Chainarium — 2026-11-06
 
-Цель: весь v1.0 из §2.1. Текущий результат — **исполняемый прототип M1–M3a**.
+Цель: весь v1.0 из §2.1. Текущий результат — **исполняемый прототип M1–M3b**.
 Это не готовая v1.0; обязательный независимый review ещё не выполнен.
-DEC-05–DEC-18 приняты владельцем; M2a–M2g и M3a реализованы и проверены.
-M3a — стакан; DEC-19 для CLMM принят, реализация начата.
+DEC-05–DEC-19 приняты владельцем; M2a–M2g, M3a/стакан и M3b/CLMM
+реализованы и проверены.
 Общий partial-fill router ещё не реализован.
 
 ## Что работает
@@ -33,8 +33,10 @@ fees/nonce/resource accounting и deterministic replay. Канонические
   и полный rollback недостаточной выручки. Реактивная liquidator policy — M4.
 - M3a: on-chain стакан, price-time, целые lot/tick, комиссии на каждый match,
   GTC/IOC/FOK/cancel, защищённый escrow и read-only quote через executor.
+- M3b: CLMM positions/ticks, partial swaps, fees/claims/surplus, полная trace
+  и обе read-only формы; атомарность сохраняется на crossings и выводах LP.
 
-UI содержит одиннадцать presets, play/pause/step, просмотр block→tx→call, балансы, сравнение котировок и трасса solver,
+UI содержит тринадцать presets, play/pause/step, просмотр block→tx→call, балансы, сравнение котировок и трасса solver,
 LP shares, C/D/S/E, escrow, точный HF и запись oracle, фактически использованную
 в конкретном вызове. Расчёт риска выполняет Rust; JS отображает готовые строки.
 Есть export/checkpoint/restore/fork и A/B параметров SC-01.
@@ -47,11 +49,11 @@ LP shares, C/D/S/E, escrow, точный HF и запись oracle, фактич
   10 twap, 7 flash_liquidation, 14 book, 15 clmm; ignored=0.
 - `node --test web/wire.test.mjs` — канонические строки, диапазоны и точный
   decimal conversion прошли; JS экономические команды не проходят через Number.
-- `python3 scripts/check-ui.py` — пройден путь всех одиннадцати presets, readonly
+- `python3 scripts/check-ui.py` — пройден путь всех тринадцати presets, readonly
   просмотр, trace, checkpoint/resume, fork/A-B, точные Amount/Price через HTTP,
   desktop/mobile; ошибок JavaScript и горизонтального overflow нет.
 - Release build и `git diff --check` — прошли.
-- CLI: все одиннадцать demos исполнены. Оба StableSwap demos после checkpoint/resume
+- CLI: все тринадцать demos исполнены. Оба StableSwap demos после checkpoint/resume
   дают побайтно идентичные `run.json`. SC-05 checkpoint после блока 1 → resume:
   `run.json` побайтно совпадает с непрерывным запуском. В events JSONL начисление
   10 Q присутствует, отменённая liquidation не создаёт канонического write-off.
@@ -231,7 +233,7 @@ Browser прошёл все 11 presets и read-only quote success/FOK, checkpoin
 Снимки `output/m3-book-quote.png`, `output/m3-book-fills.png`,
 `output/m3-book-mobile.png`; desktop/mobile просмотрены.
 
-### M3b: CLMM core, интерфейс в работе
+### M3b: CLMM по DEC-19
 
 DEC-19 реализован в ядре: точный Q96 tick math в bounds±32768, позиции,
 пересечения, Q128 fee growth, burn/collect, surplus и явный partial input.
@@ -244,21 +246,38 @@ collect frequency, minima/auth/no-output, capacity1024/2048, U256/domain,
 readonly/stale quote, checkpoint каждой границы и rollback. Sweep192 обменов
 с fees0/30/300/9999 bps сохраняет tokens и обеспечение claims.
 Injected ModelError отменяет crossings/growth вместе с блоком. Вся Rust suite:
-117 passed, fmt/Clippy прошли. UI/CLI демо-путь M3b ещё не проверен;
-два JSON-сценария уже исполняются core/replay tests. Полная M3b не объявляется принятой.
+117 passed, fmt/Clippy прошли. UI/CLI путь обоих demos проверен.
+
+SC-02: mint120 units, swap121, поздний отказ131, burn+collect135,
+empty pool отказ115, exhaustion120. Crossing swap123 units. Обратный partial
+swap тратит20834 из50000 Q, возвращает29166 Q и даёт20934 X; использует128 units.
+После collect/burn трёх LP pool surplus=7 X/9 Q. Fee allocation после обоих
+направлений: Alice15 X/30 Q, Bob30 X/29 Q, Carol2 X/2 Q. Эти amounts —
+переводы из накопленных fees, не общая оценка доходности.
+
+UI показывает distribution L/active position, principal отдельно от fees,
+claims/reserves/surplus и steps/crossings. Read-only форма проверяет actual
+liquidity, limit и allow_partial через тот же executor; состояние после запросов
+не меняется. Полная M3b не объявляется принятой до независимого review.
+
+Артефакты: `output/m3b-final/` —13 demos и оба byte-identical CLMM resumes;
+build `08d8c843ebf03006dafc5af844d01230ae246b3b7a848068a3d137ec2b55b59d`.
+Browser прошёл все13 presets, включая оба CLMM, quote/partial/rollback/replay.
+Снимки `output/m3-clmm-position.png`, `output/m3-clmm-crossing.png`,
+`output/m3-clmm-mobile.png`; desktop/mobile просмотрены.
 
 ### Fixtures и границы доказательства
 
 | Проверка | Доказательство | Ограничение |
 | --- | --- | --- |
-| Ledger/auth/execution/block | acceptance + 4 injected ModelErrors после успешной tx, включая accrual/oracle | Полного scheduler M4 ещё нет |
+| Ledger/auth/execution/block | acceptance + 5 injected ModelErrors после успешной tx, включая accrual/oracle | Полного scheduler M4 ещё нет |
 | CPMM/LP/router/flash | composition: rounding/minima/ownership/reentry/actual output/rollback; 500 CPMM invariant cases | Native models; совместимость с внешним deployment не заявлена |
 | Lending accounting | exact fixture, caps/HF/LTV/cash, aggregate rates, multiple escrow, fractional carry, no-holder income | Прямой долг, заранее зарегистрированные позиции, максимум 1024/reserve |
 | Liquidation/loss | exact waterfall, partial close, dust, min_collateral, fee-preserving rollback, 256 deterministic boundary cases | Нет recovery/treasury; вывод equity запрещён |
 | Deposit shares | zero mint, minima, cash shortage без burn, last exit, bootstrap с E | Bankrupt проверен на invariant-valid defensive snapshot, не заявлен достижимым из genesis этого positive-payment preset |
 | Oracle | unauthorized/source/pair/future/duplicate/out-of-order; возраст 60/61; safe stale operations; consumer trace | External/native spot/TWAP; bounded history и однократное floor проверены |
-| Checkpoint/export | replay/resume/fork/tamper и кредитные states/receipts/system events | Состояние M1–M3a; queues/memory новых agents потребуют новых fixtures |
-| UI | реальные balances/trace, одиннадцать presets, desktop/mobile, exact HTTP wire | Прототип; полная приёмка M5 не закрыта |
+| Checkpoint/export | replay/resume/fork/tamper и кредитные states/receipts/system events | Состояние M1–M3b; queues/memory новых agents потребуют новых fixtures |
+| UI | реальные balances/trace, тринадцать presets, desktop/mobile, exact HTTP wire | Прототип; полная приёмка M5 не закрыта |
 
 Численные ожидания следуют §6/§8/§20 и принятым DEC; тесты не заменяют
 независимый review. Analytical sweep — детерминированная проверка инвариантов,
@@ -287,10 +306,10 @@ latency UI и полные workloads M5 ещё не измерены/не при
 1. Независимый review в отдельном контексте по §23.4. Разрешение на отдельного
    агента запрошено ранее, ответа на этот вопрос нет. Самопроверка не закрывает
    этот критерий, а экономические согласования не считаются разрешением на агента.
-2. Следующий механизм M3 — CLMM: DEC-19 принят владельцем (§23.2.7),
-   точные ожидания до реализации сохранены. Реализация начата.
+2. Следующая часть M3 — общий partial-fill router и LP/MM политики.
+   G-09 для partial policy ещё не согласован; готовится конкретный контракт.
 3. M2f/M2g функционально проверены; независимый review остаётся обязательным.
-4. M3–M5: CLMM, стакан, partial fills, MEV/builders/bundles, hooks, остальные
+4. M3–M5: общий partial-fill router, LP/MM policies, MEV/builders/bundles, hooks, остальные
    политики agents, полный scheduler, MTM, эксперименты и explorer.
 5. Полные user-task/latency/performance budgets и независимое review должны
    быть выполнены до приёмки целевой v1.0. SC-06 с конкуренцией — этап M4.

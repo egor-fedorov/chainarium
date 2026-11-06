@@ -92,6 +92,8 @@ async fn preset(ApiPath(id): ApiPath<String>) -> Result<impl IntoResponse, ApiEr
         "sc-07-flash-liquidation" => {
             include_str!("../../../scenarios/demos/sc-07-flash-liquidation.json")
         }
+        "sc-02-clmm" => include_str!("../../../scenarios/demos/sc-02-clmm.json"),
+        "sc-clmm-crossing" => include_str!("../../../scenarios/demos/sc-clmm-crossing.json"),
         "sc-08-book" => include_str!("../../../scenarios/demos/sc-08-book.json"),
         "sc-twap" => include_str!("../../../scenarios/demos/sc-twap.json"),
         "sc-twap-120" => include_str!("../../../scenarios/demos/sc-twap-120.json"),
@@ -116,6 +118,87 @@ struct BooksView {
     run_id: String,
     block: Amount,
     books: Vec<chainarium_core::book::View>,
+}
+#[derive(serde::Serialize)]
+struct ClmmView {
+    run_id: String,
+    block: Amount,
+    pools: Vec<chainarium_core::clmm::View>,
+}
+async fn clmm_view(
+    State(s): State<Shared>,
+    ApiPath(block): ApiPath<usize>,
+) -> Result<Json<ClmmView>, ApiError> {
+    let g = current(&s)?;
+    let r = g.as_ref().ok_or_else(|| bad("no run"))?;
+    let w = if block == 0 {
+        &r.initial
+    } else {
+        &r.blocks
+            .get(block - 1)
+            .ok_or_else(|| bad("unknown block"))?
+            .state
+    };
+    Ok(Json(ClmmView {
+        run_id: r.run_id.clone(),
+        block: w.block,
+        pools: chainarium_core::clmm::views(&r.scenario, w).map_err(bad)?,
+    }))
+}
+#[derive(Deserialize)]
+#[serde(deny_unknown_fields)]
+struct ClmmQuoteRequest {
+    block: usize,
+    agent: String,
+    sender: String,
+    pool: String,
+    asset_in: String,
+    amount: Amount,
+    limit_tick: i32,
+    min_out: Amount,
+    allow_partial: bool,
+}
+async fn clmm_quote(
+    State(s): State<Shared>,
+    Json(input): Json<ClmmQuoteRequest>,
+) -> Result<Json<chainarium_core::clmm::Quote>, ApiError> {
+    let g = current(&s)?;
+    let r = g.as_ref().ok_or_else(|| bad("no run"))?;
+    let w = if input.block == 0 {
+        &r.initial
+    } else {
+        &r.blocks
+            .get(input.block - 1)
+            .ok_or_else(|| bad("unknown block"))?
+            .state
+    };
+    let nonce = w
+        .accounts
+        .get(&input.sender)
+        .ok_or_else(|| bad("unknown sender"))?
+        .nonce;
+    let tx = chainarium_core::Transaction {
+        id: "readonly-clmm-quote".into(),
+        agent: input.agent,
+        sender: input.sender,
+        chain: r.scenario.chain.id.clone(),
+        nonce,
+        limit: 1000.into(),
+        price: Amount::ZERO,
+        deadline: w.timestamp,
+        program: vec![chainarium_core::Call::ClmmSwap {
+            pool: input.pool,
+            asset_in: input.asset_in,
+            amount: input.amount,
+            sqrt_price_limit: chainarium_core::clmm::math::tick_sqrt(input.limit_tick)
+                .map_err(bad)?,
+            min_out: input.min_out,
+            allow_partial: input.allow_partial,
+        }],
+    };
+    Ok(Json(
+        chainarium_core::clmm::quote(&r.scenario, w, &tx).map_err(bad)?,
+    ))
 }
 async fn books_view(
     State(s): State<Shared>,
@@ -299,6 +382,8 @@ fn app() -> Router {
         .route("/api/oracles/{block}", get(oracle_view))
         .route("/api/books/{block}", get(books_view))
         .route("/api/book-quote", post(book_quote))
+        .route("/api/clmm/{block}", get(clmm_view))
+        .route("/api/clmm-quote", post(clmm_quote))
         .route("/api/run", get(state).post(create))
         .route("/api/step", post(step))
         .route("/api/checkpoint", get(checkpoint))
@@ -366,7 +451,7 @@ async fn command() -> Result<(), String> {
             let listener = tokio::net::TcpListener::bind((std::net::Ipv4Addr::LOCALHOST, port))
                 .await
                 .map_err(|e| e.to_string())?;
-            println!("Chainarium M1–M3a inspector listening on port {port}");
+            println!("Chainarium M1–M3b inspector listening on port {port}");
             axum::serve(listener, app())
                 .await
                 .map_err(|e| e.to_string())?;

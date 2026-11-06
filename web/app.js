@@ -16,6 +16,7 @@ function render(){
  if(!ids.includes(venue))venue=ids[0];
  $('#venue').innerHTML=ids.map(id=>`<option value="${esc(id)}" ${venue===id?'selected':''}>${esc(id)} · ${esc(pools[id].x)}/${esc(pools[id].y)}</option>`).join('');
  const pool=pools[venue];
+ const clmmCfg=Object.values(run.scenario.clmm_pools??{})[0];
  const bookCfg=Object.values(run.scenario.books??{})[0];
  const creditId=Object.keys(run.scenario.lending??{})[0],creditCfg=run.scenario.lending?.[creditId],creditState=state.lending?.[creditId];
  $('#venue-control').hidden=!pool;$('#lp-title').hidden=!pool;$('#positions').hidden=!pool;
@@ -23,8 +24,8 @@ function render(){
  $('#assumptions').innerHTML=`<p>Активы: ${Object.entries(run.scenario.assets).map(([id,a])=>`${esc(id)} (${a.decimals} decimals)`).join(', ')}. Ресурс блока: ${esc(run.scenario.chain.block_limit)}; интервал: ${esc(run.scenario.chain.interval)} s.</p><p>Комиссия исполнения и полный резерв задаются каждым конвертом. Подтверждённые события и трасса попытки разделены. Общий MTM/PnL не вычисляется.</p><code>${run.scenario.model_versions.map(esc).join('<br>')}</code>`;
 
 
- const poolAccount=pool?.account??creditCfg?.cash_account??bookCfg?.account??Object.keys(state.accounts)[0];
- const x=pool?.x??creditCfg?.debt_asset??bookCfg?.base_asset??Object.keys(run.scenario.assets)[0],y=pool?.y??creditCfg?.collateral_asset??bookCfg?.quote_asset??Object.keys(run.scenario.assets)[1]??x;
+ const poolAccount=pool?.account??creditCfg?.cash_account??bookCfg?.account??clmmCfg?.account??Object.keys(state.accounts)[0];
+ const x=pool?.x??creditCfg?.debt_asset??bookCfg?.base_asset??clmmCfg?.x??Object.keys(run.scenario.assets)[0],y=pool?.y??creditCfg?.collateral_asset??bookCfg?.quote_asset??clmmCfg?.q??Object.keys(run.scenario.assets)[1]??x;
  const sender=run.scenario.blocks[0]?.[0]?.sender??Object.keys(state.accounts)[0];
  $('#chart-title').textContent=creditCfg&&!pool?`Cash резерва, atoms ${x}`:bookCfg&&!pool?`Escrow, atoms ${x}`:`Баланс ${x} в пуле`;
  $('#chart').setAttribute('aria-label',$('#chart-title').textContent);
@@ -39,7 +40,7 @@ function render(){
  $('#chart').innerHTML=`<path d="M25 120H615" stroke="#dce4df"/><polyline points="${points.join(' ')}" fill="none" stroke="#087e72" stroke-width="3"/>`+points.map((p,i)=>`<circle cx="${p.split(',')[0]}" cy="${p.split(',')[1]}" r="${i===viewed+1?6:4}" fill="#087e72"/><text x="${p.split(',')[0]}" y="137" text-anchor="middle" fill="#62757a" font-size="10">${i}</text>`).join('');
  $('#balances').innerHTML='<table><thead><tr><th>Счёт</th><th>atoms '+esc(x)+'</th><th>atoms '+esc(y)+'</th></tr></thead><tbody>'+Object.keys(state.accounts).map(a=>`<tr><td>${esc(a)}</td><td>${esc(balance(state,a,x))}</td><td>${esc(balance(state,a,y))}</td></tr>`).join('')+'</tbody></table>';
  $('#positions').innerHTML='<table><tr><th>Пул / владелец</th><th>Shares</th></tr>'+Object.entries(state.lp_balances).flatMap(([id,owners])=>Object.entries(owners).map(([owner,shares])=>`<tr><td>${esc(id)} / ${esc(owner)}</td><td>${esc(shares)}</td></tr>`)).join('')+'</table>';
- renderCredit(state);renderMarket(state,venue);renderOracles(state);renderBooks(state);
+ renderCredit(state);renderMarket(state,venue);renderOracles(state);renderBooks(state);renderClmm(state);
  $('#system-events').innerHTML=block?.system_events?.length?'<details open><summary>Системное начисление перед транзакциями</summary>'+events(block.system_events)+'</details>':'';
  $('#decisions').innerHTML=(block?.decisions??[]).map(d=>`<div class="decision"><strong>${esc(d.agent)}</strong> · наблюдал блок ${esc(d.observed_block)}<br>${esc(d.reason)}${d.expected_net_gain?`<br>Ожидание после комиссии: +${esc(d.expected_net_gain)} atoms ${esc(run.scenario.chain.fee_asset)}`:''}${d.route?'<br>'+d.route.hops.map(h=>`${esc(h.venue)}: ${esc(h.input)} ${esc(h.asset_in)} → ${esc(h.output)} ${esc(h.asset_out)}`).join('<br>'):''}${d.search_truncated?'<br>Поиск ограничен бюджетом':''}</div>`).join('');
  $('#transactions').innerHTML=block?block.receipts.map((r,i)=>`<button class="tx ${selected===i?'active':''}" data-tx="${i}"><span class="badge ${r.status==='Success'?'':'failure'}">${esc(r.status)}</span><span>${esc(r.tx_id)}<small>${esc(r.used)} units · ${esc(r.fee)} ${esc(run.scenario.chain.fee_asset)} комиссия</small></span></button>`).join('')+block.rejected.map(r=>`<p class="notice">Не включена: ${esc(r.tx_id)} · ${esc(r.reason)}</p>`).join(''):'<p class="empty">Выполните первый блок или выберите сохранённый блок.</p>';
@@ -52,11 +53,57 @@ function render(){
    if(mode==='attempt'){
      $('#calls').innerHTML=receipt.trace.map((t,i)=>`<button class="call ${i===selectedCall?'active':''}" data-call="${i}">${esc(t.path)} · ${esc(t.operation)}<br><small>${esc(t.outcome)} · ${esc(t.used)} units суммарно</small></button>`).join('');
      $('#calls').querySelectorAll('button').forEach(b=>b.onclick=()=>{selectedCall=Number(b.dataset.call);render();});
-     const t=receipt.trace[selectedCall];if(t)$('#detail').innerHTML=`<p class="hint">${esc(t.caller)} → ${esc(t.callee)}</p>${receipt.status!=='Success'?'<p class="notice">Попытка отменена. Показанные переводы не вошли в состояние.</p>':''}`+(t.oracle?oracleCard(t.oracle):'')+bookCard(t.book)+solverCard(t.solver??[])+twapCard(t.twap)+sourceChanges(t.source_updates??[])+events(t.events);
-   }else $('#detail').innerHTML=(receipt.status==='Success'?receipt.trace.map(t=>bookCard(t.book)).join(''):'')+events(receipt.events)+(receipt.status!=='Success'?'<p class="notice">Переводы отменены. Комиссия и израсходованный nonce сохранены.</p>':'');
+     const t=receipt.trace[selectedCall];if(t)$('#detail').innerHTML=`<p class="hint">${esc(t.caller)} → ${esc(t.callee)}</p>${receipt.status!=='Success'?'<p class="notice">Попытка отменена. Показанные переводы не вошли в состояние.</p>':''}`+(t.oracle?oracleCard(t.oracle):'')+bookCard(t.book)+clmmCard(t.clmm)+solverCard(t.solver??[])+twapCard(t.twap)+sourceChanges(t.source_updates??[])+events(t.events);
+   }else $('#detail').innerHTML=(receipt.status==='Success'?receipt.trace.map(t=>bookCard(t.book)+clmmCard(t.clmm)).join(''):'')+events(receipt.events)+(receipt.status!=='Success'?'<p class="notice">Переводы отменены. Комиссия и израсходованный nonce сохранены.</p>':'');
  }
  if(previous&&previous.scenario.name===run.scenario.name){const a=previous.blocks[viewed]?.state??(viewed===-1?previous.initial:null);$('#comparison').innerHTML='<div class="section-label">СРАВНЕНИЕ A/B · ОДИНАКОВЫЙ БЛОК</div>'+ (a?`<p class="hint">A: предыдущий запуск; B: текущий. Факторы: input ${esc(previous.scenario.blocks[0]?.[0]?.program[0]?.amount??'—')} → ${esc(run.scenario.blocks[0]?.[0]?.program[0]?.amount??'—')}, fee ${Object.values(previous.scenario.protocols)[0]?.fee_bps??'—'} → ${pool?.fee_bps??'—'} bps; min_out ${esc(previous.scenario.blocks[0]?.[0]?.program[0]?.min_out??'—')} → ${esc(run.scenario.blocks[0]?.[0]?.program[0]?.min_out??'—')}.</p><table><tr><th>Резерв</th><th>A</th><th>B</th></tr>${[x,y].map(asset=>`<tr><td>${esc(asset)}</td><td>${balance(a,poolAccount,asset)}</td><td>${balance(state,poolAccount,asset)}</td></tr>`).join('')}</table>`:'<p class="muted">В предыдущем запуске этот блок ещё не исполнен.</p>');}else{$('#comparison').innerHTML='<div class="section-label">СРАВНЕНИЕ A/B</div><p class="muted">Для сравнения измените параметр и повторите тот же preset.</p>';}
 }
+let clmmRender=0,clmmQuoteToken=0;
+function clmmCard(t){
+ if(!t)return '';
+ const c=run.scenario.clmm_pools[t.pool],out=t.asset_in===c.x?c.q:c.x;
+ return `<details open class="clmm-trace"><summary>${esc(t.action)}${t.position_id?' · #'+esc(t.position_id):''}</summary><p>Tick ${t.tick_before} → ${t.tick_after}<br>Активная L: ${esc(t.liquidity_before)} → ${esc(t.liquidity_after)}</p>`+
+  (t.asset_in?`<p>Запрошено: ${esc(t.requested)} ${esc(t.asset_in)}<br>Потрачено: ${esc(t.spent)} · остаток: ${esc(t.remainder)}<br>Выход: ${esc(t.output)} ${esc(out)} · fee: ${esc(t.fee)} ${esc(t.asset_in)}</p>`:`<p>Расчёт: ${esc(t.amounts[0])} ${esc(c.x)} + ${esc(t.amounts[1])} ${esc(c.q)}<br>Начисленные fees позиции: ${esc(t.position_owed[0])} ${esc(c.x)} / ${esc(t.position_owed[1])} ${esc(c.q)}</p>`)+
+  `<p class="hint">S до: <code>${esc(t.sqrt_before)}</code><br>S после: <code>${esc(t.sqrt_after)}</code> · Q96</p>`+
+  t.steps.map((s,i)=>`<details open><summary>Шаг ${i+1}${s.crossed_tick!==null?' · crossing '+s.crossed_tick:''}</summary><p>Tick ${s.tick_before} → ${s.tick_after}<br>L ${esc(s.liquidity_before)} → ${esc(s.liquidity_after)}<br>Gross ${esc(s.gross)} · net ${esc(s.net)} · fee ${esc(s.fee)}<br>Output ${esc(s.output)} ${esc(out)}</p><p class="hint"><code>${esc(s.sqrt_before)} → ${esc(s.sqrt_after)}</code></p></details>`).join('')+'</details>';
+}
+async function renderClmm(state){
+ const token=++clmmRender,runId=run.run_id;clmmQuoteToken++;$('#clmm-quote-result').innerHTML='';
+ const ids=Object.keys(run.scenario.clmm_pools??{});$('#clmm-panel').hidden=!ids.length;if(!ids.length)return;
+ let selected=$('#clmm-select').value;if(!ids.includes(selected))selected=ids[0];
+ $('#clmm-select').innerHTML=ids.map(id=>`<option ${id===selected?'selected':''}>${esc(id)}</option>`).join('');
+ const cfg=run.scenario.clmm_pools[selected],owners=[...new Set(Object.values(run.scenario.agents).flatMap(a=>a.controlled_accounts))];
+ let owner=$('#clmm-owner').value;if(!owners.includes(owner))owner=owners.includes('trader')?'trader':owners[0];
+ $('#clmm-owner').innerHTML=owners.map(id=>`<option ${id===owner?'selected':''}>${esc(id)}</option>`).join('');
+ const asset=$('#clmm-input').value;$('#clmm-input').innerHTML=[cfg.x,cfg.q].map(a=>`<option ${a===asset?'selected':''}>${esc(a)}</option>`).join('');
+ $('#clmm-view').innerHTML='<p class="muted">Чтение диапазонов…</p>';
+ try{
+  const v=await api('clmm/'+state.block);if(token!==clmmRender||run.run_id!==runId||v.run_id!==runId||v.block!==state.block)return;
+  const p=v.pools.find(p=>p.pool===selected),c=p.config;
+  const lo=Math.min(p.current_tick,...p.ticks.map(t=>t.tick))-10,hi=Math.max(p.current_tick,...p.ticks.map(t=>t.tick))+10,maxL=Math.max(1,...p.ticks.map(t=>Number(t.liquidity_above)));
+  const x=t=>25+(t-lo)/(hi-lo)*590,y=l=>140-Number(l)/maxL*110;
+  const path=p.ticks.map(t=>`H${x(t.tick)}V${y(t.liquidity_above)}`).join('');
+  const chart=`<svg class="liquidity-chart" viewBox="0 0 640 170" role="img" aria-label="Активная ликвидность по диапазонам ticks"><path d="M25 140${path}H615" stroke="#087e72" stroke-width="3" fill="none"/><path d="M${x(p.current_tick)} 15V145" stroke="#bd522d" stroke-dasharray="4 4"/><text x="${x(p.current_tick)}" y="162" text-anchor="middle" fill="#bd522d" font-size="12">tick ${p.current_tick}</text></svg>`;
+  $('#clmm-view').innerHTML=`<h2>${esc(p.pool)} · ${esc(c.x)}/${esc(c.q)}</h2><p>Swap fee ${c.fee_bps} bps · ticks ±32768</p><div class="stats"><div class="stat"><span>Активная L</span><strong>${esc(p.active_liquidity)}</strong></div><div class="stat"><span>Текущий tick</span><strong>${p.current_tick}</strong></div></div>${chart}<p class="hint">Линия показывает L по ticks; маркер — текущий tick. Это не reserves и не объём, доступный по неизменной цене.</p>`+
+   `<table><tr><th>В пуле</th><th>${esc(c.x)}</th><th>${esc(c.q)}</th></tr>${[['Резервы',p.reserves],['Требования LP',p.claims],['Остатки округления',p.rounding_surplus]].map(([label,n])=>`<tr><td>${label}</td><td>${esc(n[0])}</td><td>${esc(n[1])}</td></tr>`).join('')}</table><p class="hint">Требования обеспечены reserves. Остатки округления не выводятся и не создают ликвидность.</p>`+
+   p.positions.map(v=>`<article class="clmm-position"><h3>#${esc(v.id)} ${esc(v.owner)} · ${v.active?'Active':'Inactive'}</h3><p>[${v.lower}, ${v.upper}) · L ${esc(v.liquidity)}</p><table><tr><th>Позиция</th><th>${esc(c.x)}</th><th>${esc(c.q)}</th></tr><tr><td>Principal при burn</td><td>${esc(v.principal[0])}</td><td>${esc(v.principal[1])}</td></tr><tr><td>Fees при collect</td><td>${esc(v.collectable[0])}</td><td>${esc(v.collectable[1])}</td></tr></table></article>`).join('')+
+   (!p.positions.length?'<p class="empty">Открытых позиций нет.</p>':'')+
+   `<details><summary>Точные price и ticks</summary><p>S: <code>${esc(p.sqrt_price)}</code> · Q96<br>Цена: <code>${esc(p.price.numerator)} / ${esc(p.price.denominator)}</code> atoms ${esc(c.q)} за atom ${esc(c.x)}</p><table><tr><th>Tick</th><th>L выше</th><th>Gross L</th><th>Net L</th></tr>${p.ticks.map(t=>`<tr><td>${t.tick}</td><td>${esc(t.liquidity_above)}</td><td>${esc(t.gross)}</td><td>${t.net.negative?'−':'+'}${esc(t.net.magnitude)}</td></tr>`).join('')}</table></details>`;
+ }catch(e){if(token===clmmRender)$('#clmm-view').textContent=e.message;}
+}
+$('#clmm-select').onchange=()=>render();
+$('#clmm-input').onchange=()=>{const c=run.scenario.clmm_pools[$('#clmm-select').value];$('#clmm-limit').value=$('#clmm-input').value===c.x?'-100':'100';};
+$('#clmm-quote-form').oninput=()=>{clmmQuoteToken++;$('#clmm-quote-result').innerHTML='';};
+$('#clmm-quote-form').onsubmit=async e=>{
+ e.preventDefault();const token=++clmmQuoteToken,runId=run.run_id;
+ try{
+  const sender=$('#clmm-owner').value,agent=Object.entries(run.scenario.agents).find(([,a])=>a.controlled_accounts.includes(sender))?.[0],limit=Number($('#clmm-limit').value);
+  if(!Number.isInteger(limit)||limit < -32768||limit > 32768)throw Error('Tick должен быть целым в пределах ±32768');
+  const q=await api('clmm-quote',{block:viewed+1,agent,sender,pool:$('#clmm-select').value,asset_in:$('#clmm-input').value,amount:atoms($('#clmm-amount').value),limit_tick:limit,min_out:atoms($('#clmm-minimum').value),allow_partial:$('#clmm-partial').value==='true'});
+  if(token!==clmmQuoteToken||run.run_id!==runId)return;
+  $('#clmm-quote-result').innerHTML=`<p><strong>${esc(q.receipt.status)}</strong> · ${esc(q.receipt.used)} units${q.receipt.error?' · '+esc(q.receipt.error):''}</p>`+q.receipt.trace.map(t=>clmmCard(t.clmm)).join('')+`<p class="hint">Только пробное исполнение · блок ${esc(q.block)}<br>State ref: <code>${esc(q.state_ref)}</code></p>`;
+ }catch(e){if(token===clmmQuoteToken)$('#clmm-quote-result').textContent=e.message;}
+};
 let bookRender=0,bookQuoteToken=0;
 function bookCard(t){
  if(!t)return '';
@@ -91,7 +138,7 @@ $('#book-quote-form').onsubmit=async e=>{
   const transaction={id:'readonly-book-quote',agent,sender,chain:run.scenario.chain.id,nonce:state.accounts[sender].nonce,limit:'1000',price:'0',deadline:state.timestamp,program:[{type:'PlaceOrder',book:$('#book-select').value,side:$('#book-side').value,price_ticks:atoms($('#book-price').value),lots:atoms($('#book-lots').value),tif:$('#book-tif').value}]};
   const q=await api('book-quote',{block:viewed+1,transaction});
   if(token!==bookQuoteToken||run.run_id!==runId)return;
-  $('#book-quote-result').innerHTML=`<p><strong>${esc(q.receipt.status)}</strong> · ${esc(q.receipt.used)} units${q.receipt.error?' · '+esc(q.receipt.error):''}</p>`+q.receipt.trace.map(t=>bookCard(t.book)).join('')+`<p class="hint">Только пробное исполнение · блок ${esc(q.block)}<br>State ref: <code>${esc(q.state_ref)}</code></p>`;
+  $('#book-quote-result').innerHTML=`<p><strong>${esc(q.receipt.status)}</strong> · ${esc(q.receipt.used)} units${q.receipt.error?' · '+esc(q.receipt.error):''}</p>`+q.receipt.trace.map(t=>bookCard(t.book)+clmmCard(t.clmm)).join('')+`<p class="hint">Только пробное исполнение · блок ${esc(q.block)}<br>State ref: <code>${esc(q.state_ref)}</code></p>`;
  }catch(e){if(token===bookQuoteToken)$('#book-quote-result').textContent=e.message;}
 };
 let oracleRender=0;
@@ -165,7 +212,7 @@ async function renderCredit(state){
   }).join('');
  }catch(e){if(token===creditRender)$('#credit').textContent=e.message;}
 }
-function events(es){return es.length?'<ul class="events">'+es.map(e=>`<li><span class="muted">${esc(e.kind)}</span><br>${esc(e.from)} → ${esc(e.to)}<br><strong>${esc(e.amount)} ${e.asset.startsWith('LOTS:')?'lots':e.kind.includes('Shares')?'shares':e.kind==='InterestRemainderCleared'?'долей 10⁻¹⁸':e.kind==='OraclePublished'?'':e.kind==='PriceTimeAccrued'?'s':'atoms'} ${e.kind==='PriceTimeAccrued'?'':esc(e.asset)}</strong></li>`).join('')+'</ul>':'<p class="empty">Подтверждённых переводов нет.</p>';}
+function events(es){return es.length?'<ul class="events">'+es.map(e=>`<li><span class="muted">${esc(e.kind)}</span><br>${esc(e.from)} → ${esc(e.to)}<br><strong>${esc(e.amount)} ${e.asset.startsWith('L:')?'liquidity':e.asset.startsWith('LOTS:')?'lots':e.kind.includes('Shares')?'shares':e.kind==='InterestRemainderCleared'?'долей 10⁻¹⁸':e.kind==='OraclePublished'?'':e.kind==='PriceTimeAccrued'?'s':'atoms'} ${e.kind==='PriceTimeAccrued'?'':esc(e.asset)}</strong></li>`).join('')+'</ul>':'<p class="empty">Подтверждённых переводов нет.</p>';}
 async function newRun(){
  stop();const id=$('#preset').value;const s=await api('preset/'+id);
  if(id==='sc-01'){
@@ -181,7 +228,7 @@ async function tick(){if(!playing)return;await guard(next);if(run.blocks.length>
 $('#venue').onchange=()=>render();
 function presetControls(){
  const id=$('#preset').value;$('#sc01-params').hidden=id!=='sc-01';
- $('#preset-summary').textContent=({'sc-08-book':'Lot = 10 X, tick = 2 Q/lot. Maker fee = 0, taker = 100 bps. Покупка 4 lots: 40 X за 420 Q + 5 Q fees. FOK/late rollback, частичное GTC, cancel, self-trade и пустой IOC. Execution fee = 0.', 'sc-07-flash-liquidation':'TWAP 20 → 11 Q/X. Flash 60 Q → liquidation 6 X → 84 Q → 83 R → 76 Q. Возврат 61 Q, остаток 15 Q. Первая попытка продаёт залог дешевле и целиком отменяется. Ставка 12.5%/s, execution fee = 0 — учебные параметры.', 'sc-twap':'CPMM 4 X / 400 Q: spot 100 → 200 в t=30. TWAP 150 в t=60. Borrow по TWAP, rollback цены и повтор старого окна: возраст 60/90 s. Execution fee = 0.', 'sc-twap-120':'Тот же источник: 100 за первые 30 s и 200 за следующие 90 s. При W=120 s результат в t=120 равен 175; до этого NotReady.', 'sc-stable':'Q/R, 6 decimals. StableSwap: A=100, fee=4 bps; CPMM: fee=30 bps. Swap 100 Q → 99.860150 R, proportional mint/burn, цикл через обе площадки и rollback. Execution fee = 0.', 'sc-stable-depeg':'StableSwap: 100 Q / 10000 R, A=100, fee=4 bps. Вход 100 Q даёт 554.752748 R. Затем обратный swap и отменённая попытка. Execution fee = 0.', 'sc-05-credit':'100 Q → 100 shares; 6 X обеспечивают заём 80 Q. Ставка 12.5% за модельную секунду, reserve factor 20%. Цена 20 → 11 Q/X. Ликвидация и вывод после убытка. Учебные параметры, execution fee = 0.', 'sc-lp':'Mint: max 100 X / 120 Q, затем burn 25 shares. Последний mint отменяется. Execution fee = 0.', 'sc-03-route':'Политика ищет цикл на своих 100 Q. Не менее 1 Q после execution fee. Fee price = 0.', 'sc-04-flash':'Заём 100 Q, flash fee 5 bps (1 Q), две площадки. Execution fee = 0. Затем недоплата и поздний отказ.'})[id]??'';
+ $('#preset-summary').textContent=({'sc-02-clmm':'Q96, диапазон [−100,100), L=1000000, fee=30 bps. Взнос 4988 X + 4988 Q. Swap 1000 X → 996 Q; burn 5984 X + 3991 Q, collect 2 X. Остатки 2 X + 1 Q не выводятся. Execution fee = 0.', 'sc-clmm-crossing':'Три соседних диапазона с L=1/2/3 млн. Swap 16000 X → 15755 Q пересекает ticks −100 и −200. Обратный swap показывает отказ и явное разрешение partial fill, затем collect/burn всех LP.', 'sc-08-book':'Lot = 10 X, tick = 2 Q/lot. Maker fee = 0, taker = 100 bps. Покупка 4 lots: 40 X за 420 Q + 5 Q fees. FOK/late rollback, частичное GTC, cancel, self-trade и пустой IOC. Execution fee = 0.', 'sc-07-flash-liquidation':'TWAP 20 → 11 Q/X. Flash 60 Q → liquidation 6 X → 84 Q → 83 R → 76 Q. Возврат 61 Q, остаток 15 Q. Первая попытка продаёт залог дешевле и целиком отменяется. Ставка 12.5%/s, execution fee = 0 — учебные параметры.', 'sc-twap':'CPMM 4 X / 400 Q: spot 100 → 200 в t=30. TWAP 150 в t=60. Borrow по TWAP, rollback цены и повтор старого окна: возраст 60/90 s. Execution fee = 0.', 'sc-twap-120':'Тот же источник: 100 за первые 30 s и 200 за следующие 90 s. При W=120 s результат в t=120 равен 175; до этого NotReady.', 'sc-stable':'Q/R, 6 decimals. StableSwap: A=100, fee=4 bps; CPMM: fee=30 bps. Swap 100 Q → 99.860150 R, proportional mint/burn, цикл через обе площадки и rollback. Execution fee = 0.', 'sc-stable-depeg':'StableSwap: 100 Q / 10000 R, A=100, fee=4 bps. Вход 100 Q даёт 554.752748 R. Затем обратный swap и отменённая попытка. Execution fee = 0.', 'sc-05-credit':'100 Q → 100 shares; 6 X обеспечивают заём 80 Q. Ставка 12.5% за модельную секунду, reserve factor 20%. Цена 20 → 11 Q/X. Ликвидация и вывод после убытка. Учебные параметры, execution fee = 0.', 'sc-lp':'Mint: max 100 X / 120 Q, затем burn 25 shares. Последний mint отменяется. Execution fee = 0.', 'sc-03-route':'Политика ищет цикл на своих 100 Q. Не менее 1 Q после execution fee. Fee price = 0.', 'sc-04-flash':'Заём 100 Q, flash fee 5 bps (1 Q), две площадки. Execution fee = 0. Затем недоплата и поздний отказ.'})[id]??'';
 }
 async function syncControls(){
  const options=Array.from($('#preset').options);

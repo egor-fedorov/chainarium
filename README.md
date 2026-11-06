@@ -1,7 +1,7 @@
 # Chainarium
 
 Локальная лаборатория DeFi с Rust-ядром. **v1.0 в разработке.**
-Сейчас исполняются M1–M3a: CPMM swaps/LP, маршруты, арбитражная политика
+Сейчас исполняются M1–M3b: CPMM swaps/LP, маршруты, арбитражная политика
 на собственных средствах, flash loans, lending, oracle, проценты и ликвидации, StableSwap, TWAP и flash-ликвидация,
 стакан GTC/IOC/FOK, rollback, fees/nonce и исчерпание ресурса. Полный объём и приёмка: [спецификация](docs/spec.md).
 
@@ -32,7 +32,7 @@ scripts/cargo.sh run --locked --bin chainarium -- resume output/checkpoint.json 
 Checkpoint восстанавливается только на committed-границе; checksum и повторное
 исполнение проверяют его целостность. CSV не является форматом восстановления.
 
-Доступны одиннадцать presets в UI и CLI:
+Доступны тринадцать presets в UI и CLI:
 
 | Файл | Демонстрация |
 | --- | --- |
@@ -47,6 +47,8 @@ Checkpoint восстанавливается только на committed-гра
 | `scenarios/demos/sc-twap-120.json` | Окно 120 s: TWAP 175, до полного окна NotReady |
 | `scenarios/demos/sc-07-flash-liquidation.json` | Flash 60 Q → 6 X → 84 Q → 83 R → 76 Q; возврат 61 Q и откат недостаточной выручки |
 | `scenarios/demos/sc-08-book.json` | 40 X за 420 Q + 5 Q fees; FOK, partial GTC, IOC, cancel и escrow |
+| `scenarios/demos/sc-02-clmm.json` | 1000 X → 996 Q; burn/collect, остатки округления и rollback |
+| `scenarios/demos/sc-clmm-crossing.json` | Три диапазона: 16000 X → 15755 Q; обратный partial swap и вывод LP |
 
 В SC-05 аналитическая ставка 12.5% за модельную секунду и reserve factor 20%;
 это fixture, не рыночный прогноз. UI показывает C/D/S/E, отдельный залог,
@@ -91,9 +93,12 @@ checkpoint/resume, fork, A/B и мобильную верстку. Снимки 
   и возраст от observed_at. Read-only проекция не заменяет опубликованную цену.
 - Стакан: lot/tick, price-time, GTC/IOC/FOK, защищённый escrow и cancel.
   UI показывает очередь и пробный ордер через тот же executor.
-- CLMM, общий partial-fill router, MEV и hooks ещё не реализованы.
+- CLMM: Q96/ticks±32768, позиции, crossings/gaps, Q128 fees, burn/collect
+  и явное partial исполнение. UI показывает L по ranges, claims/surplus
+  и пробный swap. Остатки округления не выводятся.
+- Общий partial-fill router, LP/MM политики, MEV и hooks ещё не реализованы.
 - Исследовательский MTM/PnL не рассчитывается; баланс не называется прибылью.
-- UI — прототип M1–M3a с одиннадцатью presets. Полный explorer M5 впереди.
+- UI — прототип M1–M3b с тринадцатью presets. Полный explorer M5 впереди.
 - Критерии всей v1.0 не объявляются выполненными. Независимый review и следующие
   открытые экономические контракты фиксируются согласно §23–24 спецификации.
 
