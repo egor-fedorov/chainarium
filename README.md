@@ -197,7 +197,7 @@ checkpoint/resume, fork, A/B и мобильную верстку. Снимки 
 [Review DEC-24/M4d](docs/reviews/dec24-independent-review.md) завершён без
 подтверждённых findings. Сохранены7 независимых tests:768 денежных сценариев,
 344 resource boundaries, node/depth, Fixed/Greedy, U256 и checkpoint/replay.
-Для hooks подготовлен Proposed DEC-25; его согласование и реализация впереди.
+Для hooks принят DEC-25; реализация M4e начата.
 
 Фактические результаты и оставшиеся проверки: [журнал прогресса](docs/progress.md).
 Сценарий CLI ограничен 64 MiB, отдельная транзакция — 1 MiB. Web restore

@@ -2397,10 +2397,10 @@ RNG от просмотра, checkpoint/replay и read-only UI. Независи
 экономического call и policy требуется по §23.4. Остальные роли и hooks
 остаются следующими срезами; M5/MTM/performance gates ещё не закрыты.
 
-### 23.2.13. Предложение M4e — Proposed DEC-25
+### 23.2.13. Принятый контракт M4e — Accepted DEC-25
 
 **DEC-25 / G-09/G-10, ограниченные hooks CPMM.** Подготовлено после M4d;
-**ожидает согласования владельца, реализация не начата**. Предлагаемый профиль
+**согласовано владельцем 2026-11-06**. Принятый профиль
 `bounded-pool-hooks-v1` добавляет точки исполнения BeforeSwap/AfterSwap и
 BeforeLiquidity/AfterLiquidity для native CPMM. Это первый исполняемый hook
 §7.6/REQ-HOOK-01; StableSwap/CLMM/book пока не принимают hook bindings.
@@ -2581,7 +2581,7 @@ openspec/                   # опционально, после решения 
 
 **Уже закрытые требования:** единый ledger; разделение origin/caller/callee и явная авторизация; точная передача atoms/цен без потери целых; native fee/nonce и ресурсный профиль `100 / 10 / 5 / 1` (§5–§6); изолированный collateral, уравнение `C + D = S + E`, распределение процентов и убытков, атомарность liquidation+writeoff (§8); возраст цены по observation time, полномочия publisher и validity oracle (§10); раздельные committed events/attempt trace и полные checkpoints (§15–§17). Выбор конкретного Rust crate или UI-транспорта обязан сохранить эти требования.
 
-**Состояние решений на 2026-11-06:** DEC-05–DEC-24 приняты. Для текущих
+**Состояние решений на 2026-11-06:** DEC-05–DEC-25 приняты. Для текущих
 профилей определены G-01/G-02, CPMM/LP часть G-03, прототип G-04,
 reference lending G-05, external oracle часть G-06, router budget часть G-09,
 базовый checkpoint G-10 и RNG часть G-15. Реализация/fixtures отражены в §20
@@ -2600,8 +2600,7 @@ pre-implementation ожиданиями; M4c реализован, два P2 н�
 исправлены и адресно перепроверены (`docs/reviews/dec23-independent-review.md`).
 Для liquidator competition и продажи фактического залога принят
 **DEC-24** (§23.2.12); M4d реализован, независимый review завершён без подтверждённых
-findings (`docs/reviews/dec24-independent-review.md`). Hooks описаны в **Proposed
-DEC-25** (§23.2.13), согласование ещё не получено, реализация не начата.
+findings (`docs/reviews/dec24-independent-review.md`). Hooks определены **Accepted DEC-25** (§23.2.13); реализация M4e начата.
 Остальные механизмы и бюджеты остаются открытыми. Таблица ниже сохраняет
 исходные условия gates и критерии их полной приёмки.
 
