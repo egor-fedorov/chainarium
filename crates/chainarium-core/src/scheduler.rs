@@ -479,6 +479,8 @@ pub struct Metrics {
 #[derive(Clone, Debug, Serialize, Deserialize, PartialEq, Eq)]
 #[serde(deny_unknown_fields)]
 pub struct Report {
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub baselines: Vec<crate::policy::agents::Decision>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub liquidators: Option<crate::policy::liquidator::Report>,
     #[serde(default, skip_serializing_if = "Option::is_none")]

@@ -301,6 +301,8 @@ impl Call {
 #[serde(deny_unknown_fields)]
 pub struct Scenario {
     #[serde(default, skip_serializing_if = "BTreeMap::is_empty")]
+    pub baseline_policies: BTreeMap<String, crate::policy::agents::Policy>,
+    #[serde(default, skip_serializing_if = "BTreeMap::is_empty")]
     pub hooks: BTreeMap<String, crate::hooks::Config>,
     pub schema_version: String,
     pub model_versions: Vec<String>,
@@ -390,6 +392,7 @@ impl Scenario {
                     && m != crate::policy::liquidator::MODEL
                     && m != crate::liquidation::MODEL
                     && m != crate::hooks::MODEL
+                    && m != crate::policy::agents::MODEL
                     && m != crate::scheduler::backrun::MODEL
                     && !crate::scheduler::MODELS.contains(&m.as_str())
                     && !crate::scheduler::bundles::MODELS.contains(&m.as_str())
@@ -507,6 +510,7 @@ impl Scenario {
         }
         crate::policy::baselines::validate(self)?;
         crate::scheduler::validate(self)?;
+        crate::policy::agents::validate(self)?;
         let mut ids = BTreeSet::new();
         for block in &self.blocks {
             for tx in block {

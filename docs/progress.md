@@ -1,6 +1,6 @@
 # Прогресс Chainarium — 2026-11-06
 
-Цель: весь v1.0 из §2.1. Текущий результат — **исполняемый прототип M1–M4e**.
+Цель: весь v1.0 из §2.1. Текущий результат — **исполняемый прототип M1–M4f**.
 Это не готовая v1.0. Независимый review M1–M3b завершён, три findings исправлены
 и перепроверены. Отдельный review M3c–M3d завершён без подтверждённых findings;
 область и ограничения сохранены в `docs/reviews/dec20-independent-review.md`.
@@ -33,7 +33,8 @@ findings. Отчёт — `docs/reviews/dec24-independent-review.md`; сохра�
 findings. Отчёт — `docs/reviews/dec25-independent-review.md`; сохранены13 независимых
 integration tests и unit fault injection. Для M4f принят Accepted DEC-26 (§23.2.14): scripted/random
 user, target borrower и native oracle publisher; владелец согласовал контракт
-2026-11-06, реализация начата.
+2026-11-06. Реализация и Rust/CLI/browser проверки завершены;
+отдельный независимый review M4f впереди.
 
 ## Что работает
 
@@ -76,8 +77,12 @@ fees/nonce/resource accounting и deterministic replay. Канонические
   собственные counter/cash и выплаты sender; общие caps, resource accounting
   и rollback. Read-only наблюдение и execution quote не запускают effects
   в каноническом состоянии.
+- M4f: scripted/random user, target borrower и native oracle publisher.
+  Именованный RNG расходуется по расписанию независимо от Hold/BusyNonce,
+  ModelError отменяет весь round вместе с RNG. Пользователь выбирает
+  SuccessfulOnly/AnyReceipt; trial и фактические оплаченные receipts разделены.
 
-UI содержит 46 presets, play/pause/step, просмотр block→tx→call, балансы, сравнение котировок и трасса solver,
+UI содержит 52 presets, play/pause/step, просмотр block→tx→call, балансы, сравнение котировок и трасса solver,
 LP shares, C/D/S/E, escrow, точный HF и запись oracle, фактически использованную
 в конкретном вызове. Расчёт риска выполняет Rust; JS отображает готовые строки.
 Есть export/checkpoint/restore/fork и A/B параметров SC-01.
@@ -85,26 +90,24 @@ LP shares, C/D/S/E, escrow, точный HF и запись oracle, фактич
 ## Фактическая проверка
 
 - `scripts/cargo.sh fmt --check` и Clippy всех targets с `-D warnings` — прошли.
-- `scripts/cargo.sh test --workspace --locked --offline` — **334 tests passed** в полном прогоне;
-  после переноса14 независимых DEC-25 tests все они прошли адресно (suite теперь348):
-  13 unit tests (включая fault injection), 19 acceptance, 20 composition, 19 credit,
+- `scripts/cargo.sh test --workspace --locked --offline` — **367 tests passed** в полном прогоне:
+  16 unit tests (включая fault injection), 19 acceptance, 20 composition, 19 credit,
   10 stable, 10 twap, 7 flash_liquidation, 14 book, 17 clmm, 11 heterogeneous,
   16 policies, 6 independent_dec20, 10 independent_dec21, 12 independent_dec22,
   18 scheduler, 26 bundles, 30 backrun, 16 independent_dec23,
   1 independent_dec23_boundaries, 12 liquidation_sale, 20 liquidator_policy,
-  7 independent_dec24, 21 hooks, 13 independent_dec25;
+  7 independent_dec24, 21 hooks, 13 independent_dec25, 16 baseline_agents;
   ignored=0. Независимые тесты сохраняют аналитические sweeps предыдущих reviews.
-  После уточнения допустимости пустого набора hook bindings повторно прошли
-  21 hook test и Clippy всех targets; release пересобран.
-  При переносе независимых тестов повторно прошли fmt и Clippy всех targets;
-  runtime не менялся.
+  Полный прогон включает перенесённые DEC-25 reviewer tests и новый DEC-26 slice.
+  Release пересобран; экономический reference DEC-26 повторно совпал побайтно.
 - `node --test web/wire.test.mjs` — канонические строки, диапазоны и точный
   decimal conversion прошли; JS экономические команды не проходят через Number.
-- `python3 scripts/check-ui.py` — пройден путь всех 46 presets, readonly
+- `python3 scripts/check-ui.py` — пройден путь всех 52 presets, readonly
   просмотр, trace, checkpoint/resume, fork/A-B, точные Amount/Price через HTTP,
   desktop/mobile; ошибок JavaScript и горизонтального overflow нет.
 - Release build и `git diff --check` — прошли.
-- CLI: все 46 demos исполнены финальной release-сборкой. Для шести hook demos
+- CLI: все 52 demos исполнены финальной release-сборкой. Для шести baseline-agent
+  demos checkpoint/resume дал побайтно одинаковые run/events/baseline-decisions/delivery/transactions exports. Для шести hook demos
   checkpoint/resume дал побайтно одинаковые `run.json`, `events.jsonl`,
   `hook-attempts.jsonl` и `transactions.csv`. Оба StableSwap demos после checkpoint/resume
   дают побайтно идентичные `run.json`. SC-05 checkpoint после блока 1 → resume:
@@ -778,6 +781,75 @@ Browser/HTTP walkthrough reviewer не запускал; browser46 acceptance в
 автором. Hooks ограничены CPMM; остальные
 роли M4, MTM/эксперименты/explorer и performance/user-task gates M5 остаются открытыми.
 
+### M4f / DEC-26 — пользовательские, borrower и publisher политики
+
+`baseline-agents-v1` работает через event scheduler: одна policy на AgentId
+среди всех семейств, до одного intent и одного preflight на round. Общая
+системная проекция parent→cutoff используется также liquidator; начисления
+не повторяются канонически при probes. Policy получает собственные balances,
+разрешённые public venues/feeds и только собственную выбранную credit position.
+ModelError после draws, preflight либо canonical build возвращает RNG, очередь
+и World к прежней committed-границе. Успешный round сохраняет выбор, даже если
+intent пропущен, отвергнут при доставке или включён с protocol revert.
+
+ScriptedUser выполняет точный event без скрытого переноса. RandomUser использует
+ChaCha12 `agent/<id>` и две равномерные выборки с максимум32 draws на каждую;
+gate и template выбираются даже при probability0/1000000 и BusyNonce. Rejection
+sampling использует расширенную границу2^64, не modulo fallback. BorrowerTarget
+выбирает один шаг Repay→DepositCollateral→Borrow→WithdrawCollateral по текущей
+цели и accrued preview, не уменьшает сумму из-за cash и не включает collateral
+автоматически. NativeOraclePublisher отправляет обычные Spot/Twap calls:
+цена Spot определяется при inclusion, TWAP end остаётся из исходного решения.
+NotReady любой publication отменяет весь preflight; sequence overflow даёт Skip.
+
+Независимый pre-implementation reference DEC-26 повторно совпал побайтно;
+12 scalar ChaCha12 draws совпали с действующим DEC-10 Streams до написания policy.
+Шесть запускаемых сценариев проверены Rust, CLI и браузером:
+
+| Демо | Проверенный результат |
+| --- | --- |
+| RandomUser, seed42 | Переводы20 Q в rounds1/4; sender730, recipient40, builder230, nonce2; stream position24 |
+| Scripted AnyReceipt | Late revert125 units, перевод10 Q отменён; затем перевод20 Q за115; финал sender740, recipient20, builder240 |
+| Scripted SuccessfulOnly | Та же неуспешная проба даёт Skip без fee/nonce; следующий перевод20 Q за115, sender865 |
+| Borrower | Deposit6 X→Borrow80 Q→Hold→Repay80 Q→Withdraw6 X→Hold; fees460 Q, финал540 Q/6 X, C/D/S/E=100/0/100/0 |
+| NativeSpot | Публикации20→5 Q/X после swap10 X→100 Q; по110 units, publisher780 Q |
+| NativeTwap W2 s | Round1 NotReady/Skip без платы; round2 price20, sequence1, observed_at=published_at=2,111 units, publisher889 Q |
+
+Borrower demo создаёт reference cash100/claims100 обычным Supply вкладчика в
+первом блоке; первая операция borrower лишь вносит залог и не требует этих cash.
+Supply явно имеет price0, borrower — price1. Начальное состояние demo не выдаётся
+за genesis с бесплатно созданными deposit claims. Наблюдаемые borrower шаги и
+послеблочные C/D/S/E точно совпадают с независимой таблицей reference.
+
+Новые19 tests:16 integration и3 unit. Проверены точные draws/balances/costs,
+probability0/1000000, cadence,1/16/17 templates и feeds,1024/1025 schedules,
+порядок/дубликаты событий, роли и protected accounts, BusyNonce, задержки/expiry,
+nonce/deadline/delivery/sequence/stream exhaustion,32 raw rejects,2^64 sampling
+boundary, отсутствие private/future/чужих balances в Observation. Проверены
+Repay после единственного accrual, LTV equality/stale/cash failures без
+переписывания targets, partial preflight publications и actual spot после
+доставки, фиксированный delayed TWAP end, paid revert после успешного preflight.
+Проверены все committed checkpoint boundaries новых demos и rehashed RNG tamper.
+Fault injection после preflight и canonical execution сохраняет старые World,
+scheduler и RNG; следующий честный запуск использует исходную выборку.
+
+Полный suite **367 passed**, fmt и Clippy all-targets `-D warnings` прошли.
+Node exact-wire test и JS syntax checks прошли. Release fingerprint:
+`7c210b13a33d3767fc817f799b54f90334161c98759dd13dfe2b2e9da72f2282`.
+Все52 CLI demos исполнены. Для6 новых demos checkpoint после блока1 даёт
+побайтно одинаковые `run.json`, `events.jsonl`, `baseline-decisions.jsonl`,
+`delivery.jsonl` и `transactions.csv`; выборка RNG не повторяется при restore.
+Артефакты: `output/m4f-validated/`; логи
+`/tmp/chainarium-m4f-{full-tests,clippy,release,cli,browser}.log`.
+
+UI показывает config, активную цель, sampled gate/template и позицию stream,
+parent/preview, диагностический receipt и отдельно фактически включённые fees.
+Все52 browser presets прошли, включая чтение старых блоков без RNG draw,
+checkpoint/resume и mobile. JS errors/overflow отсутствуют. Снимки
+`output/m4f-random.png` и `output/m4f-borrower-mobile.png` просмотрены.
+Независимый review DEC-26 ещё не выполнен. Optional flash-funded arbitrage,
+MTM/experiments/full explorer и M5 performance/user-task gates остаются открытыми.
+
 ### Fixtures и границы доказательства
 
 | Проверка | Доказательство | Ограничение |
@@ -789,8 +861,9 @@ Browser/HTTP walkthrough reviewer не запускал; browser46 acceptance в
 | Deposit shares | zero mint, minima, cash shortage без burn, last exit, bootstrap с E | Bankrupt проверен на invariant-valid defensive snapshot, не заявлен достижимым из genesis этого positive-payment preset |
 | Oracle | unauthorized/source/pair/future/duplicate/out-of-order; возраст 60/61; safe stale operations; consumer trace | External/native spot/TWAP; bounded history и однократное floor проверены |
 | Hooks | exact pre-implementation reference, resource/node/depth/capability boundaries, composed search/payout/rollback, ModelError; независимый DEC-25 review без findings | CPMM only; область и ограничения в docs/reviews/dec25-independent-review.md |
+| Baseline agents | independent RNG/ledger reference, target/publisher/preflight boundaries, paid actual failure, private/future isolation, atomic RNG, replay | DEC-26 реализован; независимый review впереди; не экономически оптимальные политики |
 | Checkpoint/export | replay/resume/fork/tamper, протоколы, LP/MM schedules/decisions | M4b groups, M4c trigger/search и M4d preview/trials/inflight snapshots проверены |
-| UI | реальные balances/trace, 46 presets, desktop/mobile, exact HTTP wire | Прототип; полная приёмка M5 не закрыта |
+| UI | реальные balances/trace, 52 presets, desktop/mobile, exact HTTP wire | Прототип; полная приёмка M5 не закрыта |
 
 Численные ожидания следуют §6/§8/§20 и принятым DEC; тесты не заменяют
 независимый review. Analytical sweep — детерминированная проверка инвариантов,
@@ -843,7 +916,8 @@ latency UI и полные workloads M5 ещё не измерены/не при
    Для user/random/borrower/oracle ролей принят Accepted DEC-26 (§23.2.14),
    независимые численные ожидания — `docs/reviews/baseline-agents-reference.py`/`.json`.
    Reference ChaCha12 совпал с12 существующими DEC-10 draws; новые политики
-   реализуются отдельным срезом M4f. Следом остаётся optional arbitrage Flash;
+   реализованы и функционально проверены в M4f; нужен отдельный независимый review.
+   Следом остаётся optional arbitrage Flash;
    M5: MTM, эксперименты, полный explorer и приёмка. Новые существенные решения
    требуют конкретных карточек и согласования по §23.7.
 5. Полные user-task/latency/performance budgets и независимое review должны

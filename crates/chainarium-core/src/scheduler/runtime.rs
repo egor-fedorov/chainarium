@@ -1,5 +1,6 @@
 use super::*;
 mod backrun_calls;
+mod baseline_calls;
 mod bundle_calls;
 mod liquidator_calls;
 use crate::{Block, Rejected, engine, policy};
@@ -14,7 +15,8 @@ struct Round<'a> {
     probes: Vec<bundles::Probe>,
     search: backrun::Report,
     liquidators: policy::liquidator::Report,
-    liquidation_preview: Option<World>,
+    baselines: Vec<policy::agents::Decision>,
+    system_preview: Option<World>,
     probe_check: &'a dyn Fn(&World) -> Result<(), String>,
     round: usize,
     cutoff: Amount,
@@ -572,9 +574,11 @@ pub(crate) fn advance(
     s: &Scenario,
     parent: &World,
     previous: &State,
+    rng: &mut crate::run::Streams,
 ) -> Result<(Block, State), String> {
-    advance_with_check(s, parent, previous, |_| Ok(()), &|_| Ok(()))
+    advance_with_rng_check(s, parent, previous, rng, |_| Ok(()), &|_| Ok(()))
 }
+#[cfg(test)]
 fn advance_with_check(
     s: &Scenario,
     parent: &World,
@@ -582,6 +586,24 @@ fn advance_with_check(
     check: impl FnOnce(&Block) -> Result<(), String>,
     probe_check: &dyn Fn(&World) -> Result<(), String>,
 ) -> Result<(Block, State), String> {
+    advance_with_rng_check(
+        s,
+        parent,
+        previous,
+        &mut crate::run::Streams::new(s.seed),
+        check,
+        probe_check,
+    )
+}
+fn advance_with_rng_check(
+    s: &Scenario,
+    parent: &World,
+    previous: &State,
+    rng: &mut crate::run::Streams,
+    check: impl FnOnce(&Block) -> Result<(), String>,
+    probe_check: &dyn Fn(&World) -> Result<(), String>,
+) -> Result<(Block, State), String> {
+    let mut working_rng = rng.clone();
     let c = s.scheduler.as_ref().ok_or("missing scheduler config")?;
     let round = parent
         .block
@@ -600,7 +622,8 @@ fn advance_with_check(
         probes: vec![],
         search: backrun::Report::default(),
         liquidators: policy::liquidator::Report::default(),
-        liquidation_preview: None,
+        baselines: vec![],
+        system_preview: None,
         probe_check,
         round,
         cutoff,
@@ -648,6 +671,7 @@ fn advance_with_check(
     let periodic: BTreeSet<String> = decisions
         .iter()
         .map(|d| d.agent.clone())
+        .chain(s.baseline_policies.keys().cloned())
         .chain(
             c.liquidator
                 .iter()
@@ -655,7 +679,10 @@ fn advance_with_check(
         )
         .collect();
     for agent in periodic {
-        if c.liquidator
+        if s.baseline_policies.contains_key(&agent) {
+            r.baseline_decision(&agent, &mut working_rng)?;
+        } else if c
+            .liquidator
             .as_ref()
             .is_some_and(|cfg| cfg.policies.contains_key(&agent))
         {
@@ -749,6 +776,7 @@ fn advance_with_check(
         k.committed_status = k.status.clone();
     }
     block.scheduler = Some(Report {
+        baselines: r.baselines,
         search: c.backrun.as_ref().map(|_| r.search),
         liquidators: c.liquidator.as_ref().map(|_| r.liquidators),
         probes: r.probes,
@@ -756,6 +784,7 @@ fn advance_with_check(
         metrics: r.metrics,
         state: r.state.clone(),
     });
+    *rng = working_rng;
     Ok((block, r.state))
 }
 
@@ -803,7 +832,8 @@ mod tests {
             probes: vec![],
             search: backrun::Report::default(),
             liquidators: policy::liquidator::Report::default(),
-            liquidation_preview: None,
+            baselines: vec![],
+            system_preview: None,
             probe_check: &|_| Ok(()),
             round: 1,
             cutoff: 10.into(),
@@ -918,5 +948,60 @@ mod liquidator_fault_tests {
         assert_eq!(run, before);
         run.step().unwrap();
         assert_eq!(run.state.balance("carol", "Q"), 1024.into());
+    }
+}
+
+#[cfg(test)]
+mod baseline_fault_tests {
+    use super::*;
+    #[test]
+    fn failure_after_random_execution_or_probe_rolls_back_rng_world_and_queue() {
+        let s = Scenario::parse(include_bytes!(
+            "../../../../scenarios/demos/sc-agent-random.json"
+        ))
+        .unwrap();
+        let parent = World::genesis(&s).unwrap();
+        let previous = State::default();
+        let mut rng = crate::run::Streams::new(s.seed);
+        let old = (parent.clone(), previous.clone(), rng.clone());
+        let result = advance_with_rng_check(
+            &s,
+            &parent,
+            &previous,
+            &mut rng,
+            |b| {
+                assert_eq!(b.state.balance("alice", "Q"), 865.into());
+                assert_eq!(b.receipts.len(), 1);
+                Err("fault after committed candidate and random decisions".into())
+            },
+            &|_| Ok(()),
+        );
+        assert!(result.is_err());
+        assert_eq!((parent.clone(), previous.clone(), rng.clone()), old);
+        let result = advance_with_rng_check(&s, &parent, &previous, &mut rng, |_| Ok(()), &|w| {
+            assert_eq!(w.balance("alice", "Q"), 865.into());
+            Err("fault in preflight".into())
+        });
+        assert!(result.is_err());
+        assert_eq!((parent.clone(), previous.clone(), rng.clone()), old);
+        let (block, _) = advance(&s, &parent, &previous, &mut rng).unwrap();
+        assert_eq!(block.state.balance("alice", "Q"), 865.into());
+        assert_eq!(rng.position("agent/trader"), 4.into());
+    }
+    #[test]
+    fn physical_stream_exhaustion_never_commits_a_partial_selection() {
+        let s = Scenario::parse(include_bytes!(
+            "../../../../scenarios/demos/sc-agent-random.json"
+        ))
+        .unwrap();
+        let parent = World::genesis(&s).unwrap();
+        let previous = State::default();
+        let mut raw = serde_json::to_value(crate::run::Streams::new(s.seed)).unwrap();
+        raw["positions"]["agent/trader"] = serde_json::json!(((1u128 << 68) - 4).to_string());
+        let mut rng: crate::run::Streams = serde_json::from_value(raw).unwrap();
+        let old = rng.clone();
+        let error = advance(&s, &parent, &previous, &mut rng).unwrap_err();
+        assert!(error.contains("RNG stream exhausted"), "{error}");
+        assert_eq!(rng, old);
     }
 }

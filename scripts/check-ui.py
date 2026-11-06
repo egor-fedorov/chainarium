@@ -1,4 +1,4 @@
-"""M1–M4e browser/API acceptance. Run against `chainarium serve 8080`. Requires Playwright + Chromium."""
+"""M1–M4f browser/API acceptance. Run against `chainarium serve 8080`. Requires Playwright + Chromium."""
 import json
 from pathlib import Path
 from playwright.sync_api import sync_playwright, expect
@@ -857,6 +857,60 @@ with sync_playwright() as p:
         page.locator('#step').click()
         expect(page.locator('#position')).to_contain_text('Исполнено 2 / 2')
         assert page.request.get('http://127.0.0.1:8080/api/run').json()==full
+    # DEC-26: sampled requests, preflight vs paid receipt, borrower targets and native publisher.
+    for name in ['random','scripted','preflight','borrower','spot','twap']:
+        rounds={'random':6,'scripted':3,'preflight':3,'borrower':6,'spot':2,'twap':2}[name]
+        page.locator('#preset').select_option('sc-agent-'+name)
+        page.locator('#new').click()
+        expect(page.locator('#position')).to_contain_text(f'Исполнено 0 / {rounds}')
+        expect(page.locator('#agent-panel')).to_be_visible()
+        page.locator('#step').click()
+        expect(page.locator('#position')).to_contain_text(f'Исполнено 1 / {rounds}')
+        first=page.request.get('http://127.0.0.1:8080/api/run').json()
+        d=first['blocks'][0]['scheduler']['baselines'][0]
+        expected={'random':('Submit','PreflightSuccess'),'scripted':('Submit','SubmitPredictedFailure'),'preflight':('Skip','Preflight: scripted late failure'),'borrower':('Submit','PreflightSuccess'),'spot':('Submit','PreflightSuccess'),'twap':('Skip','Preflight: NotReady: insufficient history')}[name]
+        assert (d['action'],d['reason'])==expected
+        expect(page.locator('#agent-result')).to_contain_text(expected[1])
+        if name=='random':
+            assert d['selection']['gate']['value']=='41542' and d['selection']['position_after']=='4'
+            expect(page.locator('#agent-result')).to_contain_text('template 1')
+            page.locator('#agent-panel').screenshot(path='output/m4f-random.png')
+        if name=='scripted':
+            expect(page.locator('#agent-result')).to_contain_text('оплачено 125 Q')
+            assert first['state']['accounts']['bob']['balances']['Q']=='0'
+        if name in ['preflight','twap']:
+            assert not first['blocks'][0]['receipts']
+            expect(page.locator('#agent-result')).to_contain_text('канонические комиссии не списаны')
+        saved=page.request.get('http://127.0.0.1:8080/api/checkpoint').json()
+        for _ in range(2):
+            page.locator('#blocks button[data-block="-1"]').click()
+            expect(page.locator('#agent-result')).to_contain_text('Выполните раунд')
+            page.locator('#blocks button[data-block="0"]').click()
+            expect(page.locator('#agent-result')).to_contain_text(expected[1])
+        assert page.request.get('http://127.0.0.1:8080/api/checkpoint').json()==saved
+        for i in range(2,rounds+1):
+            page.locator('#step').click()
+            expect(page.locator('#position')).to_contain_text(f'Исполнено {i} / {rounds}')
+        full=page.request.get('http://127.0.0.1:8080/api/run').json()
+        account='bob' if name=='borrower' else 'oracle' if name in ['spot','twap'] else 'alice'
+        balance={'random':'730','scripted':'740','preflight':'865','borrower':'540','spot':'780','twap':'889'}[name]
+        assert full['state']['accounts'][account]['balances']['Q']==balance
+        if name=='borrower':
+            page.locator('#blocks button[data-block="3"]').click()
+            expect(page.locator('#agent-result')).to_contain_text('Repay')
+            expect(page.locator('#agent-result')).to_contain_text('debt 80')
+            page.set_viewport_size({'width':390,'height':844})
+            assert page.evaluate('document.documentElement.scrollWidth <= innerWidth'), 'agent mobile overflow'
+            page.locator('#agent-panel').evaluate("el=>el.scrollIntoView({block:'start'})")
+            page.screenshot(path='output/m4f-borrower-mobile.png')
+            page.set_viewport_size({'width':1440,'height':1100})
+        assert page.request.post('http://127.0.0.1:8080/api/restore',data=saved).ok
+        page.reload()
+        expect(page.locator('#preset')).to_have_value('sc-agent-'+name)
+        for i in range(2,rounds+1):
+            page.locator('#step').click()
+            expect(page.locator('#position')).to_contain_text(f'Исполнено {i} / {rounds}')
+        assert page.request.get('http://127.0.0.1:8080/api/run').json()==full
     assert not errors, errors
     browser.close()
-print('PASS: browser run, trace, read-only viewing, checkpoint/resume, A/B, fork, exact U256 HTTP round-trip, mobile layout, LP, route policy, flash success/shortfall/rollback, credit interest/loss/redemption, exact oracle use, credit checkpoint replay, StableSwap curves/solver/LP/route/replay/depeg/mobile, TWAP 150/175/rollback/stale/readonly/checkpoint/mobile, flash liquidation real legs/loss/shortfall/rollback/checkpoint/mobile, order book levels/quote/fills/escrow/FOK/IOC/GTC/cancel/self-trade/rollback/replay/mobile, CLMM ranges/fees/surplus/crossings/partial/quote/rollback/replay/mobile, heterogeneous routes/limits/search/strict/residuals/readonly/rollback/replay/mobile, LP/MM policies/schedules/observation-delay/anchor-age/closed-cycle/stale-cancel/replay/mobile; M4 delivery/cutoff/Public/Private/late-response/nonce-gap/FIFO/FeePriority/readonly/checkpoint/mobile; bundles/greedy/paid-bid/allowed-and-forbidden-revert/visible-reference/private-isolation/diagnostic-probes/replay/mobile; backrun/public/private/grid/fees/bid/competition/fifo/delay/readonly/checkpoint/mobile; liquidator/Own/Flash/actual-seizure/paid-loser/FIFO/FeePriority/stale/delayed/readonly/checkpoint/mobile; hooks/dynamic-fee/input-limit/cash-shortfall/LP/route-output/payout/rollback/resource/readonly-quote/checkpoint/mobile')
+print('PASS: browser run, trace, read-only viewing, checkpoint/resume, A/B, fork, exact U256 HTTP round-trip, mobile layout, LP, route policy, flash success/shortfall/rollback, credit interest/loss/redemption, exact oracle use, credit checkpoint replay, StableSwap curves/solver/LP/route/replay/depeg/mobile, TWAP 150/175/rollback/stale/readonly/checkpoint/mobile, flash liquidation real legs/loss/shortfall/rollback/checkpoint/mobile, order book levels/quote/fills/escrow/FOK/IOC/GTC/cancel/self-trade/rollback/replay/mobile, CLMM ranges/fees/surplus/crossings/partial/quote/rollback/replay/mobile, heterogeneous routes/limits/search/strict/residuals/readonly/rollback/replay/mobile, LP/MM policies/schedules/observation-delay/anchor-age/closed-cycle/stale-cancel/replay/mobile; M4 delivery/cutoff/Public/Private/late-response/nonce-gap/FIFO/FeePriority/readonly/checkpoint/mobile; bundles/greedy/paid-bid/allowed-and-forbidden-revert/visible-reference/private-isolation/diagnostic-probes/replay/mobile; backrun/public/private/grid/fees/bid/competition/fifo/delay/readonly/checkpoint/mobile; liquidator/Own/Flash/actual-seizure/paid-loser/FIFO/FeePriority/stale/delayed/readonly/checkpoint/mobile; hooks/dynamic-fee/input-limit/cash-shortfall/LP/route-output/payout/rollback/resource/readonly-quote/checkpoint/mobile; baseline-agents/scripted/random/RNG/paid-failure/skip/borrower-target/native-spot-twap/readonly/checkpoint/mobile')

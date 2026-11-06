@@ -1,0 +1,280 @@
+{
+  "schema_version": "chainarium-scenario-m1-v1",
+  "model_versions": [
+    "native-execution-v1",
+    "native-cost-v1",
+    "cpmm-v1",
+    "chacha12-v1",
+    "isolated-collateral-lending-v1",
+    "oracle-observation-v1",
+    "event-scheduler-v1",
+    "bounded-mempool-v1",
+    "basic-builders-v1",
+    "baseline-agents-v1"
+  ],
+  "name": "Borrower: \u0446\u0435\u043b\u044c \u0434\u043e\u043b\u0433\u0430 \u0438 \u0437\u0430\u043b\u043e\u0433\u0430, \u043f\u043e\u0433\u0430\u0448\u0435\u043d\u0438\u0435 \u043f\u0435\u0440\u0435\u0434 \u0432\u044b\u0432\u043e\u0434\u043e\u043c",
+  "seed": "42",
+  "assets": {
+    "X": {
+      "decimals": 0
+    },
+    "Q": {
+      "decimals": 0
+    }
+  },
+  "accounts": {
+    "alice": {
+      "nonce": "0",
+      "balances": {
+        "Q": "100",
+        "X": "0"
+      }
+    },
+    "bob": {
+      "nonce": "0",
+      "balances": {
+        "Q": "1000",
+        "X": "6"
+      }
+    },
+    "carol": {
+      "nonce": "0",
+      "balances": {
+        "Q": "1000",
+        "X": "0"
+      }
+    },
+    "oracle": {
+      "nonce": "0",
+      "balances": {
+        "Q": "0",
+        "X": "0"
+      }
+    },
+    "builder": {
+      "nonce": "0",
+      "balances": {
+        "Q": "0",
+        "X": "0"
+      }
+    },
+    "reserve": {
+      "nonce": "0",
+      "balances": {
+        "Q": "0",
+        "X": "0"
+      }
+    },
+    "escrow-bob": {
+      "nonce": "0",
+      "balances": {
+        "Q": "0",
+        "X": "0"
+      }
+    }
+  },
+  "protocols": {},
+  "agents": {
+    "alice": {
+      "controlled_accounts": [
+        "alice"
+      ]
+    },
+    "bob": {
+      "controlled_accounts": [
+        "bob"
+      ]
+    },
+    "carol": {
+      "controlled_accounts": [
+        "carol"
+      ]
+    },
+    "oracle": {
+      "controlled_accounts": [
+        "oracle"
+      ]
+    }
+  },
+  "chain": {
+    "id": "lab-1",
+    "fee_asset": "Q",
+    "fee_account": "builder",
+    "block_limit": "10000",
+    "interval": "1"
+  },
+  "blocks": [],
+  "feeds": {
+    "feed": {
+      "base_asset": "X",
+      "quote_asset": "Q",
+      "source_id": "reference",
+      "publishers": [
+        "oracle"
+      ],
+      "initial": {
+        "price": {
+          "base_asset": "X",
+          "quote_asset": "Q",
+          "numerator": "20",
+          "denominator": "1"
+        },
+        "source_id": "reference",
+        "observed_at": "0",
+        "published_at": "0",
+        "sequence": "0",
+        "update_id": "genesis"
+      }
+    }
+  },
+  "lending": {
+    "credit": {
+      "cash_account": "reserve",
+      "debt_asset": "Q",
+      "collateral_asset": "X",
+      "feed": "feed",
+      "ltv_bps": 7500,
+      "lt_bps": 8000,
+      "close_bps": 10000,
+      "bonus_bps": 1000,
+      "reserve_factor": "200000000000000000",
+      "supply_cap": "1000000",
+      "borrow_cap": "10000",
+      "max_age": "60",
+      "rate": {
+        "type": "Constant",
+        "rate": "0"
+      },
+      "positions": {
+        "bob": "escrow-bob"
+      }
+    }
+  },
+  "scheduler": {
+    "rounds": 6,
+    "builder": {
+      "type": "Fifo"
+    },
+    "limits": {
+      "agents": 64,
+      "emissions": 4096,
+      "rounds": 10000,
+      "pending": 1024,
+      "queue": 4096,
+      "visible": 256,
+      "known": 65536,
+      "events_per_round": 4096,
+      "reactions_per_round": 64,
+      "depth": 8,
+      "intents_per_agent": 1,
+      "retention": 32,
+      "inclusion_attempts": 256,
+      "eligibility_checks": 65536
+    },
+    "agents": {
+      "alice": {
+        "observe_public": true,
+        "observation_delay": "0",
+        "outgoing": {
+          "channel": {
+            "type": "Public"
+          },
+          "builder_delay": "0"
+        }
+      },
+      "bob": {
+        "observe_public": true,
+        "observation_delay": "0",
+        "outgoing": {
+          "channel": {
+            "type": "Public"
+          },
+          "builder_delay": "0"
+        }
+      },
+      "carol": {
+        "observe_public": true,
+        "observation_delay": "0",
+        "outgoing": {
+          "channel": {
+            "type": "Public"
+          },
+          "builder_delay": "0"
+        }
+      },
+      "oracle": {
+        "observe_public": true,
+        "observation_delay": "0",
+        "outgoing": {
+          "channel": {
+            "type": "Public"
+          },
+          "builder_delay": "0"
+        }
+      }
+    },
+    "emissions": [
+      {
+        "at": "0",
+        "producer_id": "lender",
+        "producer_sequence": "0",
+        "transaction": {
+          "id": "lender-supply",
+          "agent": "alice",
+          "sender": "alice",
+          "chain": "lab-1",
+          "nonce": "0",
+          "limit": "500",
+          "price": "0",
+          "deadline": "20",
+          "program": [
+            {
+              "type": "Supply",
+              "market": "credit",
+              "amount": "100",
+              "min_shares": "100"
+            }
+          ]
+        },
+        "delivery": {
+          "channel": {
+            "type": "Public"
+          },
+          "builder_delay": "0"
+        }
+      }
+    ],
+    "reactive": {}
+  },
+  "baseline_policies": {
+    "bob": {
+      "account": "bob",
+      "resource_limit": "500",
+      "resource_price": "1",
+      "lifetime": "20",
+      "kind": {
+        "type": "BorrowerTarget",
+        "cadence": {
+          "first_block": "1",
+          "last_block": "6",
+          "every": "1"
+        },
+        "market": "credit",
+        "max_debt_step": "80",
+        "max_collateral_step": "6",
+        "targets": [
+          {
+            "block": "1",
+            "collateral": "6",
+            "debt": "80"
+          },
+          {
+            "block": "4",
+            "collateral": "0",
+            "debt": "0"
+          }
+        ]
+      }
+    }
+  }
+}

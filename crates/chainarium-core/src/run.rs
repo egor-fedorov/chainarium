@@ -19,6 +19,9 @@ pub struct Streams {
     positions: BTreeMap<String, Amount>,
 }
 impl Streams {
+    pub(crate) fn position(&self, name: &str) -> Amount {
+        self.positions.get(name).copied().unwrap_or_default()
+    }
     pub fn new(root: Amount) -> Self {
         Self {
             root,
@@ -97,8 +100,9 @@ impl Run {
             return Ok(None);
         }
         if let Some(scheduler) = &self.scheduler {
-            let (block, next) = crate::scheduler::advance(&self.scenario, &self.state, scheduler)
-                .map_err(|e| format!("ModelError: {e}"))?;
+            let (block, next) =
+                crate::scheduler::advance(&self.scenario, &self.state, scheduler, &mut self.rng)
+                    .map_err(|e| format!("ModelError: {e}"))?;
             self.state = block.state.clone();
             self.scheduler = Some(next);
             self.blocks.push(block);
@@ -282,6 +286,18 @@ impl Run {
             }
             write("liquidator-probes.jsonl", search.as_bytes())?;
         }
+        if !self.scenario.baseline_policies.is_empty() {
+            let mut decisions = String::new();
+            for b in &self.blocks {
+                if let Some(report) = &b.scheduler {
+                    for d in &report.baselines {
+                        decisions.push_str(&serde_json::to_string(&serde_json::json!({"block":b.number,"phase":"BaselineDecisionDiagnostic","decision":d})).map_err(|e|e.to_string())?);
+                        decisions.push('\n');
+                    }
+                }
+            }
+            write("baseline-decisions.jsonl", decisions.as_bytes())?;
+        }
         if !self.scenario.hooks.is_empty() {
             let mut attempts = String::new();
             for b in &self.blocks {
@@ -333,6 +349,9 @@ impl Run {
         }
         if !self.scenario.hooks.is_empty() {
             report.push_str("\nHook points and instruction attempts: `hook-attempts.jsonl`; failed attempts are explicitly uncommitted. Canonical counter/fee effects and funded payouts appear in `events.jsonl`. Hook payouts are separate from swap/route output. Public hook configuration, counters and own balances are in `run.json`. Reading exports does not invoke hooks.\n");
+        }
+        if !self.scenario.baseline_policies.is_empty() {
+            report.push_str("\nBaseline agent decisions: `baseline-decisions.jsonl`. Each decision identifies its parent and system preview, own target or sampled choice, and diagnostic preflight receipt. Trial fees are not canonical charges. Actual included receipts, fees and transfers remain in `run.json` / `events.jsonl`. Named RNG positions are checkpointed; reading decisions does not draw again.\n");
         }
         write("report.md", report.as_bytes())
     }

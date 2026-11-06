@@ -1,7 +1,7 @@
 # Chainarium
 
 Локальная лаборатория DeFi с Rust-ядром. **v1.0 в разработке.**
-Сейчас исполняются M1–M4e: CPMM swaps/LP, маршруты, арбитражная политика
+Сейчас исполняются M1–M4f: CPMM swaps/LP, маршруты, арбитражная политика
 на собственных средствах, flash loans, lending, oracle, проценты и ликвидации, StableSwap, TWAP и flash-ликвидация,
 стакан GTC/IOC/FOK, CLMM и общий partial-fill router, rollback, fees/nonce и
 исчерпание ресурса. Добавлены event scheduler, mempool, Public/Private delivery,
@@ -12,7 +12,10 @@ Backrun policy ищет размер/маршрут по доставленно�
 погашение и маршрут с Own/Flash funding; продаёт фактически полученный залог.
 Конкуренты используют общий scheduler и оплачивают включённые попытки. Hooks
 вокруг CPMM swap/LP меняют fee, ограничивают input и платят из собственного account;
-их counter и transfers входят в общий rollback. Полный объём и приёмка: [спецификация](docs/spec.md).
+их counter и transfers входят в общий rollback. Scripted/random users, borrower
+с целями долга/залога и native oracle publisher используют общий scheduler.
+Их выбор, preflight и фактические оплаченные receipts показаны отдельно.
+Полный объём и приёмка: [спецификация](docs/spec.md).
 
 ## Запуск
 
@@ -47,12 +50,15 @@ M4d добавляет `liquidator-probes.jsonl` с разрешёнными tar
 пробами и выбранным intent. Фактические paid/seized/sale сохранены в receipt.
 M4e добавляет `hook-attempts.jsonl`: точки/инструкции и явный committed-флаг;
 канонические hook effects и обеспеченные выплаты находятся в events JSONL.
+M4f добавляет `baseline-decisions.jsonl`: цели, RNG-выборки и диагностические
+пробы пользовательских, borrower и publisher политик. Реальные fees остаются
+в канонических receipts; RNG восстанавливается вместе с checkpoint.
 Для повторного запуска
 выберите новое имя папки.
 Checkpoint восстанавливается только на committed-границе; checksum и повторное
 исполнение проверяют его целостность. CSV не является форматом восстановления.
 
-Доступны сорок шесть presets в UI и CLI:
+Доступны 52 presets в UI и CLI:
 
 | Файл | Демонстрация |
 | --- | --- |
@@ -102,6 +108,12 @@ Checkpoint восстанавливается только на committed-гра
 | `scenarios/demos/sc-hook-shortfall.json` | Hook cash2 Q не покрывает payout3; полный rollback, fee195 Q |
 | `scenarios/demos/sc-hook-lp.json` | Add/remove100 shares, по175 units; counter4, payout6 Q |
 | `scenarios/demos/sc-hook-route.json` | 100 X→82 Q→75 R; payout3 Q остаётся отдельно, native225 units |
+| `scenarios/demos/sc-agent-random.json` | Seed42: переводы20 Q в rounds1/4; sender730, recipient40, fees230; RNG position24 |
+| `scenarios/demos/sc-agent-scripted.json` | AnyReceipt: оплаченный late revert125 Q, затем перевод20 Q с новым nonce |
+| `scenarios/demos/sc-agent-preflight.json` | SuccessfulOnly: тот же отказ пропущен без платы; следующий перевод стоит115 Q |
+| `scenarios/demos/sc-agent-borrower.json` | Deposit6 X→Borrow80 Q→Repay80 Q→Withdraw6 X; fees460 Q, финал540 Q/6 X |
+| `scenarios/demos/sc-agent-spot.json` | Публикации цены20→5 Q/X; native Spot читает фактическое состояние при исполнении |
+| `scenarios/demos/sc-agent-twap.json` | W2 s: NotReady/Skip, затем цена20 Q/X за111 units |
 
 В SC-05 аналитическая ставка 12.5% за модельную секунду и reserve factor 20%;
 это fixture, не рыночный прогноз. UI показывает C/D/S/E, отдельный залог,
@@ -192,7 +204,13 @@ checkpoint/resume, fork, A/B и мобильную верстку. Снимки 
   Payout не включается в route output; arbitrage net использует полный balance delta.
   Для hooks нужна execution quote; чистая base-fee кривая ею не считается.
 - Исследовательский MTM/PnL не рассчитывается; баланс не называется прибылью.
-- UI — прототип M1–M4e с сорока шестью presets. Полный explorer M5 впереди.
+- M4f: `baseline-agents-v1` — scripted/random user, target borrower и native
+  oracle publisher. До одного intent и preflight на агента за раунд; AnyReceipt
+  допускает отправку предсказанной оплачиваемой неудачи. RandomUser использует
+  именованный ChaCha12 stream, две bounded выборки даже при Hold/BusyNonce;
+  ModelError откатывает RNG вместе с раундом. Borrower выбирает один шаг по
+  accrued debt/own collateral; publisher отправляет обычные Spot/Twap calls.
+- UI — прототип M1–M4f с52 presets. Полный explorer M5 впереди.
 - Критерии всей v1.0 не объявляются выполненными. Независимый review и следующие
   открытые экономические контракты фиксируются согласно §23–24 спецификации.
 
@@ -214,7 +232,10 @@ checkpoint/resume, fork, A/B и мобильную верстку. Снимки 
 [Review DEC-24/M4d](docs/reviews/dec24-independent-review.md) завершён без
 подтверждённых findings. Сохранены7 независимых tests:768 денежных сценариев,
 344 resource boundaries, node/depth, Fixed/Greedy, U256 и checkpoint/replay.
-Hooks DEC-25/M4e реализованы; отдельный независимый review нового среза впереди.
+[Review DEC-25/M4e](docs/reviews/dec25-independent-review.md) завершён без
+подтверждённых findings. Сохранены13 integration tests и fault injection,
+включая3545 прямых executions и проверку composed search/payout/rollback.
+DEC-26/M4f реализован; отдельный независимый review новых политик впереди.
 
 Фактические результаты и оставшиеся проверки: [журнал прогресса](docs/progress.md).
 Сценарий CLI ограничен 64 MiB, отдельная транзакция — 1 MiB. Web restore

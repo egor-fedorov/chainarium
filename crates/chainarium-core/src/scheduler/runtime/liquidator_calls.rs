@@ -44,10 +44,10 @@ impl Round<'_> {
             d.truncated = true;
             self.liquidators.metrics.truncated = true;
         } else {
-            if self.liquidation_preview.is_none() {
-                self.liquidation_preview = Some(engine::begin_block(self.s, self.parent)?.state);
+            if self.system_preview.is_none() {
+                self.system_preview = Some(engine::begin_block(self.s, self.parent)?.state);
             }
-            let preview = self.liquidation_preview.as_ref().unwrap();
+            let preview = self.system_preview.as_ref().unwrap();
             let observation = l::LiquidatorObservation::capture(self.s, self.parent, preview, p)?;
             let s = self.s;
             let check = self.probe_check;
