@@ -191,6 +191,7 @@ pub fn validate(s: &Scenario) -> Result<(), String> {
             return Err("capital target must be sole Transfer".into());
         };
         if amount.is_zero()
+            || !s.accounts.contains_key(&tx.sender)
             || s.protected(&tx.sender)
             || s.protected(to)
             || !s.accounts.contains_key(to)

@@ -1089,3 +1089,37 @@ fn an_own_bundle_definition_cannot_shadow_a_literal_capital_transfer() {
     };
     assert!(v::validate(&s).is_err());
 }
+
+#[test]
+fn capital_sender_must_be_registered_even_for_admission_rejected_emissions() {
+    let mut s = fixture("sc-scheduler-public");
+    enable(&mut s, &["alice"]);
+    price(&mut s, "X", 1.into(), 1.into());
+    let cfg = s.scheduler.as_mut().unwrap();
+    cfg.reactive.clear();
+    cfg.emissions[0].transaction.sender = "unregistered-sender".into();
+    cfg.emissions[0].transaction.program = vec![Call::Transfer {
+        to: "alice".into(),
+        asset: "Q".into(),
+        amount: 20.into(),
+    }];
+    // Invalid ordinary emissions are intentionally observable at admission.
+    // A capital label has the stronger DEC-28 ordinary-endpoints requirement.
+    s.validate().unwrap();
+    let unlabelled = finish(s.clone());
+    assert!(unlabelled.blocks.iter().all(|b| b.receipts.is_empty()));
+    assert!(
+        v::at(&unlabelled, unlabelled.blocks.len())
+            .unwrap()
+            .capital_flows
+            .is_empty()
+    );
+    label(&mut s, "victim");
+    let error = "capital Transfer must cross ordinary portfolio boundary";
+    assert_eq!(v::validate(&s).unwrap_err(), error);
+    assert!(
+        Scenario::parse(&serde_json::to_vec(&s).unwrap())
+            .unwrap_err()
+            .contains(error)
+    );
+}
