@@ -1027,8 +1027,8 @@ agents:
 | REQ-BOOK-01 | §7.4 | On-chain order book, v1 | M3 | VF-BOOK-01 | **Т:** price-time matches, maker/taker fees, partial fills и остатки escrow; **О:** неудовлетворимый FOK; **И:** GTC/IOC/FOK и cancel действуют по принятому профилю, возврат остатков и rollback сохраняют активы | M3a: exact FIFO/fees/escrow/TIF/cancel, 96-case sorted-list differential, capacity1024, resource/late/ModelError rollback и replay проверены (docs/progress.md) |
 | REQ-MEV-01 | §12 | Bundles и builder policies, v1 | M4 | VF-MEV-01 | **Т:** выбранный порядок и обеспеченный переводами builder revenue; **О:** конфликты tx/nonce и запрещённый revert; **И:** FIFO/fixed/fee/greedy воспроизводимы, bundle не interleave, разрешённый revert не отменяет ранее успешную tx, bid не учитывается дважды | M4b / DEC-22: bundles/paid bid/allowed reverts, FIFO/Fixed/FixedItems/FeePriority/Greedy, conflicts, bounded probes, ledger и replay проверены; независимый review без подтверждённых findings (docs/reviews/dec22-independent-review.md) |
 | REQ-HOOK-01 | §7.6 | Hook capabilities, v1 | M4 | VF-HOOK-01 | **Т:** изменение fee/лимита либо заданный отказ; **О:** эффект вне capabilities; **И:** состояние hook и его переводы полностью откатываются при поздней ошибке, ресурс учитывается; event observer не изменяет состояние | M4e / DEC-25: CPMM hooks, typed capabilities, limited context, own counter/cash, effective fee, payouts, node/depth/resource caps, full rollback, common search и read-only observation реализованы; независимый review без подтверждённых findings (docs/reviews/dec25-independent-review.md) |
-| REQ-AGENT-01 | §13 | Observation/Intent и политики, v1 | M2a–M4 | VF-AGENT-01 | **И:** user/LP/borrower/arbitrageur/liquidator/market-maker/oracle/searcher/builder действуют через общий executor; нет future/private leakage; память и именованные RNG воспроизводимы; решения сериализуемы | M3d: restricted Observation, passive/scheduled LP, Fixed/PublicOracle MM, heterogeneous arbitrage, Hold/Skip/Submit и replay; M4a добавляет restricted delivered messages/outbox, OnVisibleProgram и очередь; M4c добавляет bounded backrun с conditional net после fees/bid, caps, privacy и checkpoints; review M4c завершён, два P2 исправлены и перепроверены; M4d добавляет bounded liquidator Own/Flash, actual seizure sale и конкуренцию; его отдельный review завершён без findings (docs/reviews/dec24-independent-review.md); M4f / DEC-26 добавляет scripted/random user, target borrower и native oracle publisher, bounded RNG и atomic round rollback, preflight/actual receipts; review M4f выявил P1/P2; исправления ce78187 независимо перепроверены и закрыты (docs/reviews/dec26-fix-verification.md); M4g/DEC-27 добавляет bounded flash arbitrage, свой fee reserve, RequireFull и net после settlement; функциональная проверка пройдена, независимый review нового среза впереди |
-| REQ-METRICS-01 | §14, §15.4 | reference-mtm-v1 после G-11 | При первых MTM-метриках; M5 | VF-METRICS-01 | **Т:** MTM, post-loss claims, округление и оценка внешнего капитала на момент потока; **О:** Unpriced без fallback; **И:** borrow не капитал, fees не дублируются, MTM отличается от closed-cycle результата и доступного cash; A/B имеет общую политику оценки | M5a / Accepted DEC-28 (§23.2.16): evaluator, capital flows, export/API/UI;16 integration tests по24 pre-implementation cases и6 MTM demos проверены. Независимый review evaluator и сравнительные серии A/B ещё впереди (docs/progress.md) |
+| REQ-AGENT-01 | §13 | Observation/Intent и политики, v1 | M2a–M4 | VF-AGENT-01 | **И:** user/LP/borrower/arbitrageur/liquidator/market-maker/oracle/searcher/builder действуют через общий executor; нет future/private leakage; память и именованные RNG воспроизводимы; решения сериализуемы | M3d: restricted Observation, passive/scheduled LP, Fixed/PublicOracle MM, heterogeneous arbitrage, Hold/Skip/Submit и replay; M4a добавляет restricted delivered messages/outbox, OnVisibleProgram и очередь; M4c добавляет bounded backrun с conditional net после fees/bid, caps, privacy и checkpoints; review M4c завершён, два P2 исправлены и перепроверены; M4d добавляет bounded liquidator Own/Flash, actual seizure sale и конкуренцию; его отдельный review завершён без findings (docs/reviews/dec24-independent-review.md); M4f / DEC-26 добавляет scripted/random user, target borrower и native oracle publisher, bounded RNG и atomic round rollback, preflight/actual receipts; review M4f выявил P1/P2; исправления ce78187 независимо перепроверены и закрыты (docs/reviews/dec26-fix-verification.md); M4g/DEC-27 добавляет bounded flash arbitrage, свой fee reserve, RequireFull и net после settlement; функциональная проверка и независимый review DEC-27 пройдены (docs/reviews/dec27-dec28-independent-review.md) |
+| REQ-METRICS-01 | §14, §15.4 | reference-mtm-v1 после G-11 | При первых MTM-метриках; M5 | VF-METRICS-01 | **Т:** MTM, post-loss claims, округление и оценка внешнего капитала на момент потока; **О:** Unpriced без fallback; **И:** borrow не капитал, fees не дублируются, MTM отличается от closed-cycle результата и доступного cash; A/B имеет общую политику оценки | M5a / Accepted DEC-28 (§23.2.16): evaluator, capital flows, export/API/UI;16 integration tests по24 pre-implementation cases и6 MTM demos проверены. Независимый review evaluator завершён, один P2 исправлен и перепроверен; Proposed DEC-29 задаёт следующий контракт серий A/B (docs/progress.md) |
 | REQ-WIRE-01 | §5.2, §17 | Точный сериализуемый контракт, v1 | M1 | VF-WIRE-01 | **Т:** round-trip `2^53−1`, `2^53+1`, `U256::MAX`, рациональной Price и разных decimals без потерь; **О:** выход за диапазон и запрещённое числовое представление; **И:** тот же контракт используют Rust, web UI и CLI | M1: U256/Price Rust→браузер→Rust и decimal helpers пройдены (docs/progress.md) |
 | REQ-CHECKPOINT-01 | §13.1, §15.3, §17.2 | Полный checkpoint, v1 | M1, повторно M2/M4 | VF-CHECKPOINT-01 | **Т:** продолжение checkpoint совпадает с непрерывным запуском по canonical state/events/receipts/метрикам; **И:** восстановлены память агентов, RNG, очереди, расписания и cursor внешних данных; просмотр/число UI-запросов не меняют результат | M1–M3d: replay/resume/fork/corruption, StableSwap, TWAP, SC-07, стакан, CLMM, routes, LP/MM schedules/decisions проверены; M4a pending/inflight/seen IDs, trigger memory/cursor/metrics и replay проверены; M4b добавляет groups/member registry/probes; M4c queued search reaction, trigger dedup и search reports; M4d targets/preview/trials/inflight liquidation; M4e hook state/cash; M4f named RNG positions, targets, scheduled decisions и inflight intents (docs/progress.md) |
 | REQ-UI-01 | §15 | Локальный UI/CLI, v1 | M1, M5 | VF-UI-01 | **И:** сценарий запускается, доступны play/pause и переходы блок→tx→call→баланс; committed/attempt различимы; A/B показывает изменённый фактор и причину результата; обязательные пользовательские задачи §15 выполнены | Прототип M1–M4f: 52 presets, котировки/solver/credit/oracle/book/CLMM/routes/policy inspection, scheduler delivery/visibility/queue/status, bundles/bid/probe inspection и backrun search/conditional net/actual inclusion, liquidator targets/preview/funding/actual paid-seized-sale/paid loser, hook capabilities/counter/cash/point trace и отменённые effects, baseline targets/RNG choices/preflight/actual receipts; полная приёмка M5 впереди (docs/progress.md) |
@@ -2945,6 +2945,185 @@ Unpriced исторический flow, internal transfer/borrow/interest/fees/w
 readonly noninterference для agents/RNG, replay и exact CLI/UI wire.
 Нужны сквозные demos и независимый review перед принятием результатов M5a.
 
+### 23.2.17. Предлагаемый контракт M5b — Proposed DEC-29
+
+**DEC-29 / G-11/G-15, парные серии экспериментов.** Статус **Proposed**;
+согласование владельца и production реализация ещё не выполнены. Следующий
+проверяемый срез: пакетный native CLI, точный отчёт по каждой паре и просмотр
+распределений/исключений в UI. Контракт использует принятый DEC-28 и не меняет
+executor, RNG, fee model, agent observations или правила native checkpoint.
+HODL/LP benchmark, новые типы рыночных вмешательств, live batch controller,
+полный Explorer и performance budgets остаются следующими срезами M5.
+
+**Контекст и выбор.** Одинаковый seed не доказывает одинаковую среду:
+изменившаяся стратегия может изменить порядок генерации внешних входов.
+Серия должна сохранять сами входы каждой пары, заявленное вмешательство,
+baseline и все исходы. Выбраны материализованные Scenario для каждого
+seed/variant и строгая проверка допустимых различий. Альтернативы — произвольный
+JSON patch, генерация внешнего orderflow внутри исполняемой политики и сравнение
+только успешных запусков — не принимаются для этого профиля: они скрывают
+нецелевые изменения или меняют выборку после наблюдения результата.
+
+**Plan и границы.** Отдельный input `ExperimentPlan`, schema/version
+`paired-experiments-v1`, не новое поле исполняемого Scenario. Явные поля:
+name, hypothesis, baseline_variant, comparison, primary_metric, metrics,
+limits и cases. Case содержит seed и карту VariantId→полный Scenario.
+Seed — Amount string; уникален в серии. У каждой case одинаковый непустой
+набор2..8 variants, baseline входит в него. VariantId/MetricId непустые;
+они используются как данные, а не имена файлов. Каждый Scenario проходит
+собственную валидацию, имеет `seed == case.seed`, chain fee asset=Q и
+`valuation_policy` DEC-28. Нет скрытого default seed, политики или конвертации
+fee asset. Plan содержит все входы; ссылки на внешние файлы/сеть вместо
+Scenario в первом формате не поддерживаются.
+
+В каждой паре одинаковы assets/decimals, accounts и genesis, agents/authority,
+chain/horizon, native model_versions, протоколы, hooks, native oracles,
+reference valuation policy (включая все records/capital bindings), scheduler
+network, emissions, bundle emissions и прочие настройки вне объявленного
+вмешательства. Scenario.name может отличаться как подпись. model_versions
+должны совпадать, включая порядок; разные execution/math profiles не смешиваются.
+Входы и rejected envelopes сохраняются полностью; их не удаляют для улучшения
+результата. Доставка и цены environment-reference не становятся Observation
+агента только из-за участия в серии.
+
+Два режима comparison:
+
+- `BuilderOrder`: меняется только `scheduler.builder`, scheduler обязателен.
+  Все кандидаты заранее материализованы как literal transactions/bundles;
+  их программы, время и доставка одинаковы. Автономные arbitrage/LP/MM/
+  baseline/reactive/backrun/liquidator/flash-arbitrage policies запрещены
+  в этом режиме, иначе новый порядок мог бы изменить сам набор заявок.
+  Hooks и протокольные callbacks остаются частью фиксированных программ:
+  изменение их фактического результата является эффектом исполнения.
+- `AgentPolicy`: задан список до8 targets `{family,agent}`. Меняются только
+  объекты выбранных политик: Arbitrage (`policies`), LP, MM, Baseline,
+  Reactive, Backrun, Liquidator или FlashArbitrage. Target присутствует во
+  всех variants; agent accounts и network неизменны. Общие family budgets,
+  scheduler builder и caps не входят в target. Отключение всей family,
+  добавление нового model tag или смена контролируемых счетов этим режимом
+  не маскируются: такой plan отклоняется. Baseline может задавать Hold/Skip
+  через допустимые параметры того же профиля, например probability_ppm=0.
+
+Полный structural diff после typed parsing сохраняется по стабильным JSON
+pointers и old/new values. Любое отличие вне разрешённых путей — ошибка plan
+до запуска первой case. Декларация comparison не является разрешением менять
+остальную конфигурацию. Для каждого variant выбранный builder/policy object
+постоянен во всех cases: нельзя незаметно менять treatment в зависимости от seed.
+Между cases разрешены различия seed, literal emissions/bundle emissions и
+reference feed records; остальные настройки, горизонт, assets/единицы,
+portfolio boundaries и параметры стратегий фиксированы. Диапазоны конкретных
+внешних входов перечислены сохранёнными cases, а не обещаны только в hypothesis.
+
+Per-case common-input hash вычисляется из канонически сериализованного Scenario
+после удаления только name и выбранных intervention objects. Он должен быть
+одинаков для всех variants данной case. Отдельно сохраняются hashes полных
+Scenario, external emissions/reference inputs, Plan и build. Исполнение идёт
+по числовому seed, затем lexicographic VariantId; порядок map/потока UI не
+выбирает порядок RNG. Каждый Run имеет новый собственный Streams(case.seed),
+именованные native streams сохраняют принятую семантику. Сам runner не делает
+RNG draws. Изменение количества draws target-политики не сдвигает чужие streams.
+Фактические решения других агентов могут реагировать на изменившийся рынок.
+
+**Выходы и метрики.** Metrics — карта MetricId→явный selector; primary_metric
+ссылается на `PortfolioPnl{portfolio}` из этой карты. В первом профиле остальные
+selectors: `PaidNativeFees{accounts}`, `IncludedCount{status}` и
+`InclusionRejectionAttempts`. Accounts непустые, уникальные и зарегистрированные;
+они фильтруют receipt.sender, а не экономического выгодоприобретателя комиссии.
+Included status — ровно Success, ProtocolRevert или ResourceExhausted.
+
+PnL берётся из DEC-28 на общей конечной boundary; уже вошедшие в V_t fees
+повторно не вычитаются. PaidNativeFees суммирует `block.receipts[].fee` выбранных
+senders, включая оплаченные reverts; пробы builder/search/preflight не входят.
+InclusionRejectionAttempts — число записей `block.rejected`, включая повторные
+попытки одного TxId; это не число уникальных неуспешных intents.
+Каждая row также сохраняет counts всех included statuses, exact
+`included_failure_fraction = (ProtocolRevert+ResourceExhausted)/receipts`,
+либо null/NoIncludedReceipts при нулевом знаменателе, и histogram всех
+scheduler trace.action как отдельную диагностику. Ни trace actions, ни
+отвергнутые попытки не прибавляются к знаменателю included receipts.
+Полные delivery/policy diagnostics остаются в собственном Run export.
+
+Отрицательные PnL, нули, Hold/Skip, refusals и оплаченные failures не удаляются
+из завершённых запусков. Статусы исполнения: Completed или ModelError с ошибкой,
+последней committed boundary и сохранённым canonical prefix. ModelError не
+считается экономическим нулём/обычным revert; его partial horizon исключён из
+всех финальных distributions, остальные запланированные runs продолжаются.
+Series outcome — Completed либо CompletedWithModelErrors. Input-error отвергает
+весь Plan до исполнения; filesystem/export failure останавливает серию как
+Incomplete и не создаёт видимость законченного сравнения.
+
+**Точная статистика.** Для каждого metric/variant показываются requested_n,
+completed_n, eligible_n и причины/seed IDs всех исключений. Unpriced metric
+исключается только из своей численной статистики; row и остальные метрики
+остаются видны. Primary PnL дополнительно даёт counts negative/zero/positive.
+Для каждого non-baseline variant строится paired delta
+`metric_variant(seed) − metric_baseline(seed)`, только если оба запуска
+Completed и обе метрики доступны. Пары соединяются по seed, не по индексу
+отфильтрованного массива; исключённые пары перечисляются с причиной каждой
+стороны. Разность средних разных доступных cohorts не выдаётся за paired effect.
+
+Сохраняются все точные observations и: min/max, arithmetic mean, median
+(среднее двух центральных при чётном n), p05/p95 nearest rank
+`sorted[ceil(p*n)−1]`, sample variance `Σ(x−mean)^2/(n−1)` при n>=2.
+При n=1 variance=null/InsufficientSample; при n=0 все statistics unavailable,
+а не нули. Mean, median, quantiles, variance и paired deltas — reduced signed
+fractions DEC-28 wire; variance имеет квадрат единицы metric. Sorting сравнивает
+точные дроби, никакого предварительного floor или float. Интервалы доверия,
+нормальность и статистическая значимость этим профилем не заявляются.
+20 seeds — preset для демонстрации, не универсальная достаточность выборки.
+
+Проверка summary rational_bits действует после сокращения на каждом шаге,
+в порядке seed/variant, затем метрики по MetricId; variance суммируется по
+seed. ArithmeticLimit делает соответствующую statistic Unavailable с причиной;
+не отменяет native run и не уничтожает observations. Ни частичная сумма, ни
+приближённый float не выдаются за полную statistics. UI отображает exact values;
+при графике approximate projection служит только координатой, tooltip/таблица
+сохраняют точную дробь и counts/exclusions.
+
+**Caps, артефакты и UI.** Явные lowerable limits: cases64, variants8, runs128,
+blocks_per_run10000, total_blocks100000, metrics16, policy_targets8,
+rational_bits32768 (не менее512); input Plan не более64 MiB. Все произведения
+и суммарный горизонт проверяются до запуска. Первый runner последовательный,
+один активный Run; завершённый Run экспортируется и освобождается, его полный
+World не копится в памяти всех variants. Wall-clock не задаёт экономический
+cutoff и не выбирает строку для исключения. Native caps продолжают действовать.
+
+CLI `chainarium experiment plan.json output/new-series` создаёт только новую
+папку. Сохраняются canonical plan, manifest, per-run result rows, paired rows,
+summary/report и собственные полные native exports/checkpoints по ordinal paths
+`runs/0000`, `runs/0001`, ...; mapping seed/variant→path находится в manifest.
+В названия файлов не интерполируются произвольные IDs. Финальный manifest
+отмечается complete только после записи всех rows/artifacts. Частичный каталог
+не перезаписывается и не принимается автоматически как готовая серия.
+
+UI этого среза импортирует сохранённый series report, показывает вмешательство,
+общие условия, все seeds, distributions/paired deltas и исключения; позволяет
+перейти к указанному Run через его экспортированный native checkpoint в
+существующем inspector. Browser не симулирует серию и не пересчитывает финансовые
+метрики. Импортированный отчёт не смешивается с текущим singleton Run.
+CLI и UI используют один Rust-defined report wire. Live запуск/пауза серии и
+resume batch cursor — отдельные расширения; native per-run replay сохраняется.
+
+**Ожидания до реализации.** `docs/reviews/experiment-series-reference.py/.json`
+содержит12 cases: Python Fraction и отдельный scalar ChaCha12 из reference
+DEC-26; production simulator/aggregator не импортируется. Основные fixtures:
+
+| Case | Точный ожидаемый результат |
+| --- | --- |
+| BuilderOrder,4 cases: обе заявки nonce0/Transfer10 Q, early price1 против expensive price2/3/4/5; own Q5000 | FIFO PnL−125 Q, FeePriority−240/−355/−470/−585 Q; paired deltas−115/−230/−345/−460 Q, mean/median−575/2 Q, variance66125/3 Q² |
+| AgentPolicy, seeds0..19: RandomUser probability0 против500000 ppm;6 rounds, templates Transfer10/20 Q, fee115 Q, own Q5000 | Baseline PnL0; paired mean−1629/4 Q, median−390 Q, min−760/max−125, p05−760/p95−135, variance2093695/76 Q²;20 negative outcomes остаются в отчёте |
+| Observations−1/2,1/2,3/2,5/2 | Mean/median1, sample variance5/3; floor rows не участвует в расчёте |
+| Seeds0..3: baseline[0,Unpriced,4,10], variant[5,100,Unpriced,7] | Две пары[5,−3], paired mean1; seeds1/2 явно excluded. Разность несопоставимых mean равна98/3 и не является paired mean |
+|2 Success,1 ProtocolRevert,1 ResourceExhausted;7 rejection attempts | Included failure fraction1/2;7 остаётся отдельным диагностическим count |
+| ModelError после одной committed tx с PnL−125 | Prefix сохранён; final distribution не получает ни−125, ни0 от этого незавершённого run |
+
+Acceptance: строгий diff/common-input validation, bounded total work, точные
+fixture statistics, missing/cohort/negative/rejection cases, scalar RNG sweep,
+неизменность каждого native Run относительно отдельного запуска, воспроизводимый
+plan/report и native per-run checkpoint, streaming export/Incomplete при I/O
+failure, UI exact fractions/exclusions, 20-seed demo и независимый review.
+Четыре builder cases — deterministic sensitivity fixture, не случайная выборка.
+
 ### 23.3. Вертикальные срезы и Definition of Done
 
 Работа дробится на сквозные сценарии **требование → состояние → действие → исполнение → тесты → trace → визуальное объяснение**. Новый компонент не считается завершённым по одному лишь trait, mock API или графическому экрану. На один срез — один проверяемый вопрос и минимальное число новых механизмов.
@@ -3009,7 +3188,9 @@ openspec/                   # опционально, после решения 
 
 **Уже закрытые требования:** единый ledger; разделение origin/caller/callee и явная авторизация; точная передача atoms/цен без потери целых; native fee/nonce и ресурсный профиль `100 / 10 / 5 / 1` (§5–§6); изолированный collateral, уравнение `C + D = S + E`, распределение процентов и убытков, атомарность liquidation+writeoff (§8); возраст цены по observation time, полномочия publisher и validity oracle (§10); раздельные committed events/attempt trace и полные checkpoints (§15–§17). Выбор конкретного Rust crate или UI-транспорта обязан сохранить эти требования.
 
-**Состояние решений на 2026-11-06:** DEC-05–DEC-28 приняты владельцем;
+**Состояние решений на 2026-11-10:** DEC-05–DEC-28 приняты владельцем;
+DEC-29 (§23.2.17) подготовлен как Proposed и требует согласования до реализации
+парных серий экспериментов. Независимые reviews до DEC-28 включительно закрыты;
 DEC-28 (§23.2.16, G-11) согласован для реализации MTM. Для текущих
 профилей определены G-01/G-02, CPMM/LP часть G-03, прототип G-04,
 reference lending G-05, external oracle часть G-06, router budget часть G-09,
@@ -3049,7 +3230,7 @@ M4f реализован и функционально проверен; нез�
 | G-08 | CLMM sqrt-price/tick math, tick spacing/bounds, fee-growth rounding; точные lot/tick/fee/dust правила стакана и неудовлетворимого FOK | Диапазоны/пересечения/position fees, price-time priority, GTC/IOC/FOK, escrow и общий rollback обязательны | До соответствующего механизма M3 | Принятые model cards и exact fixtures tick boundaries/fees/no-liquidity и partial/IOC/FOK/cancel |
 | G-09 | Бюджеты route search и пробных исполнений builder; scheduler cutoff/лимиты реакций, mempool size/eviction; оценка greedy, bundle conflicts и hook capabilities | Ограниченный поиск, nonce/resource checks, обеспеченность bid, отсутствие interleaving и общий hook rollback обязательны; превышение бюджета не зависит от wall-clock | Router limits до M2a; partial policy до M3; pending scheduler/mempool/builder/hooks до реализации M4 | Профили с численными лимитами и исходами превышения; fixtures конфликтов, нулевой задержки/циклов реакций, cutoff и запретных эффектов |
 | G-10 | Частота snapshots/checkpoints, файловый формат, совместимость версий, компрессия и ограничение traces | Полный checkpoint только после committed-блока; обязательные replay-данные; начальные нагрузки §16.4 и будущие измеренные бюджеты G-16; урезание traces обозначается | Базовый checkpoint/экспорт до M1; масштабирование до M4/M5 | VF-CHECKPOINT-01 совпадает с непрерывным запуском; несовместимое восстановление отвергается; performance сравнивается с принятым после измерений бюджетом |
-| G-11 | Ожидаемые ответы и сопоставимость A/B; численная MTM-семантика и portfolio/price/capital rules закрыты DEC-28 | Q, committed-block-end, reference feed, Unpriced, liabilities и формула MTM/closed-cycle уже приняты; deposit redemption rounding из §8 не заменяет общий valuation-контракт | M5a функционально проверен; независимый review и конкретные experiment параметры нужны до полной приёмки M5 | Независимые fixtures дробной цены, группировки активов, потоков/borrow, Unpriced и post-loss claims; версия reference-mtm-v1 и пользовательская приёмка |
+| G-11 | Ожидаемые ответы и сопоставимость A/B; численная MTM-семантика и portfolio/price/capital rules закрыты DEC-28 | Q, committed-block-end, reference feed, Unpriced, liabilities и формула MTM/closed-cycle уже приняты; deposit redemption rounding из §8 не заменяет общий valuation-контракт | M5a функционально и независимо проверен; Proposed DEC-29 и конкретные experiment параметры требуют согласования до реализации/полной приёмки M5 | Независимые fixtures дробной цены, группировки активов, потоков/borrow, Unpriced и post-loss claims; версия reference-mtm-v1 и пользовательская приёмка |
 | G-12 | Независимый differential-эталон для каждой заявленной проверяемой совместимости | Нужны реальный commit SHA, файлы, параметры, compiler/fork и границы допустимых различий; источник на `master` не закрепляет эталон | До заявления о mechanism compatibility и закрытия среза, если differential входит в его acceptance | Проверенный паспорт эталона §20.4 и фактический результат сравнения; отсутствие эталона остаётся явным открытым gate |
 | G-13 | Точная семантика RL-step, action encoding, reward, episode horizon и train/validation/test datasets | Observation access, общий executor, два baseline, несколько seeds и out-of-sample оценка обязательны | До реализации/оценки соответствующего M6; не блокирует v1.0 | Версия environment/reward, RL-01 и протокол независимой оценки |
 | G-14 | Первый исторический dataset и deployment/fork для будущего EVM backend | Различие replay/environment/counterfactual и единственный authoritative backend закреплено §18 | Только соответствующее расширение после v1.0 | Dataset provenance, immutable inputs, корректный prestate, применимые fork rules и acceptance scenario |

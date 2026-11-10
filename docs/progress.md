@@ -1154,3 +1154,38 @@ review относится к e32849c; на fix независимо провер
 основной агент не повторял весь браузерный набор ради одной input-проверки.
 Независимый gate DEC-27–DEC-28 закрыт. Comparative series/HODL/Explorer и
 performance/user-task gates всей v1.0 впереди. Публикации среды не выполнялось.
+
+### Подготовлен M5b / Proposed DEC-29 — парные серии экспериментов
+
+Контракт `docs/spec.md` §23.2.17 подготовлен до реализации. Статус **Proposed**;
+владелец ещё не согласовывал новый ExperimentPlan, runner/report/UI importer.
+Принятые DEC-27/28 и их закрытый independent review этого решения не заменяют.
+
+Предложены два режима: BuilderOrder только с заранее материализованными
+кандидатами и без автономных политик; AgentPolicy с перечисленными targets,
+общим builder, неизменными authority/network/внешними входами. Полные Scenario
+каждой seed/variant пары сохраняются, изменения проверяются по разрешённым
+путям и common-input hash. Native RNG/fee/execution не меняются. Runner
+последовательный, bounded, экспортирует один Run перед переходом к следующему.
+
+Отчёт сохраняет отрицательные/нулевые результаты, fees, included failures,
+rejection attempts и все причины Unpriced/ModelError. Paired deltas соединяют
+одинаковые seeds только при наличии обеих полных оценок; отдельно показаны
+cohort sizes/exclusions. Mean/median/nearest-rank p05/p95/sample variance —
+exact signed fractions. Первый UI slice читает сохранённый series report;
+live batch controller, HODL и полный Explorer не включены скрыто в этот контракт.
+
+`docs/reviews/experiment-series-reference.py/.json` содержит12 независимых
+pre-implementation cases: Python Fraction и scalar ChaCha12 из DEC-26 reference.
+Основные ожидания: builder four-case mean delta−575/2 Q, variance66125/3 Q²;
+RandomUser probability0 vs500000 на seeds0..19 — mean delta−1629/4 Q,
+median−390 Q, sample variance2093695/76 Q². Missing-cohort example даёт paired
+mean1, тогда как разность несопоставимых mean98/3 была бы ошибочной подменой.
+
+Reference assertions прошли; повторная генерация JSON совпадает побайтно.
+Сверены48 отдельных native runs (8 builder,40 policy) на release build
+`4b3941b9ec0f00f4a81be4c24d366a301a0e34075a266342747d7da41a5a84ea`:
+фактические balances/PnL, paid fees и RNG positions совпали с независимыми
+ожиданиями. Это проверка исходных single-run fixtures, а не утверждение о
+готовности production runner серий. Артефакты: `output/dec29-reference-crosscheck/`.
+Для реализации DEC-29 требуется согласование владельца согласно §23.7.

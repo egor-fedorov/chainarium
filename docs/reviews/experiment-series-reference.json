@@ -1,0 +1,2841 @@
+{
+  "status": "Proposed",
+  "decision": "DEC-29",
+  "model": "paired-experiments-v1",
+  "cases": {
+    "builder_four_case_sensitivity": {
+      "rows": [
+        {
+          "seed": "0",
+          "expensive_price": "2",
+          "baseline_pnl": {
+            "numerator": "-125",
+            "denominator": "1",
+            "floor_atoms": "-125"
+          },
+          "alternative_pnl": {
+            "numerator": "-240",
+            "denominator": "1",
+            "floor_atoms": "-240"
+          },
+          "delta": {
+            "numerator": "-115",
+            "denominator": "1",
+            "floor_atoms": "-115"
+          },
+          "baseline_fee": "115",
+          "alternative_fee": "230",
+          "included_success": "1",
+          "included_failure": "0",
+          "losing_tx": "StaleNonce"
+        },
+        {
+          "seed": "1",
+          "expensive_price": "3",
+          "baseline_pnl": {
+            "numerator": "-125",
+            "denominator": "1",
+            "floor_atoms": "-125"
+          },
+          "alternative_pnl": {
+            "numerator": "-355",
+            "denominator": "1",
+            "floor_atoms": "-355"
+          },
+          "delta": {
+            "numerator": "-230",
+            "denominator": "1",
+            "floor_atoms": "-230"
+          },
+          "baseline_fee": "115",
+          "alternative_fee": "345",
+          "included_success": "1",
+          "included_failure": "0",
+          "losing_tx": "StaleNonce"
+        },
+        {
+          "seed": "2",
+          "expensive_price": "4",
+          "baseline_pnl": {
+            "numerator": "-125",
+            "denominator": "1",
+            "floor_atoms": "-125"
+          },
+          "alternative_pnl": {
+            "numerator": "-470",
+            "denominator": "1",
+            "floor_atoms": "-470"
+          },
+          "delta": {
+            "numerator": "-345",
+            "denominator": "1",
+            "floor_atoms": "-345"
+          },
+          "baseline_fee": "115",
+          "alternative_fee": "460",
+          "included_success": "1",
+          "included_failure": "0",
+          "losing_tx": "StaleNonce"
+        },
+        {
+          "seed": "3",
+          "expensive_price": "5",
+          "baseline_pnl": {
+            "numerator": "-125",
+            "denominator": "1",
+            "floor_atoms": "-125"
+          },
+          "alternative_pnl": {
+            "numerator": "-585",
+            "denominator": "1",
+            "floor_atoms": "-585"
+          },
+          "delta": {
+            "numerator": "-460",
+            "denominator": "1",
+            "floor_atoms": "-460"
+          },
+          "baseline_fee": "115",
+          "alternative_fee": "575",
+          "included_success": "1",
+          "included_failure": "0",
+          "losing_tx": "StaleNonce"
+        }
+      ],
+      "paired": {
+        "requested": "4",
+        "eligible": "4",
+        "excluded_seeds": [],
+        "deltas": [
+          {
+            "numerator": "-115",
+            "denominator": "1",
+            "floor_atoms": "-115"
+          },
+          {
+            "numerator": "-230",
+            "denominator": "1",
+            "floor_atoms": "-230"
+          },
+          {
+            "numerator": "-345",
+            "denominator": "1",
+            "floor_atoms": "-345"
+          },
+          {
+            "numerator": "-460",
+            "denominator": "1",
+            "floor_atoms": "-460"
+          }
+        ],
+        "statistics": {
+          "n": "4",
+          "status": "Available",
+          "minimum": {
+            "numerator": "-460",
+            "denominator": "1",
+            "floor_atoms": "-460"
+          },
+          "maximum": {
+            "numerator": "-115",
+            "denominator": "1",
+            "floor_atoms": "-115"
+          },
+          "mean": {
+            "numerator": "-575",
+            "denominator": "2",
+            "floor_atoms": "-288"
+          },
+          "median": {
+            "numerator": "-575",
+            "denominator": "2",
+            "floor_atoms": "-288"
+          },
+          "p05": {
+            "numerator": "-460",
+            "denominator": "1",
+            "floor_atoms": "-460"
+          },
+          "p95": {
+            "numerator": "-115",
+            "denominator": "1",
+            "floor_atoms": "-115"
+          },
+          "sample_variance": {
+            "numerator": "66125",
+            "denominator": "3",
+            "floor_atoms": "22041"
+          },
+          "variance_reason": null,
+          "positive": "0",
+          "zero": "0",
+          "negative": "4"
+        }
+      }
+    },
+    "random_policy_twenty_seeds": {
+      "baseline_probability_ppm": "0",
+      "alternative_probability_ppm": "500000",
+      "initial_own_Q": "5000",
+      "rounds": "6",
+      "rows": [
+        {
+          "baseline": {
+            "seed": "0",
+            "pnl": {
+              "numerator": "0",
+              "denominator": "1",
+              "floor_atoms": "0"
+            },
+            "paid_native_fees": "0",
+            "transfers": "0",
+            "included_success": "0",
+            "included_failure": "0",
+            "held": "6",
+            "rng_words": "24",
+            "choices": [
+              {
+                "round": "1",
+                "gate": "816461",
+                "choice": "1",
+                "submit": false
+              },
+              {
+                "round": "2",
+                "gate": "247626",
+                "choice": "0",
+                "submit": false
+              },
+              {
+                "round": "3",
+                "gate": "388680",
+                "choice": "0",
+                "submit": false
+              },
+              {
+                "round": "4",
+                "gate": "598377",
+                "choice": "0",
+                "submit": false
+              },
+              {
+                "round": "5",
+                "gate": "643345",
+                "choice": "1",
+                "submit": false
+              },
+              {
+                "round": "6",
+                "gate": "943850",
+                "choice": "1",
+                "submit": false
+              }
+            ]
+          },
+          "alternative": {
+            "seed": "0",
+            "pnl": {
+              "numerator": "-250",
+              "denominator": "1",
+              "floor_atoms": "-250"
+            },
+            "paid_native_fees": "230",
+            "transfers": "20",
+            "included_success": "2",
+            "included_failure": "0",
+            "held": "4",
+            "rng_words": "24",
+            "choices": [
+              {
+                "round": "1",
+                "gate": "816461",
+                "choice": "1",
+                "submit": false
+              },
+              {
+                "round": "2",
+                "gate": "247626",
+                "choice": "0",
+                "submit": true
+              },
+              {
+                "round": "3",
+                "gate": "388680",
+                "choice": "0",
+                "submit": true
+              },
+              {
+                "round": "4",
+                "gate": "598377",
+                "choice": "0",
+                "submit": false
+              },
+              {
+                "round": "5",
+                "gate": "643345",
+                "choice": "1",
+                "submit": false
+              },
+              {
+                "round": "6",
+                "gate": "943850",
+                "choice": "1",
+                "submit": false
+              }
+            ]
+          }
+        },
+        {
+          "baseline": {
+            "seed": "1",
+            "pnl": {
+              "numerator": "0",
+              "denominator": "1",
+              "floor_atoms": "0"
+            },
+            "paid_native_fees": "0",
+            "transfers": "0",
+            "included_success": "0",
+            "included_failure": "0",
+            "held": "6",
+            "rng_words": "24",
+            "choices": [
+              {
+                "round": "1",
+                "gate": "484885",
+                "choice": "1",
+                "submit": false
+              },
+              {
+                "round": "2",
+                "gate": "58040",
+                "choice": "1",
+                "submit": false
+              },
+              {
+                "round": "3",
+                "gate": "509036",
+                "choice": "1",
+                "submit": false
+              },
+              {
+                "round": "4",
+                "gate": "656052",
+                "choice": "1",
+                "submit": false
+              },
+              {
+                "round": "5",
+                "gate": "651657",
+                "choice": "0",
+                "submit": false
+              },
+              {
+                "round": "6",
+                "gate": "651514",
+                "choice": "0",
+                "submit": false
+              }
+            ]
+          },
+          "alternative": {
+            "seed": "1",
+            "pnl": {
+              "numerator": "-270",
+              "denominator": "1",
+              "floor_atoms": "-270"
+            },
+            "paid_native_fees": "230",
+            "transfers": "40",
+            "included_success": "2",
+            "included_failure": "0",
+            "held": "4",
+            "rng_words": "24",
+            "choices": [
+              {
+                "round": "1",
+                "gate": "484885",
+                "choice": "1",
+                "submit": true
+              },
+              {
+                "round": "2",
+                "gate": "58040",
+                "choice": "1",
+                "submit": true
+              },
+              {
+                "round": "3",
+                "gate": "509036",
+                "choice": "1",
+                "submit": false
+              },
+              {
+                "round": "4",
+                "gate": "656052",
+                "choice": "1",
+                "submit": false
+              },
+              {
+                "round": "5",
+                "gate": "651657",
+                "choice": "0",
+                "submit": false
+              },
+              {
+                "round": "6",
+                "gate": "651514",
+                "choice": "0",
+                "submit": false
+              }
+            ]
+          }
+        },
+        {
+          "baseline": {
+            "seed": "2",
+            "pnl": {
+              "numerator": "0",
+              "denominator": "1",
+              "floor_atoms": "0"
+            },
+            "paid_native_fees": "0",
+            "transfers": "0",
+            "included_success": "0",
+            "included_failure": "0",
+            "held": "6",
+            "rng_words": "24",
+            "choices": [
+              {
+                "round": "1",
+                "gate": "911944",
+                "choice": "1",
+                "submit": false
+              },
+              {
+                "round": "2",
+                "gate": "294983",
+                "choice": "1",
+                "submit": false
+              },
+              {
+                "round": "3",
+                "gate": "190830",
+                "choice": "1",
+                "submit": false
+              },
+              {
+                "round": "4",
+                "gate": "673161",
+                "choice": "1",
+                "submit": false
+              },
+              {
+                "round": "5",
+                "gate": "795885",
+                "choice": "0",
+                "submit": false
+              },
+              {
+                "round": "6",
+                "gate": "662267",
+                "choice": "0",
+                "submit": false
+              }
+            ]
+          },
+          "alternative": {
+            "seed": "2",
+            "pnl": {
+              "numerator": "-270",
+              "denominator": "1",
+              "floor_atoms": "-270"
+            },
+            "paid_native_fees": "230",
+            "transfers": "40",
+            "included_success": "2",
+            "included_failure": "0",
+            "held": "4",
+            "rng_words": "24",
+            "choices": [
+              {
+                "round": "1",
+                "gate": "911944",
+                "choice": "1",
+                "submit": false
+              },
+              {
+                "round": "2",
+                "gate": "294983",
+                "choice": "1",
+                "submit": true
+              },
+              {
+                "round": "3",
+                "gate": "190830",
+                "choice": "1",
+                "submit": true
+              },
+              {
+                "round": "4",
+                "gate": "673161",
+                "choice": "1",
+                "submit": false
+              },
+              {
+                "round": "5",
+                "gate": "795885",
+                "choice": "0",
+                "submit": false
+              },
+              {
+                "round": "6",
+                "gate": "662267",
+                "choice": "0",
+                "submit": false
+              }
+            ]
+          }
+        },
+        {
+          "baseline": {
+            "seed": "3",
+            "pnl": {
+              "numerator": "0",
+              "denominator": "1",
+              "floor_atoms": "0"
+            },
+            "paid_native_fees": "0",
+            "transfers": "0",
+            "included_success": "0",
+            "included_failure": "0",
+            "held": "6",
+            "rng_words": "24",
+            "choices": [
+              {
+                "round": "1",
+                "gate": "564649",
+                "choice": "0",
+                "submit": false
+              },
+              {
+                "round": "2",
+                "gate": "213106",
+                "choice": "0",
+                "submit": false
+              },
+              {
+                "round": "3",
+                "gate": "3256",
+                "choice": "1",
+                "submit": false
+              },
+              {
+                "round": "4",
+                "gate": "669103",
+                "choice": "0",
+                "submit": false
+              },
+              {
+                "round": "5",
+                "gate": "290627",
+                "choice": "1",
+                "submit": false
+              },
+              {
+                "round": "6",
+                "gate": "444711",
+                "choice": "1",
+                "submit": false
+              }
+            ]
+          },
+          "alternative": {
+            "seed": "3",
+            "pnl": {
+              "numerator": "-530",
+              "denominator": "1",
+              "floor_atoms": "-530"
+            },
+            "paid_native_fees": "460",
+            "transfers": "70",
+            "included_success": "4",
+            "included_failure": "0",
+            "held": "2",
+            "rng_words": "24",
+            "choices": [
+              {
+                "round": "1",
+                "gate": "564649",
+                "choice": "0",
+                "submit": false
+              },
+              {
+                "round": "2",
+                "gate": "213106",
+                "choice": "0",
+                "submit": true
+              },
+              {
+                "round": "3",
+                "gate": "3256",
+                "choice": "1",
+                "submit": true
+              },
+              {
+                "round": "4",
+                "gate": "669103",
+                "choice": "0",
+                "submit": false
+              },
+              {
+                "round": "5",
+                "gate": "290627",
+                "choice": "1",
+                "submit": true
+              },
+              {
+                "round": "6",
+                "gate": "444711",
+                "choice": "1",
+                "submit": true
+              }
+            ]
+          }
+        },
+        {
+          "baseline": {
+            "seed": "4",
+            "pnl": {
+              "numerator": "0",
+              "denominator": "1",
+              "floor_atoms": "0"
+            },
+            "paid_native_fees": "0",
+            "transfers": "0",
+            "included_success": "0",
+            "included_failure": "0",
+            "held": "6",
+            "rng_words": "24",
+            "choices": [
+              {
+                "round": "1",
+                "gate": "446052",
+                "choice": "0",
+                "submit": false
+              },
+              {
+                "round": "2",
+                "gate": "114039",
+                "choice": "0",
+                "submit": false
+              },
+              {
+                "round": "3",
+                "gate": "339767",
+                "choice": "0",
+                "submit": false
+              },
+              {
+                "round": "4",
+                "gate": "332537",
+                "choice": "1",
+                "submit": false
+              },
+              {
+                "round": "5",
+                "gate": "473693",
+                "choice": "1",
+                "submit": false
+              },
+              {
+                "round": "6",
+                "gate": "686858",
+                "choice": "0",
+                "submit": false
+              }
+            ]
+          },
+          "alternative": {
+            "seed": "4",
+            "pnl": {
+              "numerator": "-645",
+              "denominator": "1",
+              "floor_atoms": "-645"
+            },
+            "paid_native_fees": "575",
+            "transfers": "70",
+            "included_success": "5",
+            "included_failure": "0",
+            "held": "1",
+            "rng_words": "24",
+            "choices": [
+              {
+                "round": "1",
+                "gate": "446052",
+                "choice": "0",
+                "submit": true
+              },
+              {
+                "round": "2",
+                "gate": "114039",
+                "choice": "0",
+                "submit": true
+              },
+              {
+                "round": "3",
+                "gate": "339767",
+                "choice": "0",
+                "submit": true
+              },
+              {
+                "round": "4",
+                "gate": "332537",
+                "choice": "1",
+                "submit": true
+              },
+              {
+                "round": "5",
+                "gate": "473693",
+                "choice": "1",
+                "submit": true
+              },
+              {
+                "round": "6",
+                "gate": "686858",
+                "choice": "0",
+                "submit": false
+              }
+            ]
+          }
+        },
+        {
+          "baseline": {
+            "seed": "5",
+            "pnl": {
+              "numerator": "0",
+              "denominator": "1",
+              "floor_atoms": "0"
+            },
+            "paid_native_fees": "0",
+            "transfers": "0",
+            "included_success": "0",
+            "included_failure": "0",
+            "held": "6",
+            "rng_words": "24",
+            "choices": [
+              {
+                "round": "1",
+                "gate": "600489",
+                "choice": "0",
+                "submit": false
+              },
+              {
+                "round": "2",
+                "gate": "881888",
+                "choice": "0",
+                "submit": false
+              },
+              {
+                "round": "3",
+                "gate": "492635",
+                "choice": "1",
+                "submit": false
+              },
+              {
+                "round": "4",
+                "gate": "19795",
+                "choice": "0",
+                "submit": false
+              },
+              {
+                "round": "5",
+                "gate": "88024",
+                "choice": "1",
+                "submit": false
+              },
+              {
+                "round": "6",
+                "gate": "527330",
+                "choice": "1",
+                "submit": false
+              }
+            ]
+          },
+          "alternative": {
+            "seed": "5",
+            "pnl": {
+              "numerator": "-395",
+              "denominator": "1",
+              "floor_atoms": "-395"
+            },
+            "paid_native_fees": "345",
+            "transfers": "50",
+            "included_success": "3",
+            "included_failure": "0",
+            "held": "3",
+            "rng_words": "24",
+            "choices": [
+              {
+                "round": "1",
+                "gate": "600489",
+                "choice": "0",
+                "submit": false
+              },
+              {
+                "round": "2",
+                "gate": "881888",
+                "choice": "0",
+                "submit": false
+              },
+              {
+                "round": "3",
+                "gate": "492635",
+                "choice": "1",
+                "submit": true
+              },
+              {
+                "round": "4",
+                "gate": "19795",
+                "choice": "0",
+                "submit": true
+              },
+              {
+                "round": "5",
+                "gate": "88024",
+                "choice": "1",
+                "submit": true
+              },
+              {
+                "round": "6",
+                "gate": "527330",
+                "choice": "1",
+                "submit": false
+              }
+            ]
+          }
+        },
+        {
+          "baseline": {
+            "seed": "6",
+            "pnl": {
+              "numerator": "0",
+              "denominator": "1",
+              "floor_atoms": "0"
+            },
+            "paid_native_fees": "0",
+            "transfers": "0",
+            "included_success": "0",
+            "included_failure": "0",
+            "held": "6",
+            "rng_words": "24",
+            "choices": [
+              {
+                "round": "1",
+                "gate": "206656",
+                "choice": "0",
+                "submit": false
+              },
+              {
+                "round": "2",
+                "gate": "811444",
+                "choice": "1",
+                "submit": false
+              },
+              {
+                "round": "3",
+                "gate": "363727",
+                "choice": "0",
+                "submit": false
+              },
+              {
+                "round": "4",
+                "gate": "944533",
+                "choice": "1",
+                "submit": false
+              },
+              {
+                "round": "5",
+                "gate": "11475",
+                "choice": "1",
+                "submit": false
+              },
+              {
+                "round": "6",
+                "gate": "863722",
+                "choice": "0",
+                "submit": false
+              }
+            ]
+          },
+          "alternative": {
+            "seed": "6",
+            "pnl": {
+              "numerator": "-385",
+              "denominator": "1",
+              "floor_atoms": "-385"
+            },
+            "paid_native_fees": "345",
+            "transfers": "40",
+            "included_success": "3",
+            "included_failure": "0",
+            "held": "3",
+            "rng_words": "24",
+            "choices": [
+              {
+                "round": "1",
+                "gate": "206656",
+                "choice": "0",
+                "submit": true
+              },
+              {
+                "round": "2",
+                "gate": "811444",
+                "choice": "1",
+                "submit": false
+              },
+              {
+                "round": "3",
+                "gate": "363727",
+                "choice": "0",
+                "submit": true
+              },
+              {
+                "round": "4",
+                "gate": "944533",
+                "choice": "1",
+                "submit": false
+              },
+              {
+                "round": "5",
+                "gate": "11475",
+                "choice": "1",
+                "submit": true
+              },
+              {
+                "round": "6",
+                "gate": "863722",
+                "choice": "0",
+                "submit": false
+              }
+            ]
+          }
+        },
+        {
+          "baseline": {
+            "seed": "7",
+            "pnl": {
+              "numerator": "0",
+              "denominator": "1",
+              "floor_atoms": "0"
+            },
+            "paid_native_fees": "0",
+            "transfers": "0",
+            "included_success": "0",
+            "included_failure": "0",
+            "held": "6",
+            "rng_words": "24",
+            "choices": [
+              {
+                "round": "1",
+                "gate": "382977",
+                "choice": "0",
+                "submit": false
+              },
+              {
+                "round": "2",
+                "gate": "403334",
+                "choice": "0",
+                "submit": false
+              },
+              {
+                "round": "3",
+                "gate": "148230",
+                "choice": "0",
+                "submit": false
+              },
+              {
+                "round": "4",
+                "gate": "543402",
+                "choice": "0",
+                "submit": false
+              },
+              {
+                "round": "5",
+                "gate": "423866",
+                "choice": "0",
+                "submit": false
+              },
+              {
+                "round": "6",
+                "gate": "661264",
+                "choice": "0",
+                "submit": false
+              }
+            ]
+          },
+          "alternative": {
+            "seed": "7",
+            "pnl": {
+              "numerator": "-500",
+              "denominator": "1",
+              "floor_atoms": "-500"
+            },
+            "paid_native_fees": "460",
+            "transfers": "40",
+            "included_success": "4",
+            "included_failure": "0",
+            "held": "2",
+            "rng_words": "24",
+            "choices": [
+              {
+                "round": "1",
+                "gate": "382977",
+                "choice": "0",
+                "submit": true
+              },
+              {
+                "round": "2",
+                "gate": "403334",
+                "choice": "0",
+                "submit": true
+              },
+              {
+                "round": "3",
+                "gate": "148230",
+                "choice": "0",
+                "submit": true
+              },
+              {
+                "round": "4",
+                "gate": "543402",
+                "choice": "0",
+                "submit": false
+              },
+              {
+                "round": "5",
+                "gate": "423866",
+                "choice": "0",
+                "submit": true
+              },
+              {
+                "round": "6",
+                "gate": "661264",
+                "choice": "0",
+                "submit": false
+              }
+            ]
+          }
+        },
+        {
+          "baseline": {
+            "seed": "8",
+            "pnl": {
+              "numerator": "0",
+              "denominator": "1",
+              "floor_atoms": "0"
+            },
+            "paid_native_fees": "0",
+            "transfers": "0",
+            "included_success": "0",
+            "included_failure": "0",
+            "held": "6",
+            "rng_words": "24",
+            "choices": [
+              {
+                "round": "1",
+                "gate": "704874",
+                "choice": "1",
+                "submit": false
+              },
+              {
+                "round": "2",
+                "gate": "797917",
+                "choice": "0",
+                "submit": false
+              },
+              {
+                "round": "3",
+                "gate": "343293",
+                "choice": "0",
+                "submit": false
+              },
+              {
+                "round": "4",
+                "gate": "634902",
+                "choice": "0",
+                "submit": false
+              },
+              {
+                "round": "5",
+                "gate": "76459",
+                "choice": "0",
+                "submit": false
+              },
+              {
+                "round": "6",
+                "gate": "283850",
+                "choice": "0",
+                "submit": false
+              }
+            ]
+          },
+          "alternative": {
+            "seed": "8",
+            "pnl": {
+              "numerator": "-375",
+              "denominator": "1",
+              "floor_atoms": "-375"
+            },
+            "paid_native_fees": "345",
+            "transfers": "30",
+            "included_success": "3",
+            "included_failure": "0",
+            "held": "3",
+            "rng_words": "24",
+            "choices": [
+              {
+                "round": "1",
+                "gate": "704874",
+                "choice": "1",
+                "submit": false
+              },
+              {
+                "round": "2",
+                "gate": "797917",
+                "choice": "0",
+                "submit": false
+              },
+              {
+                "round": "3",
+                "gate": "343293",
+                "choice": "0",
+                "submit": true
+              },
+              {
+                "round": "4",
+                "gate": "634902",
+                "choice": "0",
+                "submit": false
+              },
+              {
+                "round": "5",
+                "gate": "76459",
+                "choice": "0",
+                "submit": true
+              },
+              {
+                "round": "6",
+                "gate": "283850",
+                "choice": "0",
+                "submit": true
+              }
+            ]
+          }
+        },
+        {
+          "baseline": {
+            "seed": "9",
+            "pnl": {
+              "numerator": "0",
+              "denominator": "1",
+              "floor_atoms": "0"
+            },
+            "paid_native_fees": "0",
+            "transfers": "0",
+            "included_success": "0",
+            "included_failure": "0",
+            "held": "6",
+            "rng_words": "24",
+            "choices": [
+              {
+                "round": "1",
+                "gate": "453642",
+                "choice": "0",
+                "submit": false
+              },
+              {
+                "round": "2",
+                "gate": "358196",
+                "choice": "1",
+                "submit": false
+              },
+              {
+                "round": "3",
+                "gate": "104199",
+                "choice": "0",
+                "submit": false
+              },
+              {
+                "round": "4",
+                "gate": "325106",
+                "choice": "0",
+                "submit": false
+              },
+              {
+                "round": "5",
+                "gate": "383070",
+                "choice": "0",
+                "submit": false
+              },
+              {
+                "round": "6",
+                "gate": "167516",
+                "choice": "0",
+                "submit": false
+              }
+            ]
+          },
+          "alternative": {
+            "seed": "9",
+            "pnl": {
+              "numerator": "-760",
+              "denominator": "1",
+              "floor_atoms": "-760"
+            },
+            "paid_native_fees": "690",
+            "transfers": "70",
+            "included_success": "6",
+            "included_failure": "0",
+            "held": "0",
+            "rng_words": "24",
+            "choices": [
+              {
+                "round": "1",
+                "gate": "453642",
+                "choice": "0",
+                "submit": true
+              },
+              {
+                "round": "2",
+                "gate": "358196",
+                "choice": "1",
+                "submit": true
+              },
+              {
+                "round": "3",
+                "gate": "104199",
+                "choice": "0",
+                "submit": true
+              },
+              {
+                "round": "4",
+                "gate": "325106",
+                "choice": "0",
+                "submit": true
+              },
+              {
+                "round": "5",
+                "gate": "383070",
+                "choice": "0",
+                "submit": true
+              },
+              {
+                "round": "6",
+                "gate": "167516",
+                "choice": "0",
+                "submit": true
+              }
+            ]
+          }
+        },
+        {
+          "baseline": {
+            "seed": "10",
+            "pnl": {
+              "numerator": "0",
+              "denominator": "1",
+              "floor_atoms": "0"
+            },
+            "paid_native_fees": "0",
+            "transfers": "0",
+            "included_success": "0",
+            "included_failure": "0",
+            "held": "6",
+            "rng_words": "24",
+            "choices": [
+              {
+                "round": "1",
+                "gate": "753832",
+                "choice": "1",
+                "submit": false
+              },
+              {
+                "round": "2",
+                "gate": "552277",
+                "choice": "1",
+                "submit": false
+              },
+              {
+                "round": "3",
+                "gate": "186633",
+                "choice": "1",
+                "submit": false
+              },
+              {
+                "round": "4",
+                "gate": "798452",
+                "choice": "1",
+                "submit": false
+              },
+              {
+                "round": "5",
+                "gate": "567699",
+                "choice": "0",
+                "submit": false
+              },
+              {
+                "round": "6",
+                "gate": "586859",
+                "choice": "0",
+                "submit": false
+              }
+            ]
+          },
+          "alternative": {
+            "seed": "10",
+            "pnl": {
+              "numerator": "-135",
+              "denominator": "1",
+              "floor_atoms": "-135"
+            },
+            "paid_native_fees": "115",
+            "transfers": "20",
+            "included_success": "1",
+            "included_failure": "0",
+            "held": "5",
+            "rng_words": "24",
+            "choices": [
+              {
+                "round": "1",
+                "gate": "753832",
+                "choice": "1",
+                "submit": false
+              },
+              {
+                "round": "2",
+                "gate": "552277",
+                "choice": "1",
+                "submit": false
+              },
+              {
+                "round": "3",
+                "gate": "186633",
+                "choice": "1",
+                "submit": true
+              },
+              {
+                "round": "4",
+                "gate": "798452",
+                "choice": "1",
+                "submit": false
+              },
+              {
+                "round": "5",
+                "gate": "567699",
+                "choice": "0",
+                "submit": false
+              },
+              {
+                "round": "6",
+                "gate": "586859",
+                "choice": "0",
+                "submit": false
+              }
+            ]
+          }
+        },
+        {
+          "baseline": {
+            "seed": "11",
+            "pnl": {
+              "numerator": "0",
+              "denominator": "1",
+              "floor_atoms": "0"
+            },
+            "paid_native_fees": "0",
+            "transfers": "0",
+            "included_success": "0",
+            "included_failure": "0",
+            "held": "6",
+            "rng_words": "24",
+            "choices": [
+              {
+                "round": "1",
+                "gate": "90022",
+                "choice": "0",
+                "submit": false
+              },
+              {
+                "round": "2",
+                "gate": "600681",
+                "choice": "1",
+                "submit": false
+              },
+              {
+                "round": "3",
+                "gate": "563596",
+                "choice": "0",
+                "submit": false
+              },
+              {
+                "round": "4",
+                "gate": "805440",
+                "choice": "1",
+                "submit": false
+              },
+              {
+                "round": "5",
+                "gate": "42549",
+                "choice": "1",
+                "submit": false
+              },
+              {
+                "round": "6",
+                "gate": "293052",
+                "choice": "0",
+                "submit": false
+              }
+            ]
+          },
+          "alternative": {
+            "seed": "11",
+            "pnl": {
+              "numerator": "-385",
+              "denominator": "1",
+              "floor_atoms": "-385"
+            },
+            "paid_native_fees": "345",
+            "transfers": "40",
+            "included_success": "3",
+            "included_failure": "0",
+            "held": "3",
+            "rng_words": "24",
+            "choices": [
+              {
+                "round": "1",
+                "gate": "90022",
+                "choice": "0",
+                "submit": true
+              },
+              {
+                "round": "2",
+                "gate": "600681",
+                "choice": "1",
+                "submit": false
+              },
+              {
+                "round": "3",
+                "gate": "563596",
+                "choice": "0",
+                "submit": false
+              },
+              {
+                "round": "4",
+                "gate": "805440",
+                "choice": "1",
+                "submit": false
+              },
+              {
+                "round": "5",
+                "gate": "42549",
+                "choice": "1",
+                "submit": true
+              },
+              {
+                "round": "6",
+                "gate": "293052",
+                "choice": "0",
+                "submit": true
+              }
+            ]
+          }
+        },
+        {
+          "baseline": {
+            "seed": "12",
+            "pnl": {
+              "numerator": "0",
+              "denominator": "1",
+              "floor_atoms": "0"
+            },
+            "paid_native_fees": "0",
+            "transfers": "0",
+            "included_success": "0",
+            "included_failure": "0",
+            "held": "6",
+            "rng_words": "24",
+            "choices": [
+              {
+                "round": "1",
+                "gate": "50737",
+                "choice": "0",
+                "submit": false
+              },
+              {
+                "round": "2",
+                "gate": "562964",
+                "choice": "0",
+                "submit": false
+              },
+              {
+                "round": "3",
+                "gate": "688668",
+                "choice": "0",
+                "submit": false
+              },
+              {
+                "round": "4",
+                "gate": "184874",
+                "choice": "1",
+                "submit": false
+              },
+              {
+                "round": "5",
+                "gate": "917933",
+                "choice": "0",
+                "submit": false
+              },
+              {
+                "round": "6",
+                "gate": "666736",
+                "choice": "0",
+                "submit": false
+              }
+            ]
+          },
+          "alternative": {
+            "seed": "12",
+            "pnl": {
+              "numerator": "-260",
+              "denominator": "1",
+              "floor_atoms": "-260"
+            },
+            "paid_native_fees": "230",
+            "transfers": "30",
+            "included_success": "2",
+            "included_failure": "0",
+            "held": "4",
+            "rng_words": "24",
+            "choices": [
+              {
+                "round": "1",
+                "gate": "50737",
+                "choice": "0",
+                "submit": true
+              },
+              {
+                "round": "2",
+                "gate": "562964",
+                "choice": "0",
+                "submit": false
+              },
+              {
+                "round": "3",
+                "gate": "688668",
+                "choice": "0",
+                "submit": false
+              },
+              {
+                "round": "4",
+                "gate": "184874",
+                "choice": "1",
+                "submit": true
+              },
+              {
+                "round": "5",
+                "gate": "917933",
+                "choice": "0",
+                "submit": false
+              },
+              {
+                "round": "6",
+                "gate": "666736",
+                "choice": "0",
+                "submit": false
+              }
+            ]
+          }
+        },
+        {
+          "baseline": {
+            "seed": "13",
+            "pnl": {
+              "numerator": "0",
+              "denominator": "1",
+              "floor_atoms": "0"
+            },
+            "paid_native_fees": "0",
+            "transfers": "0",
+            "included_success": "0",
+            "included_failure": "0",
+            "held": "6",
+            "rng_words": "24",
+            "choices": [
+              {
+                "round": "1",
+                "gate": "282418",
+                "choice": "0",
+                "submit": false
+              },
+              {
+                "round": "2",
+                "gate": "542285",
+                "choice": "1",
+                "submit": false
+              },
+              {
+                "round": "3",
+                "gate": "769038",
+                "choice": "0",
+                "submit": false
+              },
+              {
+                "round": "4",
+                "gate": "1211",
+                "choice": "1",
+                "submit": false
+              },
+              {
+                "round": "5",
+                "gate": "110827",
+                "choice": "0",
+                "submit": false
+              },
+              {
+                "round": "6",
+                "gate": "596011",
+                "choice": "1",
+                "submit": false
+              }
+            ]
+          },
+          "alternative": {
+            "seed": "13",
+            "pnl": {
+              "numerator": "-385",
+              "denominator": "1",
+              "floor_atoms": "-385"
+            },
+            "paid_native_fees": "345",
+            "transfers": "40",
+            "included_success": "3",
+            "included_failure": "0",
+            "held": "3",
+            "rng_words": "24",
+            "choices": [
+              {
+                "round": "1",
+                "gate": "282418",
+                "choice": "0",
+                "submit": true
+              },
+              {
+                "round": "2",
+                "gate": "542285",
+                "choice": "1",
+                "submit": false
+              },
+              {
+                "round": "3",
+                "gate": "769038",
+                "choice": "0",
+                "submit": false
+              },
+              {
+                "round": "4",
+                "gate": "1211",
+                "choice": "1",
+                "submit": true
+              },
+              {
+                "round": "5",
+                "gate": "110827",
+                "choice": "0",
+                "submit": true
+              },
+              {
+                "round": "6",
+                "gate": "596011",
+                "choice": "1",
+                "submit": false
+              }
+            ]
+          }
+        },
+        {
+          "baseline": {
+            "seed": "14",
+            "pnl": {
+              "numerator": "0",
+              "denominator": "1",
+              "floor_atoms": "0"
+            },
+            "paid_native_fees": "0",
+            "transfers": "0",
+            "included_success": "0",
+            "included_failure": "0",
+            "held": "6",
+            "rng_words": "24",
+            "choices": [
+              {
+                "round": "1",
+                "gate": "784136",
+                "choice": "0",
+                "submit": false
+              },
+              {
+                "round": "2",
+                "gate": "152024",
+                "choice": "1",
+                "submit": false
+              },
+              {
+                "round": "3",
+                "gate": "261805",
+                "choice": "1",
+                "submit": false
+              },
+              {
+                "round": "4",
+                "gate": "632818",
+                "choice": "0",
+                "submit": false
+              },
+              {
+                "round": "5",
+                "gate": "255860",
+                "choice": "1",
+                "submit": false
+              },
+              {
+                "round": "6",
+                "gate": "968839",
+                "choice": "1",
+                "submit": false
+              }
+            ]
+          },
+          "alternative": {
+            "seed": "14",
+            "pnl": {
+              "numerator": "-405",
+              "denominator": "1",
+              "floor_atoms": "-405"
+            },
+            "paid_native_fees": "345",
+            "transfers": "60",
+            "included_success": "3",
+            "included_failure": "0",
+            "held": "3",
+            "rng_words": "24",
+            "choices": [
+              {
+                "round": "1",
+                "gate": "784136",
+                "choice": "0",
+                "submit": false
+              },
+              {
+                "round": "2",
+                "gate": "152024",
+                "choice": "1",
+                "submit": true
+              },
+              {
+                "round": "3",
+                "gate": "261805",
+                "choice": "1",
+                "submit": true
+              },
+              {
+                "round": "4",
+                "gate": "632818",
+                "choice": "0",
+                "submit": false
+              },
+              {
+                "round": "5",
+                "gate": "255860",
+                "choice": "1",
+                "submit": true
+              },
+              {
+                "round": "6",
+                "gate": "968839",
+                "choice": "1",
+                "submit": false
+              }
+            ]
+          }
+        },
+        {
+          "baseline": {
+            "seed": "15",
+            "pnl": {
+              "numerator": "0",
+              "denominator": "1",
+              "floor_atoms": "0"
+            },
+            "paid_native_fees": "0",
+            "transfers": "0",
+            "included_success": "0",
+            "included_failure": "0",
+            "held": "6",
+            "rng_words": "24",
+            "choices": [
+              {
+                "round": "1",
+                "gate": "200127",
+                "choice": "0",
+                "submit": false
+              },
+              {
+                "round": "2",
+                "gate": "448857",
+                "choice": "0",
+                "submit": false
+              },
+              {
+                "round": "3",
+                "gate": "50186",
+                "choice": "0",
+                "submit": false
+              },
+              {
+                "round": "4",
+                "gate": "795247",
+                "choice": "0",
+                "submit": false
+              },
+              {
+                "round": "5",
+                "gate": "369474",
+                "choice": "1",
+                "submit": false
+              },
+              {
+                "round": "6",
+                "gate": "253671",
+                "choice": "0",
+                "submit": false
+              }
+            ]
+          },
+          "alternative": {
+            "seed": "15",
+            "pnl": {
+              "numerator": "-635",
+              "denominator": "1",
+              "floor_atoms": "-635"
+            },
+            "paid_native_fees": "575",
+            "transfers": "60",
+            "included_success": "5",
+            "included_failure": "0",
+            "held": "1",
+            "rng_words": "24",
+            "choices": [
+              {
+                "round": "1",
+                "gate": "200127",
+                "choice": "0",
+                "submit": true
+              },
+              {
+                "round": "2",
+                "gate": "448857",
+                "choice": "0",
+                "submit": true
+              },
+              {
+                "round": "3",
+                "gate": "50186",
+                "choice": "0",
+                "submit": true
+              },
+              {
+                "round": "4",
+                "gate": "795247",
+                "choice": "0",
+                "submit": false
+              },
+              {
+                "round": "5",
+                "gate": "369474",
+                "choice": "1",
+                "submit": true
+              },
+              {
+                "round": "6",
+                "gate": "253671",
+                "choice": "0",
+                "submit": true
+              }
+            ]
+          }
+        },
+        {
+          "baseline": {
+            "seed": "16",
+            "pnl": {
+              "numerator": "0",
+              "denominator": "1",
+              "floor_atoms": "0"
+            },
+            "paid_native_fees": "0",
+            "transfers": "0",
+            "included_success": "0",
+            "included_failure": "0",
+            "held": "6",
+            "rng_words": "24",
+            "choices": [
+              {
+                "round": "1",
+                "gate": "343097",
+                "choice": "0",
+                "submit": false
+              },
+              {
+                "round": "2",
+                "gate": "960240",
+                "choice": "0",
+                "submit": false
+              },
+              {
+                "round": "3",
+                "gate": "358028",
+                "choice": "0",
+                "submit": false
+              },
+              {
+                "round": "4",
+                "gate": "984143",
+                "choice": "1",
+                "submit": false
+              },
+              {
+                "round": "5",
+                "gate": "109292",
+                "choice": "0",
+                "submit": false
+              },
+              {
+                "round": "6",
+                "gate": "26399",
+                "choice": "0",
+                "submit": false
+              }
+            ]
+          },
+          "alternative": {
+            "seed": "16",
+            "pnl": {
+              "numerator": "-500",
+              "denominator": "1",
+              "floor_atoms": "-500"
+            },
+            "paid_native_fees": "460",
+            "transfers": "40",
+            "included_success": "4",
+            "included_failure": "0",
+            "held": "2",
+            "rng_words": "24",
+            "choices": [
+              {
+                "round": "1",
+                "gate": "343097",
+                "choice": "0",
+                "submit": true
+              },
+              {
+                "round": "2",
+                "gate": "960240",
+                "choice": "0",
+                "submit": false
+              },
+              {
+                "round": "3",
+                "gate": "358028",
+                "choice": "0",
+                "submit": true
+              },
+              {
+                "round": "4",
+                "gate": "984143",
+                "choice": "1",
+                "submit": false
+              },
+              {
+                "round": "5",
+                "gate": "109292",
+                "choice": "0",
+                "submit": true
+              },
+              {
+                "round": "6",
+                "gate": "26399",
+                "choice": "0",
+                "submit": true
+              }
+            ]
+          }
+        },
+        {
+          "baseline": {
+            "seed": "17",
+            "pnl": {
+              "numerator": "0",
+              "denominator": "1",
+              "floor_atoms": "0"
+            },
+            "paid_native_fees": "0",
+            "transfers": "0",
+            "included_success": "0",
+            "included_failure": "0",
+            "held": "6",
+            "rng_words": "24",
+            "choices": [
+              {
+                "round": "1",
+                "gate": "709908",
+                "choice": "1",
+                "submit": false
+              },
+              {
+                "round": "2",
+                "gate": "605222",
+                "choice": "1",
+                "submit": false
+              },
+              {
+                "round": "3",
+                "gate": "50444",
+                "choice": "1",
+                "submit": false
+              },
+              {
+                "round": "4",
+                "gate": "505631",
+                "choice": "1",
+                "submit": false
+              },
+              {
+                "round": "5",
+                "gate": "248915",
+                "choice": "0",
+                "submit": false
+              },
+              {
+                "round": "6",
+                "gate": "107529",
+                "choice": "1",
+                "submit": false
+              }
+            ]
+          },
+          "alternative": {
+            "seed": "17",
+            "pnl": {
+              "numerator": "-395",
+              "denominator": "1",
+              "floor_atoms": "-395"
+            },
+            "paid_native_fees": "345",
+            "transfers": "50",
+            "included_success": "3",
+            "included_failure": "0",
+            "held": "3",
+            "rng_words": "24",
+            "choices": [
+              {
+                "round": "1",
+                "gate": "709908",
+                "choice": "1",
+                "submit": false
+              },
+              {
+                "round": "2",
+                "gate": "605222",
+                "choice": "1",
+                "submit": false
+              },
+              {
+                "round": "3",
+                "gate": "50444",
+                "choice": "1",
+                "submit": true
+              },
+              {
+                "round": "4",
+                "gate": "505631",
+                "choice": "1",
+                "submit": false
+              },
+              {
+                "round": "5",
+                "gate": "248915",
+                "choice": "0",
+                "submit": true
+              },
+              {
+                "round": "6",
+                "gate": "107529",
+                "choice": "1",
+                "submit": true
+              }
+            ]
+          }
+        },
+        {
+          "baseline": {
+            "seed": "18",
+            "pnl": {
+              "numerator": "0",
+              "denominator": "1",
+              "floor_atoms": "0"
+            },
+            "paid_native_fees": "0",
+            "transfers": "0",
+            "included_success": "0",
+            "included_failure": "0",
+            "held": "6",
+            "rng_words": "24",
+            "choices": [
+              {
+                "round": "1",
+                "gate": "474830",
+                "choice": "0",
+                "submit": false
+              },
+              {
+                "round": "2",
+                "gate": "997429",
+                "choice": "1",
+                "submit": false
+              },
+              {
+                "round": "3",
+                "gate": "636751",
+                "choice": "0",
+                "submit": false
+              },
+              {
+                "round": "4",
+                "gate": "620876",
+                "choice": "0",
+                "submit": false
+              },
+              {
+                "round": "5",
+                "gate": "865954",
+                "choice": "0",
+                "submit": false
+              },
+              {
+                "round": "6",
+                "gate": "910855",
+                "choice": "0",
+                "submit": false
+              }
+            ]
+          },
+          "alternative": {
+            "seed": "18",
+            "pnl": {
+              "numerator": "-125",
+              "denominator": "1",
+              "floor_atoms": "-125"
+            },
+            "paid_native_fees": "115",
+            "transfers": "10",
+            "included_success": "1",
+            "included_failure": "0",
+            "held": "5",
+            "rng_words": "24",
+            "choices": [
+              {
+                "round": "1",
+                "gate": "474830",
+                "choice": "0",
+                "submit": true
+              },
+              {
+                "round": "2",
+                "gate": "997429",
+                "choice": "1",
+                "submit": false
+              },
+              {
+                "round": "3",
+                "gate": "636751",
+                "choice": "0",
+                "submit": false
+              },
+              {
+                "round": "4",
+                "gate": "620876",
+                "choice": "0",
+                "submit": false
+              },
+              {
+                "round": "5",
+                "gate": "865954",
+                "choice": "0",
+                "submit": false
+              },
+              {
+                "round": "6",
+                "gate": "910855",
+                "choice": "0",
+                "submit": false
+              }
+            ]
+          }
+        },
+        {
+          "baseline": {
+            "seed": "19",
+            "pnl": {
+              "numerator": "0",
+              "denominator": "1",
+              "floor_atoms": "0"
+            },
+            "paid_native_fees": "0",
+            "transfers": "0",
+            "included_success": "0",
+            "included_failure": "0",
+            "held": "6",
+            "rng_words": "24",
+            "choices": [
+              {
+                "round": "1",
+                "gate": "388518",
+                "choice": "1",
+                "submit": false
+              },
+              {
+                "round": "2",
+                "gate": "515614",
+                "choice": "1",
+                "submit": false
+              },
+              {
+                "round": "3",
+                "gate": "109317",
+                "choice": "1",
+                "submit": false
+              },
+              {
+                "round": "4",
+                "gate": "212932",
+                "choice": "1",
+                "submit": false
+              },
+              {
+                "round": "5",
+                "gate": "522390",
+                "choice": "0",
+                "submit": false
+              },
+              {
+                "round": "6",
+                "gate": "281211",
+                "choice": "1",
+                "submit": false
+              }
+            ]
+          },
+          "alternative": {
+            "seed": "19",
+            "pnl": {
+              "numerator": "-540",
+              "denominator": "1",
+              "floor_atoms": "-540"
+            },
+            "paid_native_fees": "460",
+            "transfers": "80",
+            "included_success": "4",
+            "included_failure": "0",
+            "held": "2",
+            "rng_words": "24",
+            "choices": [
+              {
+                "round": "1",
+                "gate": "388518",
+                "choice": "1",
+                "submit": true
+              },
+              {
+                "round": "2",
+                "gate": "515614",
+                "choice": "1",
+                "submit": false
+              },
+              {
+                "round": "3",
+                "gate": "109317",
+                "choice": "1",
+                "submit": true
+              },
+              {
+                "round": "4",
+                "gate": "212932",
+                "choice": "1",
+                "submit": true
+              },
+              {
+                "round": "5",
+                "gate": "522390",
+                "choice": "0",
+                "submit": false
+              },
+              {
+                "round": "6",
+                "gate": "281211",
+                "choice": "1",
+                "submit": true
+              }
+            ]
+          }
+        }
+      ],
+      "paired": {
+        "requested": "20",
+        "eligible": "20",
+        "excluded_seeds": [],
+        "deltas": [
+          {
+            "numerator": "-250",
+            "denominator": "1",
+            "floor_atoms": "-250"
+          },
+          {
+            "numerator": "-270",
+            "denominator": "1",
+            "floor_atoms": "-270"
+          },
+          {
+            "numerator": "-270",
+            "denominator": "1",
+            "floor_atoms": "-270"
+          },
+          {
+            "numerator": "-530",
+            "denominator": "1",
+            "floor_atoms": "-530"
+          },
+          {
+            "numerator": "-645",
+            "denominator": "1",
+            "floor_atoms": "-645"
+          },
+          {
+            "numerator": "-395",
+            "denominator": "1",
+            "floor_atoms": "-395"
+          },
+          {
+            "numerator": "-385",
+            "denominator": "1",
+            "floor_atoms": "-385"
+          },
+          {
+            "numerator": "-500",
+            "denominator": "1",
+            "floor_atoms": "-500"
+          },
+          {
+            "numerator": "-375",
+            "denominator": "1",
+            "floor_atoms": "-375"
+          },
+          {
+            "numerator": "-760",
+            "denominator": "1",
+            "floor_atoms": "-760"
+          },
+          {
+            "numerator": "-135",
+            "denominator": "1",
+            "floor_atoms": "-135"
+          },
+          {
+            "numerator": "-385",
+            "denominator": "1",
+            "floor_atoms": "-385"
+          },
+          {
+            "numerator": "-260",
+            "denominator": "1",
+            "floor_atoms": "-260"
+          },
+          {
+            "numerator": "-385",
+            "denominator": "1",
+            "floor_atoms": "-385"
+          },
+          {
+            "numerator": "-405",
+            "denominator": "1",
+            "floor_atoms": "-405"
+          },
+          {
+            "numerator": "-635",
+            "denominator": "1",
+            "floor_atoms": "-635"
+          },
+          {
+            "numerator": "-500",
+            "denominator": "1",
+            "floor_atoms": "-500"
+          },
+          {
+            "numerator": "-395",
+            "denominator": "1",
+            "floor_atoms": "-395"
+          },
+          {
+            "numerator": "-125",
+            "denominator": "1",
+            "floor_atoms": "-125"
+          },
+          {
+            "numerator": "-540",
+            "denominator": "1",
+            "floor_atoms": "-540"
+          }
+        ],
+        "statistics": {
+          "n": "20",
+          "status": "Available",
+          "minimum": {
+            "numerator": "-760",
+            "denominator": "1",
+            "floor_atoms": "-760"
+          },
+          "maximum": {
+            "numerator": "-125",
+            "denominator": "1",
+            "floor_atoms": "-125"
+          },
+          "mean": {
+            "numerator": "-1629",
+            "denominator": "4",
+            "floor_atoms": "-408"
+          },
+          "median": {
+            "numerator": "-390",
+            "denominator": "1",
+            "floor_atoms": "-390"
+          },
+          "p05": {
+            "numerator": "-760",
+            "denominator": "1",
+            "floor_atoms": "-760"
+          },
+          "p95": {
+            "numerator": "-135",
+            "denominator": "1",
+            "floor_atoms": "-135"
+          },
+          "sample_variance": {
+            "numerator": "2093695",
+            "denominator": "76",
+            "floor_atoms": "27548"
+          },
+          "variance_reason": null,
+          "positive": "0",
+          "zero": "0",
+          "negative": "20"
+        }
+      }
+    },
+    "fractional_even_median": {
+      "n": "4",
+      "status": "Available",
+      "minimum": {
+        "numerator": "-1",
+        "denominator": "2",
+        "floor_atoms": "-1"
+      },
+      "maximum": {
+        "numerator": "5",
+        "denominator": "2",
+        "floor_atoms": "2"
+      },
+      "mean": {
+        "numerator": "1",
+        "denominator": "1",
+        "floor_atoms": "1"
+      },
+      "median": {
+        "numerator": "1",
+        "denominator": "1",
+        "floor_atoms": "1"
+      },
+      "p05": {
+        "numerator": "-1",
+        "denominator": "2",
+        "floor_atoms": "-1"
+      },
+      "p95": {
+        "numerator": "5",
+        "denominator": "2",
+        "floor_atoms": "2"
+      },
+      "sample_variance": {
+        "numerator": "5",
+        "denominator": "3",
+        "floor_atoms": "1"
+      },
+      "variance_reason": null,
+      "positive": "3",
+      "zero": "0",
+      "negative": "1"
+    },
+    "paired_missing_is_not_zero": {
+      "requested": "4",
+      "eligible": "2",
+      "excluded_seeds": [
+        "1",
+        "2"
+      ],
+      "deltas": [
+        {
+          "numerator": "5",
+          "denominator": "1",
+          "floor_atoms": "5"
+        },
+        {
+          "numerator": "-3",
+          "denominator": "1",
+          "floor_atoms": "-3"
+        }
+      ],
+      "statistics": {
+        "n": "2",
+        "status": "Available",
+        "minimum": {
+          "numerator": "-3",
+          "denominator": "1",
+          "floor_atoms": "-3"
+        },
+        "maximum": {
+          "numerator": "5",
+          "denominator": "1",
+          "floor_atoms": "5"
+        },
+        "mean": {
+          "numerator": "1",
+          "denominator": "1",
+          "floor_atoms": "1"
+        },
+        "median": {
+          "numerator": "1",
+          "denominator": "1",
+          "floor_atoms": "1"
+        },
+        "p05": {
+          "numerator": "-3",
+          "denominator": "1",
+          "floor_atoms": "-3"
+        },
+        "p95": {
+          "numerator": "5",
+          "denominator": "1",
+          "floor_atoms": "5"
+        },
+        "sample_variance": {
+          "numerator": "32",
+          "denominator": "1",
+          "floor_atoms": "32"
+        },
+        "variance_reason": null,
+        "positive": "1",
+        "zero": "0",
+        "negative": "1"
+      }
+    },
+    "different_available_cohorts": {
+      "baseline": {
+        "n": "3",
+        "status": "Available",
+        "minimum": {
+          "numerator": "0",
+          "denominator": "1",
+          "floor_atoms": "0"
+        },
+        "maximum": {
+          "numerator": "10",
+          "denominator": "1",
+          "floor_atoms": "10"
+        },
+        "mean": {
+          "numerator": "14",
+          "denominator": "3",
+          "floor_atoms": "4"
+        },
+        "median": {
+          "numerator": "4",
+          "denominator": "1",
+          "floor_atoms": "4"
+        },
+        "p05": {
+          "numerator": "0",
+          "denominator": "1",
+          "floor_atoms": "0"
+        },
+        "p95": {
+          "numerator": "10",
+          "denominator": "1",
+          "floor_atoms": "10"
+        },
+        "sample_variance": {
+          "numerator": "76",
+          "denominator": "3",
+          "floor_atoms": "25"
+        },
+        "variance_reason": null,
+        "positive": "2",
+        "zero": "1",
+        "negative": "0"
+      },
+      "alternative": {
+        "n": "3",
+        "status": "Available",
+        "minimum": {
+          "numerator": "5",
+          "denominator": "1",
+          "floor_atoms": "5"
+        },
+        "maximum": {
+          "numerator": "100",
+          "denominator": "1",
+          "floor_atoms": "100"
+        },
+        "mean": {
+          "numerator": "112",
+          "denominator": "3",
+          "floor_atoms": "37"
+        },
+        "median": {
+          "numerator": "7",
+          "denominator": "1",
+          "floor_atoms": "7"
+        },
+        "p05": {
+          "numerator": "5",
+          "denominator": "1",
+          "floor_atoms": "5"
+        },
+        "p95": {
+          "numerator": "100",
+          "denominator": "1",
+          "floor_atoms": "100"
+        },
+        "sample_variance": {
+          "numerator": "8839",
+          "denominator": "3",
+          "floor_atoms": "2946"
+        },
+        "variance_reason": null,
+        "positive": "3",
+        "zero": "0",
+        "negative": "0"
+      },
+      "paired": {
+        "requested": "4",
+        "eligible": "2",
+        "excluded_seeds": [
+          "1",
+          "2"
+        ],
+        "deltas": [
+          {
+            "numerator": "5",
+            "denominator": "1",
+            "floor_atoms": "5"
+          },
+          {
+            "numerator": "-3",
+            "denominator": "1",
+            "floor_atoms": "-3"
+          }
+        ],
+        "statistics": {
+          "n": "2",
+          "status": "Available",
+          "minimum": {
+            "numerator": "-3",
+            "denominator": "1",
+            "floor_atoms": "-3"
+          },
+          "maximum": {
+            "numerator": "5",
+            "denominator": "1",
+            "floor_atoms": "5"
+          },
+          "mean": {
+            "numerator": "1",
+            "denominator": "1",
+            "floor_atoms": "1"
+          },
+          "median": {
+            "numerator": "1",
+            "denominator": "1",
+            "floor_atoms": "1"
+          },
+          "p05": {
+            "numerator": "-3",
+            "denominator": "1",
+            "floor_atoms": "-3"
+          },
+          "p95": {
+            "numerator": "5",
+            "denominator": "1",
+            "floor_atoms": "5"
+          },
+          "sample_variance": {
+            "numerator": "32",
+            "denominator": "1",
+            "floor_atoms": "32"
+          },
+          "variance_reason": null,
+          "positive": "1",
+          "zero": "0",
+          "negative": "1"
+        }
+      }
+    },
+    "one_observation": {
+      "n": "1",
+      "status": "Available",
+      "minimum": {
+        "numerator": "-1",
+        "denominator": "2",
+        "floor_atoms": "-1"
+      },
+      "maximum": {
+        "numerator": "-1",
+        "denominator": "2",
+        "floor_atoms": "-1"
+      },
+      "mean": {
+        "numerator": "-1",
+        "denominator": "2",
+        "floor_atoms": "-1"
+      },
+      "median": {
+        "numerator": "-1",
+        "denominator": "2",
+        "floor_atoms": "-1"
+      },
+      "p05": {
+        "numerator": "-1",
+        "denominator": "2",
+        "floor_atoms": "-1"
+      },
+      "p95": {
+        "numerator": "-1",
+        "denominator": "2",
+        "floor_atoms": "-1"
+      },
+      "sample_variance": null,
+      "variance_reason": "InsufficientSample",
+      "positive": "0",
+      "zero": "0",
+      "negative": "1"
+    },
+    "no_priced_observations": {
+      "n": "0",
+      "status": "Unavailable",
+      "reason": "NoPricedObservations"
+    },
+    "included_failure_fraction": {
+      "success": "2",
+      "protocol_revert": "1",
+      "resource_exhausted": "1",
+      "failure_fraction": {
+        "numerator": "1",
+        "denominator": "2",
+        "floor_atoms": "0"
+      },
+      "inclusion_rejection_attempts": "7",
+      "note": "repeated rejection attempts are separate; denominator is four included receipts"
+    },
+    "no_included_receipts": {
+      "failure_fraction": null,
+      "reason": "NoIncludedReceipts"
+    },
+    "failed_paid_transfer": {
+      "actual_pnl": {
+        "numerator": "-115",
+        "denominator": "1",
+        "floor_atoms": "-115"
+      },
+      "paid_native_fees": "115",
+      "included_failure": "1",
+      "capital_outflow": {
+        "numerator": "0",
+        "denominator": "1",
+        "floor_atoms": "0"
+      },
+      "note": "requested failed transfer900 does not become external capital"
+    },
+    "model_error_prefix": {
+      "run_status": "ModelError",
+      "committed_blocks": "1",
+      "canonical_prefix_pnl": {
+        "numerator": "-125",
+        "denominator": "1",
+        "floor_atoms": "-125"
+      },
+      "eligible_for_final_statistics": false,
+      "note": "committed prefix is retained for inspection; partial horizon is not a final observation"
+    },
+    "wide_negative_fraction": {
+      "n": "2",
+      "status": "Available",
+      "minimum": {
+        "numerator": "-4469269309980865699858008332735282042493121940197464459241187147907254676691105130874466555258685428573338160790259836961474200561289218259472607582268075",
+        "denominator": "1",
+        "floor_atoms": "-4469269309980865699858008332735282042493121940197464459241187147907254676691105130874466555258685428573338160790259836961474200561289218259472607582268075"
+      },
+      "maximum": {
+        "numerator": "1",
+        "denominator": "3",
+        "floor_atoms": "0"
+      },
+      "mean": {
+        "numerator": "-6703903964971298549787012499102923063739682910296196688861780721860882015036657696311699832888028142860007241185389755442211300841933827389208911373402112",
+        "denominator": "3",
+        "floor_atoms": "-2234634654990432849929004166367641021246560970098732229620593573953627338345552565437233277629342714286669080395129918480737100280644609129736303791134038"
+      },
+      "median": {
+        "numerator": "-6703903964971298549787012499102923063739682910296196688861780721860882015036657696311699832888028142860007241185389755442211300841933827389208911373402112",
+        "denominator": "3",
+        "floor_atoms": "-2234634654990432849929004166367641021246560970098732229620593573953627338345552565437233277629342714286669080395129918480737100280644609129736303791134038"
+      },
+      "p05": {
+        "numerator": "-4469269309980865699858008332735282042493121940197464459241187147907254676691105130874466555258685428573338160790259836961474200561289218259472607582268075",
+        "denominator": "1",
+        "floor_atoms": "-4469269309980865699858008332735282042493121940197464459241187147907254676691105130874466555258685428573338160790259836961474200561289218259472607582268075"
+      },
+      "p95": {
+        "numerator": "1",
+        "denominator": "3",
+        "floor_atoms": "0"
+      },
+      "sample_variance": {
+        "numerator": "89884656743115795386465259539451236680898848947115328636715040578866337902747376530169637243333470051583131934825182906795161491184930207170371613414364362047453909665163847978350127162613294830777480685527784149881961653677269372183286495866299804690001544863711066761446573323821416843365342174047985729538",
+        "denominator": "9",
+        "floor_atoms": "9987184082568421709607251059939026297877649883012814292968337842096259766971930725574404138148163339064792437202798100755017943464992245241152401490484929116383767740573760886483347462512588314530831187280864905542440183741918819131476277318477756076666838318190118529049619258202379649262815797116442858837"
+      },
+      "variance_reason": null,
+      "positive": "1",
+      "zero": "0",
+      "negative": "1"
+    }
+  }
+}

@@ -282,6 +282,9 @@ capability checks и явный submission outcome. [Перепроверка и
 Сохранены независимые scalar/Fraction/DFS проверки и воспроизведение в
 [архиве регрессий](docs/reviews/dec27-dec28-regressions/README.md).
 Полный workspace после fix:429 tests;64 CLI demos. Остальные gates M5 остаются открытыми.
+Следующий контракт — [Proposed DEC-29](docs/spec.md#23217-предлагаемый-контракт-m5b--proposed-dec-29):
+парные серии builders/policies, материализованные общие входы и точная статистика.
+Подготовлены12 pre-implementation cases и20-seed reference; реализация ждёт согласования.
 
 Фактические результаты и оставшиеся проверки: [журнал прогресса](docs/progress.md).
 Сценарий CLI ограничен 64 MiB, отдельная транзакция — 1 MiB. Web restore
