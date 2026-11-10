@@ -1116,3 +1116,41 @@ remaining book escrow. Существующие scenarios без valuation polic
 Предыдущие разрешения на агента охватывали код до DEC-26; новый reviewer без
 согласования не запускался. Сравнительные серии, HODL, полный Explorer,
 оставшиеся user-task и performance gates v1.0 впереди. Среда не публиковалась.
+
+### Независимый review DEC-27–DEC-28 и исправление F-01
+
+Пользователь разрешил одного общего read-only reviewer ответом «Продолжай».
+После восстановления доступа к среде отдельный агент проверил
+`d4d5726..e32849c` и отдельным snapshot исправление
+`22b1be27f02ab80320ba1d587ff997ea74d74c5b`.
+Полный отчёт: `docs/reviews/dec27-dec28-independent-review.md`; исходные
+самостоятельные скрипты и JSON reproducer сохранены без изменений в
+`docs/reviews/dec27-dec28-regressions/` с hashes и условиями воспроизведения.
+
+Подтверждён один P2: capital binding допускал незарегистрированного sender.
+Это нарушало ordinary-endpoints validation; сама emission позднее отклонялась
+на admission, ложного capital flow не было. Fix добавил проверку регистрации
+sender. В независимой перепроверке original reproducer отвергается до запуска,
+контроль без capital label остаётся admission rejection, а зарегистрированный
+помеченный Transfer создаёт ровно один inflow. F-01 закрыт; других подтверждённых
+findings нет. Прежнее разрешение не запрашивалось повторно.
+
+Reviewer выполнил36 профильных integration tests и2 capability/rollback unit
+checks; собственные160 flash arithmetic cases,60 bounded DFS graphs,100 wide
+Fraction portfolios,129 independently extracted MTM components и отдельный
+StableSwap, live negative-half/gross-offset, latest/future/stale records,
+bundle commit/rollback/Own collision, noninterference и CLI replay10 demos.
+HTTP/Chromium smoke6 MTM demos проведён на отдельном порту8091, сервер остановлен.
+Основной repo reviewer не менял. Scope и пределы проверки явно перечислены
+в отчёте; новые worst-case performance budgets этим review не закрыты.
+
+После fix основной агент проверил17 valuation integrations и весь workspace:
+**429 Rust tests**, format/Clippy all-targets `-D warnings` — pass.
+Release build `4b3941b9ec0f00f4a81be4c24d366a301a0e34075a266342747d7da41a5a84ea`:
+**64 CLI demos** и all-boundary MTM resumed exports прошли через
+`scripts/check-demos.py`; независимый JSON reproducer также отвергнут этой сборкой.
+Артефакты: `output/dec28-fix-validated/`. Большой browser/differential scope
+review относится к e32849c; на fix независимо проверены адресные случаи,
+основной агент не повторял весь браузерный набор ради одной input-проверки.
+Независимый gate DEC-27–DEC-28 закрыт. Comparative series/HODL/Explorer и
+performance/user-task gates всей v1.0 впереди. Публикации среды не выполнялось.

@@ -275,11 +275,13 @@ capability checks и явный submission outcome. [Перепроверка и
 на `ce78187` закрыла оба findings без новых подтверждённых замечаний.
 Сохранены8 integration +2 unit tests исходного reviewer и ещё6 integration
 +3 unit tests адресной перепроверки.
-DEC-27/M4g реализован и функционально проверен; отдельный независимый review
-нового search/controller ещё не выполнен.
-DEC-28 принят владельцем: [reference MTM](docs/spec.md#23216-принятый-контракт-m5a--accepted-dec-28)
-с24 pre-implementation arithmetic examples. Реализация прошла Rust/CLI/browser проверки;
-независимый review нового evaluator ещё не выполнен.
+[Независимый review DEC-27–DEC-28](docs/reviews/dec27-dec28-independent-review.md)
+завершён для flash arbitrage и reference MTM. Один P2: capital binding принимал
+незарегистрированного sender — исправлен в `22b1be2` и независимо перепроверен.
+Ложного capital flow не возникало; открытых findings этого review нет.
+Сохранены независимые scalar/Fraction/DFS проверки и воспроизведение в
+[архиве регрессий](docs/reviews/dec27-dec28-regressions/README.md).
+Полный workspace после fix:429 tests;64 CLI demos. Остальные gates M5 остаются открытыми.
 
 Фактические результаты и оставшиеся проверки: [журнал прогресса](docs/progress.md).
 Сценарий CLI ограничен 64 MiB, отдельная транзакция — 1 MiB. Web restore
