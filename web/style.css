@@ -20,5 +20,5 @@ select{display:block;width:100%;padding:10px;margin-top:5px;background:#f9fbf8;b
 #valuation-panel{overflow-wrap:anywhere}#valuation-panel .stat{min-width:0;max-width:100%}#valuation-panel .stat small{font-size:12px;font-weight:400;letter-spacing:normal}#valuation-download{margin-top:20px}
 
 #experiment-panel{margin-bottom:20px;min-width:0}#experiment-panel .table-scroll{max-width:100%;overflow-x:auto}#experiment-panel pre{max-height:360px;overflow:auto;white-space:pre-wrap;overflow-wrap:anywhere}#experiment-panel h3{margin-top:24px}#experiment-panel td{vertical-align:top}#experiment-panel select{max-width:100%}
-#experiment-panel table{min-width:620px}#experiment-panel h3,#experiment-panel p{overflow-wrap:anywhere}
+#experiment-panel table:has(th:nth-child(5)){min-width:620px}#experiment-panel h3,#experiment-panel p{overflow-wrap:anywhere}
 #blocks{grid-template-columns:minmax(0,1fr)}#blocks button{min-width:0;overflow-wrap:anywhere}

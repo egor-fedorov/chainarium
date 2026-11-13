@@ -57,12 +57,17 @@ with sync_playwright() as playwright:
         expect(page.locator('#error')).to_be_hidden()
         assert page.request.get(base+'/api/run').json() == checkpoint['run']
         expect(page.locator('#experiment-name')).to_have_text(report['name'])
+        if kind == 'model-error':
+            page.locator('#step').click()
+            expect(page.locator('#error')).to_contain_text('ModelError')
+            assert page.request.get(base+'/api/run').json() == checkpoint['run']
         with page.expect_download() as downloaded:
             page.locator('#experiment-download').click()
         assert json.loads(Path(downloaded.value.path()).read_text()) == report
         page.set_viewport_size({'width':390,'height':844})
         assert page.evaluate('document.documentElement.scrollWidth <= innerWidth'), kind
         if kind == 'unpriced':
+            assert page.locator('#experiment-summary details .table-scroll').evaluate_all('(elements)=>elements.every(e=>e.scrollWidth<=e.clientWidth)')
             page.locator('#experiment-summary').screenshot(path=str(root/'unpriced-mobile.png'))
         page.set_viewport_size({'width':1440,'height':1100})
         if kind == 'builder':
