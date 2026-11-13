@@ -21,3 +21,4 @@ select{display:block;width:100%;padding:10px;margin-top:5px;background:#f9fbf8;b
 
 #experiment-panel{margin-bottom:20px;min-width:0}#experiment-panel .table-scroll{max-width:100%;overflow-x:auto}#experiment-panel pre{max-height:360px;overflow:auto;white-space:pre-wrap;overflow-wrap:anywhere}#experiment-panel h3{margin-top:24px}#experiment-panel td{vertical-align:top}#experiment-panel select{max-width:100%}
 #experiment-panel table{min-width:620px}#experiment-panel h3,#experiment-panel p{overflow-wrap:anywhere}
+#blocks{grid-template-columns:minmax(0,1fr)}#blocks button{min-width:0;overflow-wrap:anywhere}
