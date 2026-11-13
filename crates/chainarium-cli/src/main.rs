@@ -55,6 +55,34 @@ async fn restore(State(s): State<Shared>, bytes: Bytes) -> Result<Json<Run>, Api
     *current(&s)? = Some(r.clone());
     Ok(Json(r))
 }
+async fn experiment_report(
+    bytes: Bytes,
+) -> Result<Json<chainarium_core::experiment::Report>, ApiError> {
+    Ok(Json(
+        chainarium_core::experiment::Report::parse(&bytes).map_err(bad)?,
+    ))
+}
+#[derive(Deserialize)]
+#[serde(deny_unknown_fields)]
+struct ExperimentCheckpoint {
+    report: chainarium_core::experiment::Report,
+    row: usize,
+    checkpoint: serde_json::Value,
+}
+async fn experiment_checkpoint(
+    State(s): State<Shared>,
+    Json(input): Json<ExperimentCheckpoint>,
+) -> Result<Json<Run>, ApiError> {
+    let bytes = serde_json::to_vec(&input.checkpoint).map_err(bad)?;
+    if bytes.len() > 64 * 1024 * 1024
+        || serde_json::to_vec(&input.report).map_err(bad)?.len() > 64 * 1024 * 1024
+    {
+        return Err(bad("report/checkpoint exceeds 64 MiB"));
+    }
+    let run = input.report.restore_row(input.row, &bytes).map_err(bad)?;
+    *current(&s)? = Some(run.clone());
+    Ok(Json(run))
+}
 #[derive(Deserialize)]
 #[serde(deny_unknown_fields)]
 struct Fork {
@@ -561,6 +589,23 @@ fn app() -> Router {
         .route("/api/route-quote", post(route_quote))
         .route("/api/credit/{block}", get(credit_view))
         .route("/api/valuation/{block}", get(valuation_view))
+        .route(
+            "/api/experiment-report",
+            post(experiment_report).layer(DefaultBodyLimit::max(64 * 1024 * 1024)),
+        )
+        .route(
+            "/api/experiment-checkpoint",
+            post(experiment_checkpoint).layer(DefaultBodyLimit::max(128 * 1024 * 1024)),
+        )
+        .route(
+            "/experiments.js",
+            get(|| async {
+                (
+                    [(header::CONTENT_TYPE, "text/javascript; charset=utf-8")],
+                    include_str!("../../../web/experiments.js"),
+                )
+            }),
+        )
         .route("/api/market/{block}/{id}", get(market_view))
         .route("/api/oracles/{block}", get(oracle_view))
         .route("/api/books/{block}", get(books_view))
@@ -597,6 +642,24 @@ async fn main() {
 async fn command() -> Result<(), String> {
     let args: Vec<String> = std::env::args().skip(1).collect();
     match args.first().map(String::as_str).unwrap_or("--help") {
+        "experiment" => {
+            use std::io::Read;
+            let mut bytes = Vec::new();
+            std::fs::File::open(required(&args, 1)?)
+                .map_err(|e| e.to_string())?
+                .take((chainarium_core::model::MAX_SCENARIO + 1) as u64)
+                .read_to_end(&mut bytes)
+                .map_err(|e| e.to_string())?;
+            let plan = chainarium_core::experiment::Plan::parse(&bytes)?;
+            let output = Path::new(required(&args, 2)?);
+            let report = chainarium_core::experiment::export(&plan, output)?;
+            println!(
+                "{}: {} native runs; import {}",
+                report.outcome,
+                report.rows.len(),
+                output.join("manifest.json").display()
+            );
+        }
         "routes" => {
             let mut r = Run::new(load(required(&args, 1)?)?)?;
             let n: usize = required(&args, 2)?
@@ -656,7 +719,7 @@ async fn command() -> Result<(), String> {
             let listener = tokio::net::TcpListener::bind((std::net::Ipv4Addr::LOCALHOST, port))
                 .await
                 .map_err(|e| e.to_string())?;
-            println!("Chainarium M1–M4g inspector listening on port {port}");
+            println!("Chainarium M1–M5b inspector listening on port {port}");
             axum::serve(listener, app())
                 .await
                 .map_err(|e| e.to_string())?;
@@ -758,7 +821,7 @@ async fn command() -> Result<(), String> {
             );
         }
         "--help" | "help" => println!(
-            "Chainarium M1–M4g (v1.0 in development)\n  run SCENARIO NEW_OUTPUT_DIR\n  routes SCENARIO BLOCKS QUERY_JSON\n  checkpoint SCENARIO BLOCKS NEW_FILE\n  resume CHECKPOINT NEW_OUTPUT_DIR\n  serve [PORT]\n  benchmark [BLOCKS]"
+            "Chainarium M1–M5b (v1.0 in development)\n  run SCENARIO NEW_OUTPUT_DIR\n  experiment PLAN NEW_OUTPUT_DIR\n  routes SCENARIO BLOCKS QUERY_JSON\n  checkpoint SCENARIO BLOCKS NEW_FILE\n  resume CHECKPOINT NEW_OUTPUT_DIR\n  serve [PORT]\n  benchmark [BLOCKS]"
         ),
         _ => return Err("unknown command; use --help".into()),
     }

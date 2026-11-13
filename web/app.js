@@ -1,4 +1,5 @@
 import {renderAgents} from './agents.js';
+import {bindExperiments} from './experiments.js';
 import {renderValuation} from './valuation.js';
 import {renderFlashArbitrage} from './flash-arbitrage.js';
 import {renderHooks,hookCard} from './hooks.js';
@@ -266,4 +267,5 @@ $('#save').onclick=()=>guard(async()=>download(`checkpoint-${run.state.block}.js
 $('#export').onclick=()=>download('chainarium-run.json',run);
 $('#fork').onclick=()=>guard(async()=>{stop();previous=run;run=await api('fork',{label:crypto.randomUUID()});render();});
 $('#restore').onchange=e=>guard(async()=>{stop();const file=e.target.files[0];if(!file)return;if(file.size>64*1024*1024)throw Error('Checkpoint больше 64 MiB');const value=JSON.parse(await file.text());const restored=await api('restore',value);previous=run;run=restored;viewed=run.blocks.length-1;await syncControls();render();});
+bindExperiments(api,guard,{beforeRestore:stop,restored:async restored=>{previous=run;run=restored;viewed=run.blocks.length-1;await syncControls();render();},download});
 await guard(async()=>{try{run=await api('run');viewed=run.blocks.length-1;await syncControls();render();}catch{await newRun();}});

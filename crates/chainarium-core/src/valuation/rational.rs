@@ -1,7 +1,8 @@
 use crate::Amount;
 use num_bigint::{BigInt, BigUint, Sign};
 use num_traits::{One, Zero};
-use serde::{Serialize, Serializer};
+use serde::{Deserialize, Deserializer, Serialize, Serializer, de};
+use std::cmp::Ordering;
 
 /// Reduced signed fractions. Only presentation uses floor; never ledger arithmetic.
 #[derive(Clone, Debug, PartialEq, Eq)]
@@ -15,6 +16,16 @@ impl Default for Exact {
     }
 }
 impl Exact {
+    pub fn bounded(&self, bits: u64) -> Result<Self, String> {
+        if self.n.bits() > bits || self.d.bits() > bits {
+            Err("ArithmeticLimit".into())
+        } else {
+            Ok(self.clone())
+        }
+    }
+    pub fn div_count(&self, count: usize, bits: u64) -> Result<Self, String> {
+        Self::ratio(self.n.clone(), &self.d * BigUint::from(count), bits)
+    }
     pub fn integer(n: Amount) -> Self {
         Self {
             n: n.big().into(),
@@ -70,6 +81,48 @@ impl Exact {
         } else {
             q
         }
+    }
+}
+impl PartialOrd for Exact {
+    fn partial_cmp(&self, other: &Self) -> Option<Ordering> {
+        Some(self.cmp(other))
+    }
+}
+impl Ord for Exact {
+    fn cmp(&self, other: &Self) -> Ordering {
+        (&self.n * BigInt::from(other.d.clone())).cmp(&(&other.n * BigInt::from(self.d.clone())))
+    }
+}
+impl<'de> Deserialize<'de> for Exact {
+    fn deserialize<D: Deserializer<'de>>(d: D) -> Result<Self, D::Error> {
+        #[derive(Deserialize)]
+        #[serde(deny_unknown_fields)]
+        struct Wire {
+            numerator: String,
+            denominator: String,
+            floor_atoms: String,
+        }
+        let w = Wire::deserialize(d)?;
+        // Bound parsing before allocating big integers. All native derived values
+        // have at most 32768 bits; JSON numbers and noncanonical strings fail.
+        if [&w.numerator, &w.denominator, &w.floor_atoms]
+            .iter()
+            .any(|s| s.len() > 10000)
+        {
+            return Err(de::Error::custom("exact fraction exceeds wire limit"));
+        }
+        let n: BigInt = w.numerator.parse().map_err(de::Error::custom)?;
+        let denominator: BigUint = w.denominator.parse().map_err(de::Error::custom)?;
+        let value = Self::ratio(n, denominator, 32768).map_err(de::Error::custom)?;
+        if w.numerator != value.n.to_string()
+            || w.denominator != value.d.to_string()
+            || w.floor_atoms != value.floor().to_string()
+        {
+            return Err(de::Error::custom(
+                "expected reduced canonical exact fraction and floor",
+            ));
+        }
+        Ok(value)
     }
 }
 impl Serialize for Exact {

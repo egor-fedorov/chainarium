@@ -1189,3 +1189,28 @@ Reference assertions прошли; повторная генерация JSON с
 ожиданиями. Это проверка исходных single-run fixtures, а не утверждение о
 готовности production runner серий. Артефакты: `output/dec29-reference-crosscheck/`.
 Для реализации DEC-29 требуется согласование владельца согласно §23.7.
+
+### M5b / Accepted DEC-29 — реализация парных серий
+
+Владелец согласовал DEC-29: «продолжай пожалуйста, всё согласовываю»;
+согласование отражено в1a4e5af. Предыдущая запись Proposed описывает подготовку
+контракта до этого ответа; повторное согласование реализации не требуется.
+
+Добавлены typed Plan/diff/common hashes, проверки двух режимов и восьми policy
+families, последовательный native runner, полные per-run exports, exact
+statistics/cohorts и paired deltas. В отчёте сохранён исходный план, а final
+manifest служит единственным completion marker. I/O failure оставляет Incomplete;
+ModelError сохраняет replayable prefix и не становится конечной observation.
+Report import проверяет структуру, план, hashes и пересчитывает derived summaries.
+Открытие выбранного checkpoint отдельно проверяет replay, Scenario, результаты
+строки и воспроизводимость заявленного ModelError. Browser не считает денежные
+величины и не исполняет серию. Readonly import отделён от singleton Run.
+
+Добавлены две серии:8 builder runs и40 RandomUser runs с заранее сохранёнными
+Fraction/scalar ChaCha12 ожиданиями. Предварительные проверки включают equality
+с отдельным native Run, порядок seeds, all-negative/zero outcomes, missing pairs,
+arithmetic caps, строгий wire/diff null-vs-absent, запрет посторонних изменений,
+ModelError prefix, I/O interruption и восстановление только выбранной строки.
+Финальные результаты полных CLI/UI/workspace проверок будут записаны ниже.
+Независимый review DEC-29 ещё не выполнен; HODL/Explorer/performance/user-task
+приёмка всей v1.0 остаётся открытой. Среда не публиковалась.

@@ -1,7 +1,7 @@
 # Chainarium
 
 Локальная лаборатория DeFi с Rust-ядром. **v1.0 в разработке.**
-Сейчас исполняются M1–M5a: CPMM swaps/LP, маршруты, арбитражная политика
+Сейчас исполняются M1–M5b: CPMM swaps/LP, маршруты, арбитражная политика
 на собственных средствах, flash loans, lending, oracle, проценты и ликвидации, StableSwap, TWAP и flash-ликвидация,
 стакан GTC/IOC/FOK, CLMM и общий partial-fill router, rollback, fees/nonce и
 исчерпание ресурса. Добавлены event scheduler, mempool, Public/Private delivery,
@@ -67,6 +67,48 @@ HTTP `GET /api/valuation/{block}` и UI читают те же точные др
 Для повторного запуска выберите новое имя папки.
 Checkpoint восстанавливается только на committed-границе; checksum и повторное
 исполнение проверяют его целостность. CSV не является форматом восстановления.
+
+## Парные серии экспериментов (M5b)
+
+```sh
+scripts/cargo.sh run --locked --bin chainarium -- experiment scenarios/experiments/builder.json output/builder-series
+scripts/cargo.sh run --locked --bin chainarium -- experiment scenarios/experiments/policy.json output/policy-series
+```
+
+`builder.json` сравнивает FIFO и FeePriority на четырёх фиксированных случаях:
+средняя парная разность PnL −575/2 Q. `policy.json` сравнивает RandomUser
+probability0 и500000 ppm на20 seeds: средняя разность −1629/4 Q.
+Это демонстрации; достаточность выборки и статистическая значимость не заявляются.
+Plan содержит полные Scenario. В паре различается только объявленный builder
+или выбранные policy objects; остальные условия проверяются до первого запуска.
+
+Серия создаёт новую папку с `plan.json`, `rows.jsonl`, `pairs.jsonl`,
+`summary.json`, `report.md` и native exports в `runs/0000`, ... .
+`manifest.json` — самодостаточный отчёт с исходным планом и единственный признак
+завершения: до записи всех артефактов статус остаётся `Incomplete`.
+ModelError сохраняет committed prefix и исключается из конечных метрик;
+остальные запланированные запуски продолжаются. Ошибка записи останавливает экспорт.
+
+В панели «Парные эксперименты» импортируйте итоговый `manifest.json`.
+Таблицы показывают все seeds, точные распределения, парные разности и исключения
+с причиной каждой стороны. Просмотр отчёта не меняет текущий запуск.
+Выберите строку и откройте её `runs/NNNN/checkpoint.json`, чтобы заменить запуск
+в инспекторе после native replay и проверки соответствия строке.
+Импорт отчёта проверяет план и пересчитывает статистику сохранённых observations;
+проверка этих observations исполнением выполняется при открытии выбранного checkpoint.
+
+CLI Plan и отдельный browser report/checkpoint ограничены64 MiB. Объём отчёта
+с исходным планом и derived rows может превышать объём Plan; более крупный отчёт
+сохраняется CLI, но не импортируется в этот прототип UI. Live batch controller,
+возобновление всей серии, HODL и полный Explorer остаются следующими срезами.
+
+Проверка release-сборки и UI (сервер должен использовать ту же сборку):
+
+```sh
+scripts/cargo.sh build --release --locked
+python3 scripts/check-experiments.py output/new-experiment-validation
+python3 scripts/check-experiments-ui.py output/new-experiment-validation
+```
 
 Доступны 64 presets в UI и CLI:
 
@@ -244,7 +286,7 @@ checkpoint/resume, fork, A/B и мобильную верстку. Снимки 
   до3 hops/64 probes/4096 venue checks; RequireFull и root net guard после
   settlement. Shared family budget, explicit truncation/submit refusal;
   включённый actual revert оплачивается, диагностические пробы — нет.
-- UI — прототип M1–M5a с64 presets. Полный explorer M5 впереди.
+- UI — прототип M1–M5b с64 presets. Полный explorer M5 впереди.
 - Критерии всей v1.0 не объявляются выполненными. Независимый review и следующие
   открытые экономические контракты фиксируются согласно §23–24 спецификации.
 
@@ -282,9 +324,9 @@ capability checks и явный submission outcome. [Перепроверка и
 Сохранены независимые scalar/Fraction/DFS проверки и воспроизведение в
 [архиве регрессий](docs/reviews/dec27-dec28-regressions/README.md).
 Полный workspace после fix:429 tests;64 CLI demos. Остальные gates M5 остаются открытыми.
-Следующий контракт — [Proposed DEC-29](docs/spec.md#23217-предлагаемый-контракт-m5b--proposed-dec-29):
-парные серии builders/policies, материализованные общие входы и точная статистика.
-Подготовлены12 pre-implementation cases и20-seed reference; реализация ждёт согласования.
+[Accepted DEC-29](docs/spec.md#23217-принятый-контракт-m5b--accepted-dec-29)
+реализует парные серии с фиксированными входами, exact statistics и импортом
+отчёта. Независимый review нового среза отслеживается отдельно в журнале прогресса.
 
 Фактические результаты и оставшиеся проверки: [журнал прогресса](docs/progress.md).
 Сценарий CLI ограничен 64 MiB, отдельная транзакция — 1 MiB. Web restore
