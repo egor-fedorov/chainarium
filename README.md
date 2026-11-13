@@ -326,7 +326,8 @@ capability checks и явный submission outcome. [Перепроверка и
 Полный workspace после fix:429 tests;64 CLI demos. Остальные gates M5 остаются открытыми.
 [Accepted DEC-29](docs/spec.md#23217-принятый-контракт-m5b--accepted-dec-29)
 реализует парные серии с фиксированными входами, exact statistics и импортом
-отчёта. Независимый review нового среза отслеживается отдельно в журнале прогресса.
+отчёта. Проверены457 Rust tests,64 CLI demos,48 native runs серий и browser import/replay.
+Независимый review нового среза ожидается; полный журнал — в `docs/progress.md`.
 
 Фактические результаты и оставшиеся проверки: [журнал прогресса](docs/progress.md).
 Сценарий CLI ограничен 64 MiB, отдельная транзакция — 1 MiB. Web restore

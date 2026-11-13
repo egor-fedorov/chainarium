@@ -1214,3 +1214,50 @@ ModelError prefix, I/O interruption и восстановление только
 Финальные результаты полных CLI/UI/workspace проверок будут записаны ниже.
 Независимый review DEC-29 ещё не выполнен; HODL/Explorer/performance/user-task
 приёмка всей v1.0 остаётся открытой. Среда не публиковалась.
+
+### Финальная функциональная проверка M5b
+
+Реализация: `3c66c21`; исправления мобильной навигации и таблиц:
+`13786fe`, `2bc4465`. Коммиты отправлены в `origin/work`.
+
+- Полный workspace: **457 Rust-тестов**,0 failures/ignored, включая28 новых
+  проверок DEC-29; format, Clippy all-targets `-D warnings`, JS syntax и wire test
+  прошли. Rust-код после этого прогона не менялся; последующие правки — CSS и
+  браузерная проверка. Самостоятельные Fraction/scalar ChaCha12 эталоны сохранены
+  до реализации в `docs/reviews/experiment-series-reference.py/.json`.
+- Финальный release fingerprint:
+  `da001a1040a93f35a728b37290426681ab0466bd85e8fb7ad31c2689b3864711`.
+  **64 прежних CLI demos** прошли; шесть MTM demos сверены Python Fraction
+  и восстановлены на всех committed boundaries с побайтно равными exports.
+- `scripts/check-experiments.py`: **48 native runs** (8 builder и40 policy),
+  точные rows/statistics сверены с pre-implementation ожиданиями. Каждый полный
+  native export побайтно совпадает и с отдельным `run`, и с `resume` checkpoint.
+  Повторная запись в существующий каталог отвергается без изменения manifest.
+  Дополнительно экспортированы реальные Unpriced и ModelError серии.
+- Все **64 прежних browser demos** прошли на реализации `3c66c21` до двух CSS
+  исправлений. На финальной сборке `scripts/check-experiments-ui.py` проверил
+  четыре серии: builder/policy/Unpriced/ModelError, точные дроби и counts,
+  все seeds, исключения, readonly import, отклонение чужого checkpoint/подменённой
+  сводки, успешное открытие выбранного checkpoint, download и mobile.
+  Попытка продолжить ModelError из UI снова выдаёт ошибку и сохраняет prefix.
+- Визуальный просмотр выявил два дефекта mobile: длинный U256 timestamp
+  расширял block navigation; двухколоночная таблица исключений прятала причины
+  за горизонтальной прокруткой. Исправлены оба; финальный browser test проверяет
+  отсутствие page overflow и полную ширину причин в таблице исключений.
+
+Наблюдаемый результат: builder mean paired PnL−575/2 Q, variance66125/3 Q²;
+RandomUser20-seed mean−1629/4 Q, variance2093695/76 Q²,20 отрицательных outcomes
+сохранены. Unpriced PnL не удаляет fee observations; ModelError prefix−125 Q
+доступен в inspector, но все его final metrics исключены из distributions.
+
+Артефакты: `output/m5b-final-validated/` (серии, независимые single-run/resumed
+exports, screenshots), `output/m5b-final-demos/` (64 demos).
+Финальный importable report — `manifest.json`; он содержит typed Plan и derived
+rows, а не доказательство исполнения без native replay. UI проверяет план и
+сводки; выбранный checkpoint дополнительно проверяется исполнением.
+
+Функциональный gate M5b закрыт; **независимый review DEC-29 ожидается**.
+Предыдущие reviews новый runner/importer не проверяли. Запрошен один read-only
+reviewer для `1a4e5af..2bc4465` согласно §23.4. Следующие срезы — HODL/LP benchmark,
+полный Explorer и performance/user-task приёмка; вся v1.0 ещё не завершена.
+Среда не публиковалась.
