@@ -1338,3 +1338,28 @@ performance/user-task gates всей v1.0 остаются впереди. Ср�
 Владелец согласовал контракт ответом «Приступай». DEC-30 отмечен Accepted;
 начата реализация HODL evaluator/export/UI по §23.2.18. Предыдущие Proposed
 записи и независимые Fraction expectations описывают подготовку до согласования.
+
+### M5c / Accepted DEC-30 — реализация HODL
+
+Добавлены опциональный профиль `flow-matched-hodl-v1` и чистый evaluator по native
+history. Начальные underlying quantities группируются точно; gross liability,
+неполная extraction и caps дают явную недоступность. Только успешные labelled
+capital transfers меняют корзину, в фактическом receipt/event порядке. Outflow
+не продаёт другие активы; failure навсегда сохраняет last-feasible diagnostic.
+Текущая нехватка цены может восстановиться; неизвестная историческая цена не
+сокращается в excess PnL. Actual/capital marks наследуются из DEC-28 без изменения
+его семантики. HODL не вычитает actual fees второй раз.
+
+Native export пишет `hodl-policy.json`, `hodl.jsonl` и provenance в manifest.
+Readonly HTTP/UI показывает actual/HODL values, оба PnL, excess и отдельный gap,
+начальные/current/last-feasible quantities, flow cursors и prices. Download
+содержит обе policy и selected boundary. Добавлены семь native/UI presets.
+
+Format и Clippy all-targets `-D warnings` прошли. **479 Rust tests прошли**:
+18 новых test functions охватывают18 preimplementation Fraction cases, точные
+fractions/gross claims,0/1/64/65 assets, bounds/caps, canonical ordering,
+failed/rejected/bundle capital, price freshness/recovery/history, native fees,
+lending/claims, checkpoint/export equality, RNG/state noninterference,
+overlapping portfolios, ModelError prefix и фиксированный HODL input серии.
+Release CLI/Fraction/browser acceptance выполняется следующим шагом.
+Независимый review DEC-30 ещё не выполнен; приёмка всей v1.0 не объявляется.

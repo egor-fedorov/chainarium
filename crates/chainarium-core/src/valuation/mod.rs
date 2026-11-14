@@ -17,7 +17,7 @@ pub struct Mark {
     pub truncated: bool,
 }
 impl Mark {
-    fn priced(value: Exact) -> Self {
+    pub(crate) fn priced(value: Exact) -> Self {
         Self {
             status: "Priced".into(),
             value: Some(value.clone()),
@@ -26,16 +26,16 @@ impl Mark {
             truncated: false,
         }
     }
-    fn zero() -> Self {
+    pub(crate) fn zero() -> Self {
         Self::priced(Exact::default())
     }
-    fn fail(&mut self, reason: &str) {
+    pub(crate) fn fail(&mut self, reason: &str) {
         self.status = "Unpriced".into();
         self.value = None;
         self.reasons.insert(reason.into());
         self.truncated |= matches!(reason, "ArithmeticLimit" | "ComponentLimit");
     }
-    fn add(&mut self, rhs: &Self, bits: u64) {
+    pub(crate) fn add(&mut self, rhs: &Self, bits: u64) {
         match self.priced_part.add(&rhs.priced_part, bits) {
             Ok(n) => {
                 self.priced_part = n.clone();
@@ -205,7 +205,7 @@ pub struct Boundary {
     pub boundary_transfers: Vec<TransferNotice>,
 }
 
-fn flows(
+pub(crate) fn flows(
     p: &Policy,
     block: &Block,
     seen: &mut BTreeSet<CapitalTransfer>,
@@ -265,7 +265,13 @@ fn flows(
     }
     (flows, notices)
 }
-fn pnl(current: &Mark, initial: &Mark, incoming: &Mark, outgoing: &Mark, bits: u64) -> Mark {
+pub(crate) fn pnl(
+    current: &Mark,
+    initial: &Mark,
+    incoming: &Mark,
+    outgoing: &Mark,
+    bits: u64,
+) -> Mark {
     let mut result = Mark::zero();
     for (m, reason) in [
         (current, "CurrentUnpriced"),

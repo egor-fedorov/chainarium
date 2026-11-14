@@ -1,7 +1,7 @@
 # Chainarium
 
 Локальная лаборатория DeFi с Rust-ядром. **v1.0 в разработке.**
-Сейчас исполняются M1–M5b: CPMM swaps/LP, маршруты, арбитражная политика
+Сейчас исполняются M1–M5c: CPMM swaps/LP, маршруты, арбитражная политика
 на собственных средствах, flash loans, lending, oracle, проценты и ликвидации, StableSwap, TWAP и flash-ликвидация,
 стакан GTC/IOC/FOK, CLMM и общий partial-fill router, rollback, fees/nonce и
 исчерпание ресурса. Добавлены event scheduler, mempool, Public/Private delivery,
@@ -19,6 +19,8 @@ Flash arbitrage ищет закрытый RequireFull цикл на фиксир
 резервирует собственные native fees и проверяет net после settlement займа.
 Reference MTM считает точную стоимость портфеля, учитывает позиции и долги,
 оценивает внешний капитал по времени исполнения и явно показывает Unpriced.
+Flow-matched HODL сохраняет начальные underlying quantities, повторяет фактические
+внешние потоки и показывает excess PnL относительно пассивной корзины.
 Полный объём и приёмка: [спецификация](docs/spec.md).
 
 ## Запуск
@@ -67,6 +69,38 @@ HTTP `GET /api/valuation/{block}` и UI читают те же точные др
 Для повторного запуска выберите новое имя папки.
 Checkpoint восстанавливается только на committed-границе; checksum и повторное
 исполнение проверяют его целостность. CSV не является форматом восстановления.
+
+## Сравнение с HODL (M5c)
+
+Опциональный `hodl_policy` требует `valuation_policy` и model tag
+`flow-matched-hodl-v1`. Портфели, reference feeds и capital bindings наследуются
+из MTM. Начальная корзина включает underlying LP и другие признанные claims;
+дробные atoms сохраняются. HODL не торгует, не получает проценты и не платит fees.
+Успешные помеченные внешние переводы применяются в порядке receipt/event.
+Нехватка выводимого актива делает benchmark `Unavailable` навсегда для этого
+prefix; `last_feasible` — только историческая диагностика, не текущая стоимость.
+
+`excess_pnl = actual_pnl − hodl_pnl` требует двух известных PnL. При неизвестной
+исторической цене UI может отдельно показать `value_gap` текущих стоимостей;
+это не восстановленный PnL. Фактические fees уже учтены в actual MTM.
+
+Экспорт добавляет `hodl-policy.json`, `hodl.jsonl` для genesis и каждого committed
+блока, provenance/hashes в manifest. `GET /api/hodl/{block}` и панель HODL
+показывают одинаковые точные Rust-defined значения. Скачивание включает policy,
+valuation policy и выбранную границу. Native checkpoint восстанавливает расчёт.
+Серия DEC-29 сохраняет HODL как общую конфигурацию пары; её selectors не расширены.
+
+```sh
+target/release/chainarium run scenarios/demos/sc-hodl-lp.json output/hodl-lp
+python3 scripts/check-hodl.py output/hodl-check
+python3 scripts/check-hodl-ui.py
+```
+
+Семь presets: LP shock (excess −100 Q), внешний взнос (−30 Q), canonical order,
+невыполнимый вывод, исторический Unpriced с известным value gap, отрицательная
+дробь −1/2 и кредит/убыток депозитора. Конфигурация задаёт caps до16 портфелей,
+64 одновременно ненулевых активов,4096 потоков на портфель и32768 rational bits
+(минимум512). Resource failure не отменяет native execution.
 
 ## Парные серии экспериментов (M5b)
 
@@ -289,7 +323,7 @@ checkpoint/resume, fork, A/B и мобильную верстку. Снимки 
   до3 hops/64 probes/4096 venue checks; RequireFull и root net guard после
   settlement. Shared family budget, explicit truncation/submit refusal;
   включённый actual revert оплачивается, диагностические пробы — нет.
-- UI — прототип M1–M5b с64 presets. Полный explorer M5 впереди.
+- UI — прототип M1–M5c с71 presets. Полный explorer M5 впереди.
 - Критерии всей v1.0 не объявляются выполненными. Независимый review и следующие
   открытые экономические контракты фиксируются согласно §23–24 спецификации.
 
@@ -341,6 +375,7 @@ Checkpoint привязан к SHA-256 исходников/lockfile/toolchain, 
 другая сборка явно отвергается. Начальная эмиссия каждого актива должна помещаться
 в U256, как и балансы.
 
-Следующий подготовленный контракт — [Accepted DEC-30](docs/spec.md#23218-принятый-контракт-m5c--accepted-dec-30):
-reference HODL с фактическими внешними потоками и excess PnL.18 самостоятельных
-Fraction cases подготовлены до реализации; контракт согласован, реализация начата.
+Реализация [Accepted DEC-30](docs/spec.md#23218-принятый-контракт-m5c--accepted-dec-30)
+добавляет reference HODL с фактическими внешними потоками и excess PnL.
+18 самостоятельных Fraction cases подготовлены до реализации; независимый review
+этого среза пока не закрыт. Полный Explorer и остальные gates v1.0 остаются впереди.

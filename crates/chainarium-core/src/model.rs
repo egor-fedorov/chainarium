@@ -301,6 +301,8 @@ impl Call {
 #[serde(deny_unknown_fields)]
 pub struct Scenario {
     #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub hodl_policy: Option<crate::hodl::Policy>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
     pub valuation_policy: Option<crate::valuation::Policy>,
     #[serde(default, skip_serializing_if = "BTreeMap::is_empty")]
     pub baseline_policies: BTreeMap<String, crate::policy::agents::Policy>,
@@ -397,6 +399,7 @@ impl Scenario {
                     && m != crate::policy::agents::MODEL
                     && m != crate::policy::flash_arbitrage::MODEL
                     && m != crate::valuation::MODEL
+                    && m != crate::hodl::MODEL
                     && m != crate::scheduler::backrun::MODEL
                     && !crate::scheduler::MODELS.contains(&m.as_str())
                     && !crate::scheduler::bundles::MODELS.contains(&m.as_str())
@@ -516,6 +519,7 @@ impl Scenario {
         crate::scheduler::validate(self)?;
         crate::policy::agents::validate(self)?;
         crate::valuation::validate(self)?;
+        crate::hodl::validate(self)?;
         let mut ids = BTreeSet::new();
         for block in &self.blocks {
             for tx in block {

@@ -206,6 +206,20 @@ impl Run {
             valuations.flush().map_err(|e| e.to_string())?;
             flows.flush().map_err(|e| e.to_string())?;
         }
+        if let Some(policy) = &self.scenario.hodl_policy {
+            use std::io::{BufWriter, Write};
+            manifest["hodl_policy"] =
+                serde_json::to_value(crate::hodl::provenance(self)?).map_err(|e| e.to_string())?;
+            write("hodl-policy.json", &json(policy)?)?;
+            let mut holdings = BufWriter::new(
+                fs::File::create(path.join("hodl.jsonl")).map_err(|e| e.to_string())?,
+            );
+            crate::hodl::visit(self, self.blocks.len(), false, |boundary| {
+                serde_json::to_writer(&mut holdings, &boundary).map_err(|e| e.to_string())?;
+                holdings.write_all(b"\n").map_err(|e| e.to_string())
+            })?;
+            holdings.flush().map_err(|e| e.to_string())?;
+        }
         write("manifest.json", &json(&manifest)?)?;
         let mut events = String::new();
         let mut csv = String::from("block,tx,status,used,fee,refund\n");
@@ -363,6 +377,9 @@ impl Run {
         );
         if self.scenario.valuation_policy.is_some() {
             report = report.replace("PnL is not computed.", "Reference MTM/PnL is derived from committed boundaries: `valuation-policy.json`, `valuations.jsonl`, `capital-flows.jsonl`. Values are exact signed fractions; floor_atoms is presentation only. Unpriced/partial results are explicit. LP marks and deposit claims do not promise immediately withdrawable cash. Overlapping portfolios are independent views and must not be summed.");
+        }
+        if self.scenario.hodl_policy.is_some() {
+            report.push_str("\nFlow-matched HODL: `hodl-policy.json`, `hodl.jsonl`. The passive basket starts with exact genesis underlying quantities and applies successful labelled capital transfers in canonical receipt/event order. An infeasible withdrawal permanently invalidates that benchmark; last_feasible is diagnostic only. Excess PnL requires both PnLs to be priced. Current value gap is a separate measure. HODL charges no simulated fees.\n");
         }
         if let Some(state) = &self.scheduler {
             report.push_str(&format!("\nScheduler: {} pending entries, {} in-flight events, {} known TxIds.\n\nDelivery, visibility, admission, ordering and cap outcomes: `delivery.jsonl`. Per-block metrics and queue snapshots: `run.json`. Canonical financial events: `events.jsonl`.\n",state.pending.len()+state.bundle_pending.len(),state.queue.len(),state.known.len()));

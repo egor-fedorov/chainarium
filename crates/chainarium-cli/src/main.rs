@@ -110,6 +110,13 @@ async fn wire(Json(value): Json<Wire>) -> Json<Wire> {
 }
 async fn preset(ApiPath(id): ApiPath<String>) -> Result<impl IntoResponse, ApiError> {
     let data = match id.as_str() {
+        "sc-hodl-lp" => include_str!("../../../scenarios/demos/sc-hodl-lp.json"),
+        "sc-hodl-capital" => include_str!("../../../scenarios/demos/sc-hodl-capital.json"),
+        "sc-hodl-ordered" => include_str!("../../../scenarios/demos/sc-hodl-ordered.json"),
+        "sc-hodl-infeasible" => include_str!("../../../scenarios/demos/sc-hodl-infeasible.json"),
+        "sc-hodl-unpriced" => include_str!("../../../scenarios/demos/sc-hodl-unpriced.json"),
+        "sc-hodl-fractional" => include_str!("../../../scenarios/demos/sc-hodl-fractional.json"),
+        "sc-hodl-credit" => include_str!("../../../scenarios/demos/sc-hodl-credit.json"),
         "sc-mtm-capital" => include_str!("../../../scenarios/demos/sc-mtm-capital.json"),
         "sc-mtm-unpriced" => include_str!("../../../scenarios/demos/sc-mtm-unpriced.json"),
         "sc-mtm-flash" => include_str!("../../../scenarios/demos/sc-mtm-flash.json"),
@@ -413,6 +420,14 @@ async fn valuation_view(
     let r = g.as_ref().ok_or_else(|| bad("no run"))?;
     Ok(Json(chainarium_core::valuation::at(r, block).map_err(bad)?))
 }
+async fn hodl_view(
+    State(s): State<Shared>,
+    ApiPath(block): ApiPath<usize>,
+) -> Result<Json<chainarium_core::hodl::Boundary>, ApiError> {
+    let g = current(&s)?;
+    let r = g.as_ref().ok_or_else(|| bad("no run"))?;
+    Ok(Json(chainarium_core::hodl::at(r, block).map_err(bad)?))
+}
 #[derive(Deserialize)]
 #[serde(deny_unknown_fields)]
 struct QuoteRequest {
@@ -504,6 +519,15 @@ fn app() -> Router {
             }),
         )
         .route(
+            "/hodl.js",
+            get(|| async {
+                (
+                    [(header::CONTENT_TYPE, "text/javascript; charset=utf-8")],
+                    include_str!("../../../web/hodl.js"),
+                )
+            }),
+        )
+        .route(
             "/agents.js",
             get(|| async {
                 (
@@ -589,6 +613,7 @@ fn app() -> Router {
         .route("/api/route-quote", post(route_quote))
         .route("/api/credit/{block}", get(credit_view))
         .route("/api/valuation/{block}", get(valuation_view))
+        .route("/api/hodl/{block}", get(hodl_view))
         .route(
             "/api/experiment-report",
             post(experiment_report).layer(DefaultBodyLimit::max(64 * 1024 * 1024)),
@@ -719,7 +744,7 @@ async fn command() -> Result<(), String> {
             let listener = tokio::net::TcpListener::bind((std::net::Ipv4Addr::LOCALHOST, port))
                 .await
                 .map_err(|e| e.to_string())?;
-            println!("Chainarium M1–M5b inspector listening on port {port}");
+            println!("Chainarium M1–M5c inspector listening on port {port}");
             axum::serve(listener, app())
                 .await
                 .map_err(|e| e.to_string())?;
@@ -821,7 +846,7 @@ async fn command() -> Result<(), String> {
             );
         }
         "--help" | "help" => println!(
-            "Chainarium M1–M5b (v1.0 in development)\n  run SCENARIO NEW_OUTPUT_DIR\n  experiment PLAN NEW_OUTPUT_DIR\n  routes SCENARIO BLOCKS QUERY_JSON\n  checkpoint SCENARIO BLOCKS NEW_FILE\n  resume CHECKPOINT NEW_OUTPUT_DIR\n  serve [PORT]\n  benchmark [BLOCKS]"
+            "Chainarium M1–M5c (v1.0 in development)\n  run SCENARIO NEW_OUTPUT_DIR\n  experiment PLAN NEW_OUTPUT_DIR\n  routes SCENARIO BLOCKS QUERY_JSON\n  checkpoint SCENARIO BLOCKS NEW_FILE\n  resume CHECKPOINT NEW_OUTPUT_DIR\n  serve [PORT]\n  benchmark [BLOCKS]"
         ),
         _ => return Err("unknown command; use --help".into()),
     }

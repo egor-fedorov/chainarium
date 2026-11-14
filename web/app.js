@@ -1,6 +1,7 @@
 import {renderAgents} from './agents.js';
 import {bindExperiments} from './experiments.js';
 import {renderValuation} from './valuation.js';
+import {renderHodl} from './hodl.js';
 import {renderFlashArbitrage} from './flash-arbitrage.js';
 import {renderHooks,hookCard} from './hooks.js';
 import {renderLiquidators,liquidationCard} from './liquidators.js';
@@ -22,6 +23,7 @@ function render(){
  if(!run)return;
  const block=run.blocks[viewed], state=block?.state??run.initial;
  renderValuation(run,state,api);
+ renderHodl(run,state,api);
  renderRoutes(run,state,api);
  renderPolicies(run);
  renderScheduler(run,block);
