@@ -97,6 +97,7 @@ target/release/chainarium checkpoint scenarios/explorer/as_of-b.json 2 output/b.
 target/release/chainarium compare output/a.json output/b.json 12 output/comparison.json
 python3 scripts/check-explorer.py output/explorer-check
 python3 scripts/check-explorer-ui.py output/explorer-check
+# Дополнительно: второй аргумент — каталог результатов scripts/check-experiments.py.
 ```
 
 CLI создаёт новый файл, не перезаписывая существующий. Контракт и пределы

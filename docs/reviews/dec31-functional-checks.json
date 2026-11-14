@@ -1,0 +1,97 @@
+{
+  "decision": "DEC-31",
+  "kind": "author-run functional validation; independent review pending",
+  "production_commit": "bff3bac",
+  "release_build_id": "923c792bcbe6e3267e62f2256cab8613092478d7a9b43628dde0cbbd4720d07a",
+  "rust_tests": 498,
+  "new_tests": {
+    "core_integration": 14,
+    "diff_unit": 3,
+    "controller_unit": 2
+  },
+  "clippy": "workspace/all-targets -D warnings passed",
+  "cli": {
+    "native_demos": 71,
+    "valuation_demos_all_boundary_replay": 13,
+    "series_native_resume_comparisons": 48,
+    "explorer_pairs": 6,
+    "explorer_boundaries": 16
+  },
+  "browser": {
+    "explorer_pairs": 6,
+    "historical_visibility": [
+      "public",
+      "private",
+      "delayed"
+    ],
+    "series_checkpoint_imports": [
+      "builder",
+      "policy",
+      "unpriced",
+      "model-error"
+    ],
+    "checks": [
+      "exact downloads",
+      "native identity",
+      "immutable live capture",
+      "invalid import preserves live and slots",
+      "stale snapshot keys reject",
+      "late time response ignored",
+      "late child call response ignored",
+      "canonical versus attempt events",
+      "market graph selection",
+      "own account historical observation",
+      "escaped identifiers",
+      "390px mobile overflow"
+    ],
+    "regression_scripts": [
+      "check-ui.py",
+      "check-valuation-ui.py",
+      "check-hodl-ui.py",
+      "check-experiments-ui.py"
+    ]
+  },
+  "artifacts": [
+    {
+      "path": "/tmp/dec31-rust-tests.log",
+      "sha256": "ce28cbb677bc9a1ea11dd3bf4480cee661d4892014a26f62d8397f8de0fbfc80",
+      "bytes": 44825
+    },
+    {
+      "path": "/tmp/dec31-clippy.log",
+      "sha256": "121e1f803be647507bfcaa0d7cc29252cdddee0f0b2025d4701919b3a7a0d64f",
+      "bytes": 236
+    },
+    {
+      "path": "/tmp/dec31-build.log",
+      "sha256": "4da161f17c3b463019371de8d99ea94a3b8d363895681494c97a1f345be4c4db",
+      "bytes": 227
+    },
+    {
+      "path": "/tmp/dec31-explorer-ui.log",
+      "sha256": "654417dd7a0008d7e34ed202f382bfa7e24877d3de52ceb52c109c4674887ef9",
+      "bytes": 702
+    },
+    {
+      "path": "/tmp/dec31-demos.log",
+      "sha256": "9916c1f4b8a97965e647874114fb2bbc027361a5d7a0b36b11fb3c5aca06bec1",
+      "bytes": 1259
+    },
+    {
+      "path": "/tmp/dec31-series.log",
+      "sha256": "429a54b87e9e47c0deda0a0c5fd3e8f8e94850f002fd59c1d4e16b8caa1c332b",
+      "bytes": 218
+    },
+    {
+      "path": "/tmp/dec31-ui-regression.log",
+      "sha256": "53e5091a170b75b4a46c5885d643706383e474e55bb8d70a4cf49591a263ec89",
+      "bytes": 2263
+    }
+  ],
+  "limits": [
+    "independent DEC-31 review pending",
+    "full v1 user acceptance pending",
+    "G-16 performance gate pending",
+    "native execution/observations/valuation formulas unchanged"
+  ]
+}

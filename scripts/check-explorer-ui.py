@@ -1,4 +1,4 @@
-"""DEC-31 browser acceptance; run check-explorer.py first. Usage: SCRIPT CLI_OUT."""
+"""DEC-31 browser acceptance. Usage: SCRIPT CLI_OUT [DEC29_SERIES_OUT]."""
 from pathlib import Path
 import json
 import sys
@@ -226,6 +226,26 @@ with sync_playwright() as pw:
     expect(page.locator('#explorer-balances')).to_contain_text('11')
     page.set_viewport_size({'width': 390, 'height': 844})
     assert page.evaluate('document.documentElement.scrollWidth <= innerWidth')
+    if len(sys.argv) > 2:
+        # A series checkpoint is a native immutable history, even for a committed
+        # ModelError prefix. Opening it in A does not restore or execute live Run.
+        series = Path(sys.argv[2])
+        original = get('checkpoint')
+        for kind in ['builder', 'policy', 'unpriced', 'model-error']:
+            report = json.loads((series / kind / 'manifest.json').read_text())
+            file = series / kind / report['rows'][0]['path'] / 'checkpoint.json'
+            checkpoint = json.loads(file.read_text())
+            with page.expect_response(lambda r: r.url.endswith('/api/explorer/A/checkpoint')) as response:
+                page.locator('#explorer-import-A').set_input_files(file)
+            assert response.value.ok
+            expect(page.locator('#explorer-download')).to_be_enabled()
+            assert get('checkpoint') == original
+            identity = get('explorer')['a']
+            assert identity['run_id'] == checkpoint['run']['run_id']
+            assert identity['blocks'] == len(checkpoint['run']['blocks'])
+            exported = get('explorer/A/checkpoint?key=' + identity['key'])
+            assert exported == checkpoint
+            print('PASS native series checkpoint -> Explorer', kind, flush=True)
     assert not errors, errors
     browser.close()
 print('PASS Explorer UI: A/B/time, exact downloads, immutable capture, invalid/stale imports, attempt trace, graph, historical agent privacy, escaping and mobile')

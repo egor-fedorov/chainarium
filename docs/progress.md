@@ -1,6 +1,12 @@
-# Прогресс Chainarium — 2026-11-06
+# Прогресс Chainarium — 2026-11-14
 
-Цель: весь v1.0 из §2.1. Текущий результат — **исполняемый прототип M1–M4g**.
+Цель: весь v1.0 из §2.1. Текущий результат — **исполняемый прототип M1–M5d**.
+Explorer/A/B функционально проверен; ближайший gate — отдельный review DEC-31.
+Полная пользовательская приёмка M5 и performance gate G-16 остаются открытыми.
+Подробные результаты текущего среза находятся в конце журнала.
+
+## История M1–M4g
+
 Это не готовая v1.0. Независимый review M1–M3b завершён, три findings исправлены
 и перепроверены. Отдельный review M3c–M3d завершён без подтверждённых findings;
 область и ограничения сохранены в `docs/reviews/dec20-independent-review.md`.
@@ -1448,3 +1454,69 @@ Review gate M5c закрыт в указанном покрытии. Полна�
 открытой: следующий срез — Explorer и синхронизированное сравнение истории,
 затем оставшиеся пользовательские задачи и измеренные performance budgets G-16.
 Облачная среда не публиковалась.
+
+
+### M5d / DEC-31: Explorer и синхронизированная история A/B
+
+После поручения «Приступай» контракт и шесть независимых численных/time examples
+сохранены **до реализации** в `02b2bbe`. Реализация — `bff3bac`, запушена в
+`origin/work`. Нового native model tag нет: срез читает существующие Run,
+checkpoint, valuation/HODL и native AgentObservation.
+
+Заработали два immutable snapshot slots с canonical checkpoint SHA-256,
+проверенным импортом и защитой от stale keys. Capture/import/query не заменяют
+live Run и не двигают его RNG. Общая шкала — union committed times до конца
+короткого prefix; каждый snapshot имеет настоящий block/time/age. Rust считает
+exact B−A; mismatched time/units/policies и Unpriced сохраняют причины отказа.
+Отсутствующий account отличается от native zero в существующем account.
+
+UI показывает Scenario diff, каталог объектов, balances/nonce, protocol state,
+карту конфигурационных связей и переход receipt→call. Canonical events отделены
+от attempt events, вложенные traces не суммируются. Режим агента читает сохранённый
+scheduler snapshot выбранной границы, проверяет controlled account и не добавляет
+reference feeds, чужие wallets или private messages. Это boundary observation,
+а не реконструкция несохранённого decision input внутри блока.
+
+CLI `compare A_CHECKPOINT B_CHECKPOINT TIME NEW_REPORT_JSON`, HTTP query и UI
+используют одно Rust-ядро. Download содержит exact metrics, identities, причины
+недоступности и config diff. Native checkpoint из строки DEC-29, включая
+ModelError committed prefix, открывается в Explorer без замены live Run.
+При смене времени/receipt поздний ответ предыдущего запроса игнорируется.
+
+Проверки автора (не независимый review):
+
+- **498 Rust tests** прошли; 19 новых:14 core integration,3 diff bounds/escaping,
+  2 controller atomicity/stale/single-side tests. Format и workspace/all-targets
+  Clippy с `-D warnings` прошли; release собран.
+- `scripts/check-explorer.py output/dec31-explorer`:6 пар,12 native checkpoints,
+  16 общих boundaries; все preimplementation expectations, точные дроби>2⁵³,
+  −1/3 с floor−1, PnL Unpriced, decimals mismatch и короткий prefix совпали.
+  CLI проверил checksum/replay, identity и отказ перезаписывать файл.
+- `scripts/check-explorer-ui.py output/dec31-explorer output/dec31-series`:
+  6 пар, полный UI import/download, invalid/stale queries, readonly live state,
+  намеренно задержанные time/call responses, paid-revert trace, graph navigation,
+  public/private/delayed historical observation, escaped identifiers и390px.
+  Четыре series checkpoint (builder/policy/unpriced/model-error) импортированы
+  в A, повторно скачаны и сверены с native originals без изменения live Run.
+- `scripts/check-demos.py output/dec31-demos`:71 CLI demo,13 valuation/HODL
+  demos с exact Fraction cross-check и побайтным all-boundary resumed export.
+  `scripts/check-experiments.py output/dec31-series`:48 series/native/resume
+  сравнений, Unpriced/ModelError. Прежние browser scripts `check-ui.py`,
+  `check-valuation-ui.py`, `check-hodl-ui.py`, `check-experiments-ui.py` прошли.
+- Визуально проверен `output/dec31-explorer/as_of-mobile.png`; таблицы имеют
+  собственную горизонтальную прокрутку, страница не выходит за390px. Второй
+  screenshot показывает wide fraction. Поля денег и времени передаются строками.
+
+Machine-readable итог с hashes логов: `docs/reviews/dec31-functional-checks.json`.
+Проверенный release build:
+`923c792bcbe6e3267e62f2256cab8613092478d7a9b43628dde0cbbd4720d07a`.
+Generated checkpoints/reports/screenshots находятся в ignored `output/dec31-*`
+и воспроизводятся указанными scripts; build-specific checkpoints требуют сборку
+из того же source snapshot.
+
+Ограничения:2 истории,64 MiB/checkpoint,10000 committed blocks; report8 MiB
+с явным отказом, pages64, graph256 nodes/512 edges, diff512 entries/65536 nodes.
+Полные native histories не урезаются; graph не обещает доступную ликвидность.
+Независимый review DEC-31 ещё не выполнен. Полная пользовательская приёмка v1.0
+и измеренные performance budgets G-16 остаются открытыми. Облачная среда не
+публиковалась.
