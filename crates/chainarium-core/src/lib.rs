@@ -27,6 +27,7 @@ pub mod clmm;
 pub mod liquidation;
 
 pub mod experiment;
+pub mod explorer;
 pub mod hodl;
 pub mod hooks;
 pub mod valuation;

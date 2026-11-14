@@ -6,6 +6,7 @@ use axum::{
     response::{Html, IntoResponse},
     routing::{get, post},
 };
+mod explorer_api;
 use chainarium_core::{Amount, Run, Scenario, run::save_checkpoint};
 use serde::Deserialize;
 use std::{
@@ -478,6 +479,7 @@ async fn routes(
 }
 fn app() -> Router {
     Router::new()
+        .merge(explorer_api::routes())
         .route(
             "/",
             get(|| async { Html(include_str!("../../../web/index.html")) }),
@@ -667,6 +669,32 @@ async fn main() {
 async fn command() -> Result<(), String> {
     let args: Vec<String> = std::env::args().skip(1).collect();
     match args.first().map(String::as_str).unwrap_or("--help") {
+        "compare" => {
+            use chainarium_core::explorer::{self as e, History};
+            use std::io::{Read, Write};
+            let read = |path: &str| -> Result<History, String> {
+                let mut bytes = vec![];
+                std::fs::File::open(path)
+                    .map_err(|e| e.to_string())?
+                    .take((e::MAX_CHECKPOINT + 1) as u64)
+                    .read_to_end(&mut bytes)
+                    .map_err(|e| e.to_string())?;
+                History::restore(&bytes)
+            };
+            let a = read(required(&args, 1)?)?;
+            let b = read(required(&args, 2)?)?;
+            let time: Amount = required(&args, 3)?.parse()?;
+            let report = e::compare(&a, Some(&b), time)?;
+            let bytes = e::report_bytes(&report)?;
+            std::fs::OpenOptions::new()
+                .write(true)
+                .create_new(true)
+                .open(required(&args, 4)?)
+                .map_err(|e| e.to_string())?
+                .write_all(&bytes)
+                .map_err(|e| e.to_string())?;
+            println!("Comparison at {time} s saved");
+        }
         "experiment" => {
             use std::io::Read;
             let mut bytes = Vec::new();
@@ -744,7 +772,7 @@ async fn command() -> Result<(), String> {
             let listener = tokio::net::TcpListener::bind((std::net::Ipv4Addr::LOCALHOST, port))
                 .await
                 .map_err(|e| e.to_string())?;
-            println!("Chainarium M1–M5c inspector listening on port {port}");
+            println!("Chainarium M1–M5d inspector listening on port {port}");
             axum::serve(listener, app())
                 .await
                 .map_err(|e| e.to_string())?;
@@ -846,7 +874,7 @@ async fn command() -> Result<(), String> {
             );
         }
         "--help" | "help" => println!(
-            "Chainarium M1–M5c (v1.0 in development)\n  run SCENARIO NEW_OUTPUT_DIR\n  experiment PLAN NEW_OUTPUT_DIR\n  routes SCENARIO BLOCKS QUERY_JSON\n  checkpoint SCENARIO BLOCKS NEW_FILE\n  resume CHECKPOINT NEW_OUTPUT_DIR\n  serve [PORT]\n  benchmark [BLOCKS]"
+            "Chainarium M1–M5d (v1.0 in development)\n  run SCENARIO NEW_OUTPUT_DIR\n  experiment PLAN NEW_OUTPUT_DIR\n  compare CHECKPOINT_A CHECKPOINT_B TIME_SECONDS NEW_REPORT_JSON\n  routes SCENARIO BLOCKS QUERY_JSON\n  checkpoint SCENARIO BLOCKS NEW_FILE\n  resume CHECKPOINT NEW_OUTPUT_DIR\n  serve [PORT]\n  benchmark [BLOCKS]"
         ),
         _ => return Err("unknown command; use --help".into()),
     }

@@ -1,7 +1,7 @@
 # Chainarium
 
 Локальная лаборатория DeFi с Rust-ядром. **v1.0 в разработке.**
-Сейчас исполняются M1–M5c: CPMM swaps/LP, маршруты, арбитражная политика
+Сейчас исполняются M1–M5d: CPMM swaps/LP, маршруты, арбитражная политика
 на собственных средствах, flash loans, lending, oracle, проценты и ликвидации, StableSwap, TWAP и flash-ликвидация,
 стакан GTC/IOC/FOK, CLMM и общий partial-fill router, rollback, fees/nonce и
 исчерпание ресурса. Добавлены event scheduler, mempool, Public/Private delivery,
@@ -69,6 +69,39 @@ HTTP `GET /api/valuation/{block}` и UI читают те же точные др
 Для повторного запуска выберите новое имя папки.
 Checkpoint восстанавливается только на committed-границе; checksum и повторное
 исполнение проверяют его целостность. CSV не является форматом восстановления.
+
+## Explorer и синхронная история A/B (M5d)
+
+Кнопки «Текущий запуск → A/B» фиксируют неизменяемые истории. Также можно
+загрузить два native checkpoint, в том числе checkpoint строки парной серии.
+Импорт проверяет checksum, build и повторное исполнение; текущий запуск
+продолжает существовать отдельно. Снимки хранятся до перезапуска сервера.
+
+Общая шкала времени заканчивается на конце более короткой истории. Для каждого
+момента видны фактические block/time и возраст последнего подтверждённого
+состояния. Балансы сравниваются в atoms; PnL и HODL требуют общей границы и
+одинаковой политики оценки. Недоступность и её причины показаны явно.
+Разности **B−A** рассчитывает Rust, включая отрицательные дроби и числа >2⁵³.
+Это сравнение двух случаев; статистические выводы остаются в парных сериях.
+
+Карта рынка открывает конфигурацию и состояние объекта. Receipt показывает
+canonical events и отдельную трассу попытки; выбор вызова подсвечивает связанные
+объекты. Режим агента показывает доступное native-наблюдение на выбранной
+границе, включая доставленные сообщения и собственный account. Он не
+реконструирует вход решения внутри блока. Скачать можно точный JSON сравнения
+с checkpoint/build identities, метриками и diff сценариев.
+
+```sh
+target/release/chainarium checkpoint scenarios/explorer/as_of-a.json 2 output/a.json
+target/release/chainarium checkpoint scenarios/explorer/as_of-b.json 2 output/b.json
+target/release/chainarium compare output/a.json output/b.json 12 output/comparison.json
+python3 scripts/check-explorer.py output/explorer-check
+python3 scripts/check-explorer-ui.py output/explorer-check
+```
+
+CLI создаёт новый файл, не перезаписывая существующий. Контракт и пределы
+просмотра: [DEC-31](docs/spec.md#23219-контракт-m5d--dec-31-explorer-и-синхронизированная-история-ab).
+Полная пользовательская приёмка v1.0 и performance gate G-16 остаются открытыми.
 
 ## Сравнение с HODL (M5c)
 

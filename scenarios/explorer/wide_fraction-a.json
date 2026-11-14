@@ -1,0 +1,129 @@
+{
+  "schema_version": "chainarium-scenario-m1-v1",
+  "model_versions": [
+    "native-execution-v1",
+    "native-cost-v1",
+    "cpmm-v1",
+    "scheduler-m1-v1",
+    "chacha12-v1",
+    "reference-mtm-v1",
+    "flow-matched-hodl-v1"
+  ],
+  "name": "Explorer wide_fraction A",
+  "seed": "42",
+  "assets": {
+    "X": {
+      "decimals": 0
+    },
+    "Q": {
+      "decimals": 0
+    }
+  },
+  "accounts": {
+    "alice": {
+      "balances": {
+        "Q": "9007199254740993",
+        "X": "1"
+      },
+      "nonce": "0"
+    },
+    "bob": {
+      "balances": {
+        "X": "0",
+        "Q": "0"
+      },
+      "nonce": "0"
+    },
+    "builder": {
+      "balances": {
+        "X": "0",
+        "Q": "0"
+      },
+      "nonce": "0"
+    },
+    "pool": {
+      "balances": {
+        "X": "0",
+        "Q": "0"
+      },
+      "nonce": "0"
+    }
+  },
+  "protocols": {},
+  "agents": {
+    "trader": {
+      "controlled_accounts": [
+        "alice"
+      ]
+    },
+    "recipient": {
+      "controlled_accounts": [
+        "bob"
+      ]
+    }
+  },
+  "chain": {
+    "id": "lab-1",
+    "fee_asset": "Q",
+    "fee_account": "builder",
+    "block_limit": "10000",
+    "interval": "12"
+  },
+  "blocks": [
+    []
+  ],
+  "valuation_policy": {
+    "version": "reference-mtm-v1",
+    "numeraire": "Q",
+    "evaluation_point": "committed-block-end",
+    "source": "environment-reference",
+    "max_age_seconds": "60",
+    "limits": {
+      "portfolios": 16,
+      "accounts_per_portfolio": 64,
+      "reference_assets": 64,
+      "updates_total": 16384,
+      "capital_transfers": 4096,
+      "component_checks_per_portfolio": 4096,
+      "rational_bits": 32768
+    },
+    "portfolios": {
+      "owner": {
+        "accounts": [
+          "alice"
+        ]
+      }
+    },
+    "reference_feeds": {
+      "X": {
+        "source_id": "scenario-reference-X-Q",
+        "records": [
+          {
+            "available_at": "0",
+            "observed_at": "0",
+            "sequence": "0",
+            "price": {
+              "base_asset": "X",
+              "quote_asset": "Q",
+              "numerator": "1",
+              "denominator": "3"
+            }
+          }
+        ]
+      }
+    },
+    "capital_transfers": []
+  },
+  "hodl_policy": {
+    "version": "flow-matched-hodl-v1",
+    "portfolios": [
+      "owner"
+    ],
+    "limits": {
+      "portfolios": 16,
+      "assets_per_portfolio": 64,
+      "flow_events_per_portfolio": 4096,
+      "rational_bits": 32768
+    }
+  }
+}
