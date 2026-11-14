@@ -1,0 +1,7 @@
+0 {'cases': 1, 'boundaries': 7, 'flows': 8, 'infeasible': 0, 'asset_limit': 0, 'flow_limit': 4, 'unpriced': 14}
+16 {'cases': 17, 'boundaries': 119, 'flows': 258, 'infeasible': 7, 'asset_limit': 72, 'flow_limit': 25, 'unpriced': 289}
+32 {'cases': 33, 'boundaries': 231, 'flows': 485, 'infeasible': 16, 'asset_limit': 149, 'flow_limit': 44, 'unpriced': 543}
+48 {'cases': 49, 'boundaries': 343, 'flows': 693, 'infeasible': 21, 'asset_limit': 234, 'flow_limit': 53, 'unpriced': 796}
+64 {'cases': 65, 'boundaries': 455, 'flows': 914, 'infeasible': 28, 'asset_limit': 320, 'flow_limit': 66, 'unpriced': 1023}
+80 {'cases': 81, 'boundaries': 567, 'flows': 1139, 'infeasible': 40, 'asset_limit': 390, 'flow_limit': 84, 'unpriced': 1273}
+PASS {'cases': 96, 'boundaries': 672, 'flows': 1344, 'infeasible': 40, 'asset_limit': 446, 'flow_limit': 96, 'unpriced': 1474}

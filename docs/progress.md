@@ -1411,3 +1411,40 @@ checkpoint/export и UI теперь отражают реализованные
 проверок и ожидаемый review HODL. Полный Explorer, синхронизированное A/B по
 истории, пользовательская приёмка и G-16 остаются открытыми; новые требования
 или экономические правила этой синхронизацией не вводятся.
+
+### Закрыт независимый review DEC-30 / M5c
+
+Reviewer завершил проверку production diff `490881b..315a2a0`: подтверждённых
+findings P0–P3 нет, исправления production code не потребовались. Полный
+[оригинальный отчёт](reviews/dec30-independent-review.md) и
+[неизменённые самостоятельные scripts/results](reviews/dec30-regressions/README.md)
+сохранены в репозитории. `artifacts.json` фиксирует hashes16 исходных файлов;
+полные generated exports/checkpoints/screenshots доступны в текущей среде
+в `output/dec30-independent-review/full-artifacts.tar.gz` и воспроизводятся scripts.
+
+Независимо проверены479 Rust tests;18 HODL/24 valuation preimplementation
+fixtures;96 новых Fraction-сценариев с672 boundaries и1344 labelled flows;
+0/1/64/65 assets, slot reuse/cumulative flow cap, rejection/paid revert/resource
+exhaustion,589-bit mark overflow при cap512 с восстановлением. Пять native
+сценариев с включённым/выключенным/изменённым HODL дали одинаковые canonical
+state/blocks/scheduler/RNG; checkpoint/resume каждого prefix дал побайтно
+одинаковые exports. DEC-29 сохраняет общий HODL input, принимает native
+HODL exports и отвергает различающуюся policy до создания каталога.
+
+Собственный Rust harness использовал неизменённый debug core rlib и изменял
+только in-memory `Run.initial`: invariant-valid initial LP1/3+1/3+1/3,
+gross debt при положительном wallet, ComponentLimit и quantity ArithmeticLimit.
+Это не объявляется native-reachable genesis. Headless Chromium проверил семь
+HODL presets, все portfolio/boundary views, значения>2^53 и−1/3, readonly
+checkpoint, download equality, escaped identifiers и390px mobile layout.
+
+Проверенный release build остался
+`8479e213264f9f83a982cb15d1c23efab7f13cb89b3333a6182e7997ede24b61`.
+Коммиты root после `315a2a0` затрагивают только документацию/архив review;
+production sources, web и scenarios совпадают с проверенными. Полный suite
+после документационных изменений повторно не запускался.
+
+Review gate M5c закрыт в указанном покрытии. Полная приёмка M5/v1.0 остаётся
+открытой: следующий срез — Explorer и синхронизированное сравнение истории,
+затем оставшиеся пользовательские задачи и измеренные performance budgets G-16.
+Облачная среда не публиковалась.

@@ -386,4 +386,8 @@ Checkpoint привязан к SHA-256 исходников/lockfile/toolchain, 
 добавляет reference HODL с фактическими внешними потоками и excess PnL.
 Прошли479 Rust tests,71 CLI demos,64 дополнительных Fraction cases и браузерные
 проверки семи HODL demos с регрессией прежних экранов.18 самостоятельных Fraction
-cases подготовлены до реализации; независимый review этого среза пока не закрыт. Полный Explorer и остальные gates v1.0 остаются впереди.
+cases подготовлены до реализации. Независимый [review DEC-30](docs/reviews/dec30-independent-review.md)
+завершён без подтверждённых findings: ещё96 Fraction-сценариев,672 границы,
+1344 потока, claims/caps/arithmetic, native replay/RNG, DEC-29 и Chromium.
+Неизменённые scripts/results сохранены в [архиве review](docs/reviews/dec30-regressions/README.md).
+Полный Explorer и остальные gates v1.0 остаются впереди.

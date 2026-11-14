@@ -1,0 +1,9 @@
+PASS native asset count 0
+PASS native asset count 1
+PASS native asset count 64
+PASS native asset count 65
+PASS full withdrawal frees asset slot but not cumulative flow budget; empty last_feasible has exact flow cursor
+PASS labelled transfer rejected zero capital flow, excess 0
+PASS labelled transfer paid-revert zero capital flow, excess -115
+PASS labelled transfer exhausted zero capital flow, excess -100
+PASS reference input provenance hashes for all 672 independent sweep boundaries

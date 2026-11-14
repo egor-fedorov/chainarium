@@ -1,0 +1,19 @@
+{
+  "receipts": {
+    "Success": 899,
+    "ProtocolRevert": 1405,
+    "rejected": 0
+  },
+  "hodl_mark_reasons": {
+    "Stale": 405,
+    "FutureObservation": 270,
+    "AssetLimit": 446,
+    "NoAvailableRecord": 131,
+    "MissingPrice": 254,
+    "InfeasibleOutflow": 40,
+    "FlowLimit": 96
+  },
+  "build_id": [
+    "8479e213264f9f83a982cb15d1c23efab7f13cb89b3333a6182e7997ede24b61"
+  ]
+}

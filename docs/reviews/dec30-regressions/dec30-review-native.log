@@ -1,0 +1,7 @@
+PASS native 589-bit mark overflow at t1, ledger Ready, full recovery at t2
+PASS native noninterference and every checkpoint sc-agent-random
+PASS native noninterference and every checkpoint sc-hodl-infeasible
+PASS native noninterference and every checkpoint sc-hodl-credit
+PASS native noninterference and every checkpoint sc-hodl-ordered
+PASS native noninterference and every checkpoint sc-hodl-lp
+PASS DEC29 native HODL exports, checkpoint equality, changed common policy rejected before output

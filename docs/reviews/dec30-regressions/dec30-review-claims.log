@@ -1,0 +1,4 @@
+DEBUG BUILD d3d29ad925077cf0a571672cb52fc6adb621a4920c7d2a0169f0a74a9d57cdbb
+PASS synthetic invariant-valid LP claims: 1/3 + 1/3 + 1/3 = 1, full holdings preserved without prices, no partial holdings under ComponentLimit
+PASS synthetic invariant-valid gross initial liability rejects benchmark despite positive Q wallet; independent depositor unaffected
+PASS reduced initial quantity grouping exceeding 512 bits produces permanent Unavailable without partial inventory
