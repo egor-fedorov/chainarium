@@ -1363,3 +1363,37 @@ lending/claims, checkpoint/export equality, RNG/state noninterference,
 overlapping portfolios, ModelError prefix и фиксированный HODL input серии.
 Release CLI/Fraction/browser acceptance выполняется следующим шагом.
 Независимый review DEC-30 ещё не выполнен; приёмка всей v1.0 не объявляется.
+
+### Release-проверка M5c
+
+Реализация закоммичена и отправлена в `origin/work`: `f500b2b`
+(`feat(hodl): compare portfolio performance with flow-matched holdings`).
+Release build ID:
+`8479e213264f9f83a982cb15d1c23efab7f13cb89b3333a6182e7997ede24b61`.
+
+- `scripts/check-demos.py output/dec30-all-demos`: **71 CLI demos**;
+  13 MTM/HODL demos проверены независимой Fraction-арифметикой и побайтным
+  совпадением всех export artifacts после resume с каждой committed-границы.
+- `scripts/check-hodl.py output/dec30-fraction-check`: семь HODL demos и
+  **64 дополнительных price/flow cases**, всего **212 boundaries**. Независимо
+  восстановлены holdings из DEC-28 initial components, capital из native
+  receipts/bindings, prices из reference records, canonical cursors, caps,
+  permanent failure/last-feasible, PnL/excess/gap и policy hashes.
+  Это author-run cross-check, а не независимый review в отдельном контексте.
+- `scripts/check-hodl-ui.py`: семь presets, точные отрицательные дроби,
+  historical Unpriced и известный gap, canonical flow order, момент failure,
+  download payload, readonly history, replay, экранирование идентификаторов
+  и отсутствие горизонтального overflow на390 px. Проверены screenshots
+  `output/m5c-{lp,infeasible,unpriced}-mobile.png`.
+- `scripts/check-ui.py`, `scripts/check-valuation-ui.py`: прежние M1–M4g и
+  шесть MTM экранов прошли браузерную регрессию на той же release-сборке.
+- `scripts/check-experiments.py output/dec30-series-regression`:48 сравнений
+  series/native/resume и точные statistics; Unpriced/ModelError fixtures.
+  `scripts/check-experiments-ui.py` проверил четыре отчёта, readonly import,
+  exclusions, matching checkpoint и downloads. JS/Python syntax прошёл.
+
+Новых изменений native accounting/execution/observations нет. Ограничения среза:
+начальные ненулевые liabilities не поддерживаются, LVR/rebalancing не добавлен,
+selectors DEC-29 не расширены. API выбранной границы сканирует bounded capital
+history; полного performance/user-task gate всей v1.0 эти проверки не заменяют.
+Независимый review DEC-30 пока не выполнен. Облачная среда не публиковалась.

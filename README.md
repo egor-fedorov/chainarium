@@ -136,7 +136,7 @@ CLI Plan, завершённый отчёт и отдельный browser checkp
 перед завершением серии, без создания второй копии JSON. Если итоговый отчёт
 превысит предел, экспорт завершится ошибкой и оставит Incomplete с уже сохранёнными
 native exports/rows. Completed manifest всегда укладывается в лимит импортера.
-Live batch controller, возобновление всей серии, HODL и полный Explorer остаются
+Live batch controller, возобновление всей серии и полный Explorer остаются
 следующими срезами.
 
 Проверка release-сборки и UI (сервер должен использовать ту же сборку):
@@ -147,10 +147,17 @@ python3 scripts/check-experiments.py output/new-experiment-validation
 python3 scripts/check-experiments-ui.py output/new-experiment-validation
 ```
 
-Доступны 64 presets в UI и CLI:
+Доступны 71 presets в UI и CLI:
 
 | Файл | Демонстрация |
 | --- | --- |
+| `scenarios/demos/sc-hodl-lp.json` | Ценовой шок CPMM: HODL PnL300 Q, actual200 Q, excess−100 Q |
+| `scenarios/demos/sc-hodl-capital.json` | Взнос2 X по10, конечная цена15: HODL PnL60 Q, excess−30 Q |
+| `scenarios/demos/sc-hodl-ordered.json` | z-in перед a-out: receipt order вместо лексического TxId |
+| `scenarios/demos/sc-hodl-infeasible.json` | Ранний вывод X невозможен для HODL; поздний взнос не исправляет историю |
+| `scenarios/demos/sc-hodl-unpriced.json` | Текущий HODL19 Q и value gap−1 Q; оба PnL Unpriced |
+| `scenarios/demos/sc-hodl-fractional.json` | Точный excess−1/2 Q, floor−1 только для представления |
+| `scenarios/demos/sc-hodl-credit.json` | Borrow не меняет HODL; убыток депозитора отражён в excess−20 Q |
 | `scenarios/demos/sc-mtm-capital.json` | Взнос2 X по10, цена15, вывод1 X: стоимость115 Q, PnL10 Q |
 | `scenarios/demos/sc-mtm-unpriced.json` | Текущая стоимость10 Q известна; PnL Unpriced из-за цены исторического взноса |
 | `scenarios/demos/sc-mtm-flash.json` | Wallet net+24104 Q и полный MTM PnL−240 Q владельца обоих LP |
@@ -312,7 +319,7 @@ checkpoint/resume, fork, A/B и мобильную верстку. Снимки 
   только к literal sole Transfer, исполненному в canonical block. Missing/stale
   или исторически недоступная цена сохраняет Unpriced. LP mark не является
   burn quote; deposit claim отличается от доступного cash. Пересекающиеся
-  portfolios нельзя суммировать. Серии экспериментов и HODL ещё впереди.
+  portfolios нельзя суммировать. Серии DEC-29 и HODL DEC-30 используют эти marks.
 - M4f: `baseline-agents-v1` — scripted/random user, target borrower и native
   oracle publisher. До одного intent и preflight на агента за раунд; AnyReceipt
   допускает отправку предсказанной оплачиваемой неудачи. RandomUser использует
@@ -377,5 +384,6 @@ Checkpoint привязан к SHA-256 исходников/lockfile/toolchain, 
 
 Реализация [Accepted DEC-30](docs/spec.md#23218-принятый-контракт-m5c--accepted-dec-30)
 добавляет reference HODL с фактическими внешними потоками и excess PnL.
-18 самостоятельных Fraction cases подготовлены до реализации; независимый review
-этого среза пока не закрыт. Полный Explorer и остальные gates v1.0 остаются впереди.
+Прошли479 Rust tests,71 CLI demos,64 дополнительных Fraction cases и браузерные
+проверки семи HODL demos с регрессией прежних экранов.18 самостоятельных Fraction
+cases подготовлены до реализации; независимый review этого среза пока не закрыт. Полный Explorer и остальные gates v1.0 остаются впереди.
