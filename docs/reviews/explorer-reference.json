@@ -1,0 +1,192 @@
+{
+  "decision": "DEC-31",
+  "model": "history-explorer-v1",
+  "cases": {
+    "synchronous": {
+      "times": [
+        "0",
+        "12",
+        "24"
+      ],
+      "balances": [
+        [
+          "100",
+          "100"
+        ],
+        [
+          "90",
+          "75"
+        ],
+        [
+          "90",
+          "75"
+        ]
+      ],
+      "delta": [
+        {
+          "numerator": "0",
+          "denominator": "1",
+          "floor_atoms": "0"
+        },
+        {
+          "numerator": "-15",
+          "denominator": "1",
+          "floor_atoms": "-15"
+        },
+        {
+          "numerator": "-15",
+          "denominator": "1",
+          "floor_atoms": "-15"
+        }
+      ],
+      "pnl_a": {
+        "numerator": "-10",
+        "denominator": "1",
+        "floor_atoms": "-10"
+      },
+      "pnl_b": {
+        "numerator": "-25",
+        "denominator": "1",
+        "floor_atoms": "-25"
+      }
+    },
+    "as_of": {
+      "times": [
+        "0",
+        "10",
+        "12",
+        "20"
+      ],
+      "blocks": [
+        [
+          "0",
+          "0"
+        ],
+        [
+          "1",
+          "0"
+        ],
+        [
+          "1",
+          "1"
+        ],
+        [
+          "2",
+          "1"
+        ]
+      ],
+      "ages": [
+        [
+          "0",
+          "0"
+        ],
+        [
+          "0",
+          "10"
+        ],
+        [
+          "2",
+          "0"
+        ],
+        [
+          "0",
+          "8"
+        ]
+      ],
+      "wallet_delta": [
+        {
+          "numerator": "0",
+          "denominator": "1",
+          "floor_atoms": "0"
+        },
+        {
+          "numerator": "10",
+          "denominator": "1",
+          "floor_atoms": "10"
+        },
+        {
+          "numerator": "-15",
+          "denominator": "1",
+          "floor_atoms": "-15"
+        },
+        {
+          "numerator": "-15",
+          "denominator": "1",
+          "floor_atoms": "-15"
+        }
+      ],
+      "pnl_delta": [
+        {
+          "numerator": "0",
+          "denominator": "1",
+          "floor_atoms": "0"
+        },
+        null,
+        null,
+        null
+      ],
+      "excluded_time": "24"
+    },
+    "unknown_history": {
+      "actual_a": {
+        "numerator": "10",
+        "denominator": "1",
+        "floor_atoms": "10"
+      },
+      "actual_b": {
+        "numerator": "9",
+        "denominator": "1",
+        "floor_atoms": "9"
+      },
+      "value_delta": {
+        "numerator": "-1",
+        "denominator": "1",
+        "floor_atoms": "-1"
+      },
+      "pnl_a": null,
+      "pnl_b": null,
+      "pnl_delta": null
+    },
+    "wide_fraction": {
+      "wallet_q": "9007199254740993",
+      "actual_a": {
+        "numerator": "27021597764222980",
+        "denominator": "3",
+        "floor_atoms": "9007199254740993"
+      },
+      "actual_b": {
+        "numerator": "9007199254740993",
+        "denominator": "1",
+        "floor_atoms": "9007199254740993"
+      },
+      "pnl_delta": {
+        "numerator": "-1",
+        "denominator": "3",
+        "floor_atoms": "-1"
+      }
+    },
+    "different_decimals": {
+      "left_atoms": "100",
+      "right_atoms": "100",
+      "wallet_delta": null,
+      "metric_delta": null,
+      "reason": "AssetUnitsMismatch"
+    },
+    "short_prefix": {
+      "times_a": [
+        "0",
+        "10",
+        "20"
+      ],
+      "times_b": [
+        "0",
+        "10"
+      ],
+      "common": [
+        "0",
+        "10"
+      ],
+      "excluded_time": "20"
+    }
+  }
+}

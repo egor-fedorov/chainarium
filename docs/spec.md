@@ -3286,6 +3286,97 @@ review до объявления функциональной/экономиче
 caps DEC-30. Панель показывает точные значения Rust без финансовых вычислений JS.
 Независимый review DEC-30 завершён без подтверждённых findings:96 новых Fraction scenarios,672 boundaries/1344 capital flows, отдельные claims/caps/arithmetic, checkpoint/RNG, DEC-29 и UI проверки. Проверенные scope/build и ограничения сохранены в `docs/reviews/dec30-independent-review.md`; весь M5 этим срезом не закрывается.
 
+### 23.2.19. Контракт M5d — DEC-31: Explorer и синхронизированная история A/B
+
+Владелец поручил приступить к Explorer и синхронизированному A/B ответом
+«Приступай» после закрытия review M5c. Срез реализует принятые требования §15
+на существующем vanilla JS + Rust controller. Ни execution/observation policies,
+ни экономические формулы DEC-28/30, ни selectors DEC-29 не изменяются.
+
+**Источники истории.** Два именованных слота A/B хранят неизменяемые native Run:
+явная фиксация текущего live Run либо импорт полного checkpoint с обычным
+checksum/build/native replay. Неудачный импорт сохраняет прежний слот и live
+Run. Изменение live Run не обновляет уже зафиксированный слот. Загрузка,
+навигация, сравнение, скачивание и наблюдение не исполняют следующий блок live
+Run и не меняют его RNG/fees/nonce. Restore/fork для исполнения остаются явно
+отдельными действиями существующего контроллера. Explorer не принимает
+произвольный `run.json` за проверенную историю.
+
+Идентичность снимка — SHA-256 его canonical checkpoint bytes, включая prefix;
+одного RunId недостаточно. Запросы содержат ожидаемые ключи слотов и отвергают
+устаревший ключ. Проверенный committed prefix ограничен10000 блоками, каждый
+checkpoint64 MiB; два слота ограничивают число хранимых Run. Это ограничения
+просмотра, не новые caps native Scenario. Readonly report ограничен8 MiB;
+превышение даёт явный отказ, не неполный финансовый результат.
+
+**Общая шкала.** В A/B используется отсортированное объединение committed
+времён обеих историй, включая genesis, только до меньшего из двух последних
+committed timestamps. При выбранном `t` каждая сторона показывает последний
+snapshot с `timestamp <= t`, собственные block/time и возраст `t−timestamp`.
+Будущая граница не подставляется, в конец короткой истории экстраполяции нет.
+Одинаковый номер блока при разных interval не означает одинаковое время.
+Один загруженный слот также можно исследовать по всей его истории.
+
+Разности actual MTM/PnL и HODL/excess доступны лишь при одинаковом committed
+времени сторон, одинаковых chain ID/assets (включая decimals) и одинаковой
+valuation_policy. Для HODL требуется также одинаковая hodl_policy. Отсутствие
+policy/portfolio, несовместимые units/policies, Unpriced или несовпадающее время
+сохраняют явную недоступность разности; общие неизвестные terms не сокращаются.
+Каждая сторона при этом показывает собственные Rust-defined values/reasons.
+Разность направлена **B−A** и вычисляется Exact в Rust с действующими bounds.
+Это сравнение двух случаев, не утверждение о контролируемой серии, статистической
+значимости или причинности; полный diff Scenario показывает изменённые условия.
+
+Wallet amounts сравниваются как состояния на выбранном `t`: точные atoms,
+B−A, только при существующем account/asset на обеих сторонах и совместимых
+chain/asset units. Отсутствующий account не заменяется фиктивным нулём. У
+существующего account отсутствующий balance entry означает native zero.
+Несовпадение valuation_policy не запрещает отдельно сравнивать известные units.
+
+**Обозреватель.** Для каждой стороны доступны entity index, выбранный account
+и его balances/nonce, protocol state/config, market connections, canonical
+receipts/rejections и сохранённая trace. Номера receipt/call — действительные
+индексы, TxId не задаёт порядок. Canonical events и attempt events показаны
+раздельно; вложенные events не суммируются повторно. По trace не выдумываются
+не сохранённые промежуточные snapshots. Граф показывает связи реально
+сконфигурированных активов, venues, lending, oracle и flash provider; он не
+утверждает наличие ликвидности или исполнимость произвольного пути.
+
+Режим агента показывает существующий native `AgentObservation` на выбранной
+committed-границе и выбранном контролируемом account. Используется сохранённый
+scheduler state этой границы, в genesis — пустой State; current/future очередь
+не подставляется в прошлое. Чужие wallets/private messages, будущие inputs и
+reference valuation feeds отсутствуют. Это общее доступное наблюдение на
+границе, не реконструкция несохранённого intrablock decision input. Модель не
+передаёт финансовые/исследовательские данные из UI агенту.
+
+**Ограничения просмотра.** Каталоги/receipts/trace/балансы выдаются страницами
+до64 записей с total/offset/next. Общий Scenario diff имеет512 entries и65536
+проверенных nodes; JSON Pointer escaping стабилен, порядок детерминированный.
+Большие значения diff показываются как hash/size и ограниченный preview вместо
+необозначенного сокращения; truncation виден. Граф ограничен256 nodes/512 edges
+с явным truncation. Native история и checkpoint при этом не урезаются.
+Никакой browser float не используется для денег/времени в запросах; числа
+индексов страниц и координаты рисунка не являются финансовыми значениями.
+
+**Артефакты и приёмка.** JSON сравнения содержит версию `history-explorer-v1`,
+ключи checkpoints/build/run, выбранное время, фактические границы и причины
+несопоставимости, config diff и точные метрики. CLI `compare` работает с теми же
+двумя native checkpoints; UI download совпадает с Rust response. Native Run
+export/checkpoint wire не изменяется; DEC-29 checkpoint может быть открыт в
+A/B без замены live Run. Существующие native/MTM/HODL/series demos сохраняются.
+
+До реализации сохранены самостоятельные Fraction/time examples
+`docs/reviews/explorer-reference.py/.json`: synchronous balance/PnL deltas,
+as-of при interval10/12 без PnL interpolation, historical Unpriced,
+отрицательная1/3 и суммы>2^53, несовместимые decimals и предел короткой истории.
+Нужны core/controller/UI tests invalid/stale import и atomic replacement,
+canonical/attempt trace, readonly state/RNG, private/history observation,
+precision, paging/truncation, downloads, mobile и regressions существующих UI.
+Полный worst-case performance/user-task gate и live batch controller остаются
+отдельными задачами. Экономически существенные новые сравнения проходят
+независимый review в отдельном контексте до закрытия приёмки среза.
+
 ### 23.3. Вертикальные срезы и Definition of Done
 
 Работа дробится на сквозные сценарии **требование → состояние → действие → исполнение → тесты → trace → визуальное объяснение**. Новый компонент не считается завершённым по одному лишь trait, mock API или графическому экрану. На один срез — один проверяемый вопрос и минимальное число новых механизмов.
