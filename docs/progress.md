@@ -1284,3 +1284,51 @@ HODL500, actual400, excess−100; динамический inflow2X при10 и 
 unknown historical flow price оставляет PnL недоступным при известном current
 value19/value_gap−1. Assertions и побайтная повторная генерация прошли.
 Перед реализацией нового профиля требуется согласование DEC-30 по §23.7.
+
+### Независимый review DEC-29 и закрытие двух P2
+
+Владелец разрешил одного read-only reviewer ответом «Продолжай, да».
+После восстановления среды агент независимо проверил `1a4e5af..2bc4465`
+в изолированном snapshot. Основной repo/8080 и cloud configuration не менял.
+Полный итог: `docs/reviews/dec29-independent-review.md`; побайтно сохранённые
+исходные scripts/reports/results и provenance — `docs/reviews/dec29-regressions/`.
+
+Подтверждены два P2:
+
+- R1: import принимал horizon/committed blocks, противоречащие Scenario,
+  и counts outcomes, противоречащие IncludedCount/RejectionAttempts.
+  Fix `a05ec23` связывает эти поля, включая ModelError prefix_metrics.
+- R2: допустимый Plan мог создать Completed manifest больше importer64 MiB.
+  Fix `4728abf` вводит общий report cap, metadata preflight и финальную проверку
+  bounded writer. Если результаты превысили cap, native exports/rows сохраняются,
+  серия остаётся Incomplete. При адресной перепроверке найден остаток R2:
+  pretty UI download раздувал почти предельный report. Fix `1d4e3a2` сохраняет
+  compact формат только для experiment download.
+
+Reviewer самостоятельно проверил48 standalone/resume exports,64 fractional-price
+cases/128 runs и exact statistics, реальные асимметричные missing cohorts,
+64-prime-denominator arithmetic limit, native failure fraction1/2/fees455,
+foreign RNG stream isolation, вариант-specific ModelError с продолжением,
+реальный EFBIG/Incomplete,27 invalid input mutations, hashes/diffs и Chromium.
+Ограничения coverage перечислены в отчёте; это не performance gate.
+
+На `4728abf` независимо подтверждены отказы исходных corrupt reports и large
+metadata input, правильный ModelError prefix и late-growth Incomplete с24
+сохранёнными runs. На финальном `1d4e3a2` JS Chromium подтвердил near-limit
+67,106,816bytes: import200 → download с равным размером/SHA256 → reimport200;
+обычный report также прошёл, singleton не изменился, page errors отсутствуют.
+Для адресного JS recheck использовался побайтно идентичный Rust core4728abf,
+точный финальный JS и скрытый только для layout большой hypothesis; это явно
+отмечено в независимом report. **R1/R2 закрыты; новых открытых findings нет.**
+
+Root проверки после Rust fixes: **461 tests**, format/Clippy all-targets
+`-D warnings`;32 experiment tests, в том числе две R1 и две report-cap регрессии.
+**64 CLI demos** и все MTM boundaries/independent Fraction прошли. После
+JS-only fix синтаксис/wire test, **48 native/standalone/resume comparisons** и
+четыре browser series с compact-size assertions прошли на final release
+`57ccee9e12746314d7f92a06e6e92ebf94888b796f5eab49d611b707ea0a1ad9`.
+Артефакты: `output/dec29-final-verified/`, `output/dec29-review-fix-demos/`.
+
+M5b функционально и независимо проверен. DEC-30/HODL подготовлен отдельно и
+ожидает согласования; production HODL ещё не реализован. Explorer и остальные
+performance/user-task gates всей v1.0 остаются впереди. Среда не публиковалась.

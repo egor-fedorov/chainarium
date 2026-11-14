@@ -1,0 +1,7 @@
+[
+  "builder: Plan/Scenario/common/external SHA256 provenance and complete structural diffs independently reproduced",
+  "policy: Plan/Scenario/common/external SHA256 provenance and complete structural diffs independently reproduced",
+  "fractional-64: Plan/Scenario/common/external SHA256 provenance and complete structural diffs independently reproduced",
+  "asymmetric-missing: Plan/Scenario/common/external SHA256 provenance and complete structural diffs independently reproduced",
+  "27 independent invalid-plan mutations rejected before creating any output directory"
+]

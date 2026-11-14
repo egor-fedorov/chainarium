@@ -1,0 +1,12 @@
+[
+  "R1 horizon: original immutable corrupted report rejected400: report row metadata mismatch",
+  "R1 included: original immutable corrupted report rejected400: report count metric differs from outcomes",
+  "R1 rejections: original immutable corrupted report rejected400: report count metric differs from outcomes",
+  "R1: five original valid reports import read-only, including real ModelError and ArithmeticLimit",
+  "R1 ModelError prefix success: rejected400: report count metric differs from outcomes",
+  "R1 ModelError prefix rejections: rejected400: report count metric differs from outcomes",
+  "R2 original 33MiB-hypothesis Plan: rejected before any output directory: experiment report exceeds 64 MiB",
+  "R2 independent 2MiB MetricId / 24 runs: late report growth rejected, all24 streamed rows/checkpoints retained, manifest Incomplete",
+  "Fix build: builder export, import and every selected native checkpoint pass",
+  "Fix build: mixed-model-error export, import and every selected native checkpoint pass"
+]

@@ -1,0 +1,20 @@
+[
+  {
+    "kind": "near-limit",
+    "bytes": 67106816,
+    "sha256": "a32ce47e409ccf4601deb9440dced2313b073a6923a00a978546fc978499f9d6",
+    "original_import_http": 200,
+    "reimport_http": 200,
+    "byte_identical": true,
+    "singleton_unchanged": true
+  },
+  {
+    "kind": "normal",
+    "bytes": 55135,
+    "sha256": "8ba161fc08210b4640b3f1c695fdbf352f056c6ccbcc2fbb0e9c54fbff352680",
+    "original_import_http": 200,
+    "reimport_http": 200,
+    "byte_identical": true,
+    "singleton_unchanged": true
+  }
+]

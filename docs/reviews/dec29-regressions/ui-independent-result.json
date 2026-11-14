@@ -1,0 +1,9 @@
+[
+  "builder: exact statistics/exclusions, read-only import and narrow layout pass",
+  "policy: exact statistics/exclusions, read-only import and narrow layout pass",
+  "asymmetric-missing: exact statistics/exclusions, read-only import and narrow layout pass",
+  "rational-cap: exact statistics/exclusions, read-only import and narrow layout pass",
+  "CONFIRMED: legal completed 69,232,220-byte report rejected by UI as >64 MiB",
+  "CONFIRMED: UI displays Completed/0-of-0 rows for retained three-block Plan and nonzero PnL",
+  "Selected checkpoint: mismatched row rejected without mutation; matching row native replay and report download pass"
+]

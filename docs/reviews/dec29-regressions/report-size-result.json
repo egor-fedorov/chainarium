@@ -1,0 +1,8 @@
+{
+  "cli_status": 0,
+  "stdout": "Completed: 2 native runs; import /tmp/chainarium-dec29-evidence/large-legal-series/manifest.json",
+  "input_bytes": 34609582,
+  "report_bytes": 69232220,
+  "browser_and_Report_parse_limit_bytes": 67108864,
+  "outcome": "Completed"
+}

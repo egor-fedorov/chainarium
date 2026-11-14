@@ -1,0 +1,89 @@
+[
+  {
+    "mutation": "horizon",
+    "http_status": 200,
+    "singleton_unchanged": true,
+    "row_horizon": "0",
+    "plan_horizon": 3,
+    "included": {
+      "ProtocolRevert": "0",
+      "ResourceExhausted": "0",
+      "Success": "1"
+    },
+    "success_metric": {
+      "status": "Available",
+      "value": {
+        "numerator": "1",
+        "denominator": "1",
+        "floor_atoms": "1"
+      }
+    },
+    "rejected_attempts": "1",
+    "rejection_metric": {
+      "status": "Available",
+      "value": {
+        "numerator": "1",
+        "denominator": "1",
+        "floor_atoms": "1"
+      }
+    }
+  },
+  {
+    "mutation": "included",
+    "http_status": 200,
+    "singleton_unchanged": true,
+    "row_horizon": "3",
+    "plan_horizon": 3,
+    "included": {
+      "ProtocolRevert": "0",
+      "ResourceExhausted": "0",
+      "Success": "999"
+    },
+    "success_metric": {
+      "status": "Available",
+      "value": {
+        "numerator": "1",
+        "denominator": "1",
+        "floor_atoms": "1"
+      }
+    },
+    "rejected_attempts": "1",
+    "rejection_metric": {
+      "status": "Available",
+      "value": {
+        "numerator": "1",
+        "denominator": "1",
+        "floor_atoms": "1"
+      }
+    }
+  },
+  {
+    "mutation": "rejections",
+    "http_status": 200,
+    "singleton_unchanged": true,
+    "row_horizon": "3",
+    "plan_horizon": 3,
+    "included": {
+      "ProtocolRevert": "0",
+      "ResourceExhausted": "0",
+      "Success": "1"
+    },
+    "success_metric": {
+      "status": "Available",
+      "value": {
+        "numerator": "1",
+        "denominator": "1",
+        "floor_atoms": "1"
+      }
+    },
+    "rejected_attempts": "999",
+    "rejection_metric": {
+      "status": "Available",
+      "value": {
+        "numerator": "1",
+        "denominator": "1",
+        "floor_atoms": "1"
+      }
+    }
+  }
+]

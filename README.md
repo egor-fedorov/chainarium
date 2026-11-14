@@ -330,7 +330,9 @@ capability checks и явный submission outcome. [Перепроверка и
 [Accepted DEC-29](docs/spec.md#23217-принятый-контракт-m5b--accepted-dec-29)
 реализует парные серии с фиксированными входами, exact statistics и импортом
 отчёта. Проверены457 Rust tests,64 CLI demos,48 native runs серий и browser import/replay.
-Независимый review нового среза ожидается; полный журнал — в `docs/progress.md`.
+Независимый [review DEC-29](docs/reviews/dec29-independent-review.md) закрыт:
+два P2 исправлены и перепроверены, включая report/download cap64 MiB.
+После исправлений прошли461 Rust tests; полный журнал — в `docs/progress.md`.
 
 Фактические результаты и оставшиеся проверки: [журнал прогресса](docs/progress.md).
 Сценарий CLI ограничен 64 MiB, отдельная транзакция — 1 MiB. Web restore

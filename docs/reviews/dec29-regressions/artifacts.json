@@ -1,0 +1,219 @@
+{
+  "snapshot": "2bc4465",
+  "source": "/tmp/chainarium-dec29-evidence",
+  "files": [
+    {
+      "file": "REVIEW-2bc4465.md",
+      "bytes": 5762,
+      "sha256": "d1147c48603ea50edd4d08eec39f6c0684eb6a62f16c4d9b1ab96466ecbedbd3",
+      "archived": true
+    },
+    {
+      "file": "independent_checks.py",
+      "bytes": 9607,
+      "sha256": "24ace57dc286357ae3da63e7250383237b7e51d92426a647cd46ff8151e0e951",
+      "archived": true
+    },
+    {
+      "file": "runtime_checks.py",
+      "bytes": 5611,
+      "sha256": "fd6c96c9cd23eef429e437f36737bfabcd07cab0832d2b52ea90e2fc7681f45f",
+      "archived": true
+    },
+    {
+      "file": "validation_checks.py",
+      "bytes": 4685,
+      "sha256": "dd34f787a812477de67f1b25d8ab3cc0e3d0d39e4e03a70dac8e7b0a8e070b69",
+      "archived": true
+    },
+    {
+      "file": "ui_review.py",
+      "bytes": 5080,
+      "sha256": "ec96079f05c17230d163c5a829c4d7f1bc560522ba743bed76891de343ac8d01",
+      "archived": true
+    },
+    {
+      "file": "import_invariants.py",
+      "bytes": 2078,
+      "sha256": "c40b184632c0e1a68e7827baaad536e713af6af0458fd6849e8543c9fc7dfb77",
+      "archived": true
+    },
+    {
+      "file": "report_size.py",
+      "bytes": 1254,
+      "sha256": "64498ef756821ec1acb4c8888aa6a26982b388802d64ade617cbbd1043925f88",
+      "archived": true
+    },
+    {
+      "file": "independent-checks-result.json",
+      "bytes": 706,
+      "sha256": "5b875a3a15f478a6ea549a69b706135534d6ddd958942dac01b9af7bd2a9f3f3",
+      "archived": true
+    },
+    {
+      "file": "runtime-independent-result.json",
+      "bytes": 495,
+      "sha256": "3312d0899cc02c1cb6e30ccdfff0ea83889a5ca3fce895b69e4ea93eb3a7e15c",
+      "archived": true
+    },
+    {
+      "file": "validation-independent-result.json",
+      "bytes": 575,
+      "sha256": "a68c9a9675c87457081213cd01b033e5728fc78e20953d341e4067bccbed4d1c",
+      "archived": true
+    },
+    {
+      "file": "ui-independent-result.json",
+      "bytes": 646,
+      "sha256": "32108b8eadb7f3f869e1f1eb49e388f0bc64bdad0b0b1fcd6177698512959d6d",
+      "archived": true
+    },
+    {
+      "file": "import-invariants-result.json",
+      "bytes": 1840,
+      "sha256": "d66748f2568dc6d42fc1efc17e300c4741d16fc3cf90d12418c773542db1657d",
+      "archived": true
+    },
+    {
+      "file": "report-size-result.json",
+      "bytes": 266,
+      "sha256": "61e831d35728e25ac6dad3e12713b6c96893f8914e97a3e98af2c5ac0ce04d94",
+      "archived": true
+    },
+    {
+      "file": "accepted-inconsistent-horizon.json",
+      "bytes": 60971,
+      "sha256": "56c85485c19f7d5ff8b93dff3f11e7843a7b1c8a94b337b1acfa770f571d8632",
+      "archived": true
+    },
+    {
+      "file": "accepted-inconsistent-included.json",
+      "bytes": 60973,
+      "sha256": "62a69358d70a167370a0ca6e54368ce91bc6308faae5c627611bc2765581fb19",
+      "archived": true
+    },
+    {
+      "file": "accepted-inconsistent-rejections.json",
+      "bytes": 60973,
+      "sha256": "0f6c4b5c1344b32f4d40c80c3bc24e9fbe1d2aa9bff729a02110d60062cdfa0b",
+      "archived": true
+    },
+    {
+      "file": "accepted-zero-horizon.png",
+      "bytes": 35618,
+      "sha256": "6ec562477817481f409e40ad68d7be744c8331769236eaaa008ffe94302875b4",
+      "archived": true
+    },
+    {
+      "file": "large-report-rejected.png",
+      "bytes": 2970,
+      "sha256": "06306af26f9c7c86035c5e31dbb09740ec2d6d002e21adec4aae0740e499b657",
+      "archived": true
+    },
+    {
+      "file": "large-legal-plan.json",
+      "bytes": 34609582,
+      "sha256": "14d99fe0f735e49c82070a9a95cd9829f692013afa99150781338afbc675f578",
+      "archived": false,
+      "recreate_with": "report_size.py on original snapshot"
+    },
+    {
+      "file": "large-legal-series/manifest.json",
+      "bytes": 69232220,
+      "sha256": "486438b8adc6cdf28f2a4de6bdf554547197498d68fdb2173646cae8c6366421",
+      "archived": false,
+      "recreate_with": "report_size.py on original snapshot"
+    },
+    {
+      "file": "verify_fixes.py",
+      "bytes": 4505,
+      "sha256": "abe86f8d2e8d1b9c3f3723685a829f8424d6f4904f062538dd5c71b3a733f19a",
+      "archived": true
+    },
+    {
+      "file": "download_size.py",
+      "bytes": 1614,
+      "sha256": "ed8a1e3ebc919bd396b843129fc9b9feb2f6f4ce0cf31002417477a587a34ec9",
+      "archived": true
+    },
+    {
+      "file": "fix-4728abf/results.json",
+      "bytes": 1020,
+      "sha256": "304213d6989001c9fd002838bca030fc0fd3de1f7e390152a7e4be586bdfe863",
+      "archived": true
+    },
+    {
+      "file": "fix-4728abf/download-size-result.json",
+      "bytes": 140,
+      "sha256": "7171730567bede5693a98c3bdf92d01e18bcf1ca3ee9264e070ed9fcb95d73e3",
+      "archived": true
+    },
+    {
+      "file": "fix-4728abf/download-api-result.json",
+      "bytes": 279,
+      "sha256": "737727f23b54cd50d5d236fe2df7023be238706495c147953b58e1a3150d5f89",
+      "archived": true
+    },
+    {
+      "file": "fix-4728abf/near-limit-plan.json",
+      "bytes": 33546880,
+      "sha256": "0863123ec1c8ec1f085e255be30b5a6811b53747ab8130079ec1187d530ef8fe",
+      "archived": false,
+      "recreate_with": "verify_fixes.py / download_size.py on 4728abf"
+    },
+    {
+      "file": "fix-4728abf/near-limit/manifest.json",
+      "bytes": 67106816,
+      "sha256": "a32ce47e409ccf4601deb9440dced2313b073a6923a00a978546fc978499f9d6",
+      "archived": false,
+      "recreate_with": "verify_fixes.py / download_size.py on 4728abf"
+    },
+    {
+      "file": "fix-4728abf/ui-downloaded-report.json",
+      "bytes": 67138488,
+      "sha256": "aae5ee5879a1a9336522f0c49b2fbab37310f38f2baac732a6108f9b17e5a610",
+      "archived": false,
+      "recreate_with": "verify_fixes.py / download_size.py on 4728abf"
+    },
+    {
+      "file": "fix-4728abf/late-growth-plan.json",
+      "bytes": 2176129,
+      "sha256": "ea2f729f90fa399abdf0d7d63a34bbc880fdb050eb1f4c5960ced2a48e6385d7",
+      "archived": false,
+      "recreate_with": "verify_fixes.py / download_size.py on 4728abf"
+    },
+    {
+      "file": "FINAL-REVIEW.md",
+      "bytes": 5608,
+      "sha256": "dc900384a8bf115b832617415e2d6f96d68c7c7a64384f5d1de703aae852134a",
+      "archived": true
+    },
+    {
+      "file": "verify_download_fix.py",
+      "bytes": 3362,
+      "sha256": "1318ce0179c91f04de664574d5dbfa274f294d5d6e083f924abcd5d70911af5e",
+      "archived": true
+    },
+    {
+      "file": "fix-1d4e3a2/download-fix-browser-result.json",
+      "bytes": 513,
+      "sha256": "ab94081acaa76315add28e7de42a5c8487fa46d1495d103ee290f49d22b28c63",
+      "archived": true
+    },
+    {
+      "file": "fix-1d4e3a2/near-limit-download.json",
+      "bytes": 67106816,
+      "sha256": "a32ce47e409ccf4601deb9440dced2313b073a6923a00a978546fc978499f9d6",
+      "archived": false,
+      "recreate_with": "verify_download_fix.py"
+    },
+    {
+      "file": "fix-1d4e3a2/normal-download.json",
+      "bytes": 55135,
+      "sha256": "8ba161fc08210b4640b3f1c695fdbf352f056c6ccbcc2fbb0e9c54fbff352680",
+      "archived": false,
+      "recreate_with": "verify_download_fix.py"
+    }
+  ],
+  "final_review_snapshot": "1d4e3a2aaadc0a754de11bc66f5b583178e5524d"
+}

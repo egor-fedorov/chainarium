@@ -1,0 +1,8 @@
+[
+  "builder: 8 native exports equal standalone + replay byte-for-byte; own Fraction statistics pass",
+  "policy: 40 native exports equal standalone + replay byte-for-byte; own Fraction statistics pass",
+  "64 new cases / 128 runs: independent final-value arithmetic and every statistic pass; negative and zero rows retained",
+  "Real zero-inventory / Unpriced cohorts: numeric-seed join, both exclusion sides, zero and no-included receipts pass",
+  "512-bit summary cap: independent per-step Fraction bound agrees; all 128 native observations preserved",
+  "Native mixed receipts: 2 Success + 1 ProtocolRevert + 1 ResourceExhausted, fraction 1/2, fee455, PnL-457; rejection count matches native records"
+]

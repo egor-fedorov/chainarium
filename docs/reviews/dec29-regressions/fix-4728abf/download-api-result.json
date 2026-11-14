@@ -1,0 +1,12 @@
+[
+  {
+    "file": "/tmp/chainarium-dec29-fix-evidence-4728abf/near-limit/manifest.json",
+    "bytes": 67106816,
+    "http_status": 200
+  },
+  {
+    "file": "/tmp/chainarium-dec29-fix-evidence-4728abf/ui-downloaded-report.json",
+    "bytes": 67138488,
+    "http_status": 413
+  }
+]

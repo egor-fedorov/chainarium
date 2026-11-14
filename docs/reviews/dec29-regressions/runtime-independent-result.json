@@ -1,0 +1,9 @@
+{
+  "checks": [
+    "4 seeds: target draw count12 vs24; foreign agent24 draws and complete scalar selections identical",
+    "Variant-specific overflow: preserved one-block PnL\u2212125 prefix, excluded all final metrics, following baseline Completed; both native checkpoint matches pass",
+    "Actual EFBIG at per-file cap23435: first native run+row preserved, second export stops, manifest Incomplete, no summary"
+  ],
+  "io_error": "File too large (os error 27)",
+  "file_size_limit": 23435
+}
