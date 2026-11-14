@@ -844,3 +844,54 @@ fn imported_count_selectors_must_agree_with_outcomes() {
         "rejection outcome and selector must agree"
     );
 }
+
+#[test]
+fn oversized_report_metadata_is_rejected_before_execution_or_directory_creation() {
+    let mut p = one("builder");
+    p.hypothesis = "x".repeat(33 * 1024 * 1024);
+    assert!(serde_json::to_vec(&p).unwrap().len() < crate::model::MAX_SCENARIO);
+    let path = temp("oversized-metadata");
+    let mut consumed = false;
+    let result = execute(&p, |_, _| {
+        consumed = true;
+        Ok(())
+    });
+    assert!(
+        result.is_err(),
+        "report metadata already exceeds the browser/report cap"
+    );
+    assert!(!consumed);
+    assert!(export(&p, &path).is_err());
+    assert!(!path.exists());
+}
+
+#[test]
+fn final_report_limit_cannot_publish_completed_manifest() {
+    let mut p = fixture("builder");
+    // This shared selector fits the metadata budget but expands in every row,
+    // paired observation and summary. No huge native Worlds are required.
+    p.metrics.insert(
+        "m".repeat(4 * 1024 * 1024),
+        Metric::InclusionRejectionAttempts,
+    );
+    p.validate().unwrap();
+    let path = temp("oversized-results");
+    let result = export(&p, &path);
+    assert!(result.is_err());
+    assert!(result.err().unwrap().contains("report exceeds 64 MiB"));
+    let bytes = std::fs::read(path.join("manifest.json")).unwrap();
+    assert_eq!(
+        serde_json::from_slice::<Json>(&bytes).unwrap()["outcome"],
+        "Incomplete"
+    );
+    assert_eq!(
+        std::fs::read_to_string(path.join("rows.jsonl"))
+            .unwrap()
+            .lines()
+            .count(),
+        8
+    );
+    assert!(path.join("runs/0007/checkpoint.json").is_file());
+    assert!(!path.join("summary.json").exists());
+    std::fs::remove_dir_all(path).unwrap();
+}

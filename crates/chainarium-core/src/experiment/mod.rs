@@ -15,6 +15,25 @@ use serde::{Deserialize, Serialize};
 pub use statistics::*;
 use std::collections::{BTreeMap, BTreeSet};
 
+pub const MAX_REPORT: usize = 64 * 1024 * 1024;
+// Count serialized bytes without allocating a second copy of a large report.
+fn check_report_size(value: &impl Serialize) -> Result<(), String> {
+    struct Budget(usize);
+    impl std::io::Write for Budget {
+        fn write(&mut self, bytes: &[u8]) -> std::io::Result<usize> {
+            self.0 = self
+                .0
+                .checked_sub(bytes.len())
+                .ok_or_else(|| std::io::Error::other("experiment report exceeds 64 MiB"))?;
+            Ok(bytes.len())
+        }
+        fn flush(&mut self) -> std::io::Result<()> {
+            Ok(())
+        }
+    }
+    serde_json::to_writer(Budget(MAX_REPORT), value).map_err(|e| e.to_string())
+}
+
 #[derive(Clone, Debug, Serialize, Deserialize, PartialEq, Eq)]
 #[serde(tag = "type", deny_unknown_fields)]
 pub enum RunStatus {
@@ -337,8 +356,8 @@ fn analyze(
 }
 impl Report {
     pub fn parse(bytes: &[u8]) -> Result<Self, String> {
-        if bytes.len() > crate::model::MAX_SCENARIO {
-            return Err("browser experiment report exceeds 64 MiB".into());
+        if bytes.len() > MAX_REPORT {
+            return Err("experiment report exceeds 64 MiB".into());
         }
         let report: Self =
             serde_json::from_slice(bytes).map_err(|e| format!("experiment report: {e}"))?;
@@ -346,6 +365,7 @@ impl Report {
         Ok(report)
     }
     pub fn validate(&self) -> Result<(), String> {
+        check_report_size(self)?;
         self.limits.validate()?;
         self.comparison.validate(&self.limits)?;
         if self.plan.cases.windows(2).any(|w| w[0].seed >= w[1].seed)
@@ -583,7 +603,7 @@ impl Report {
             "Completed"
         }
         .into();
-        Ok(Self {
+        let report = Self {
             plan: plan.clone(),
             schema_version: MODEL.into(),
             build_id: crate::BUILD_ID.into(),
@@ -599,7 +619,9 @@ impl Report {
             outcome,
             rows,
             analysis,
-        })
+        };
+        check_report_size(&report)?;
+        Ok(report)
     }
 }
 /// Fully validate before the first execution. The callback must export or consume

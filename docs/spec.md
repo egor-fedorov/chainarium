@@ -3083,8 +3083,13 @@ seed. ArithmeticLimit делает соответствующую statistic Unav
 
 **Caps, артефакты и UI.** Явные lowerable limits: cases64, variants8, runs128,
 blocks_per_run10000, total_blocks100000, metrics16, policy_targets8,
-rational_bits32768 (не менее512); input Plan не более64 MiB. Все произведения
-и суммарный горизонт проверяются до запуска. Первый runner последовательный,
+rational_bits32768 (не менее512); input Plan и завершённый импортируемый Report
+не более64 MiB каждый. Metadata отчёта (Plan, diff и повторённые labels/selectors)
+проверяется по сериализованному размеру до исполнения. Итоговые rows/statistics
+проверяются перед завершением: превышение report cap оставляет Incomplete и
+явную ошибку, с сохранёнными native exports/rows; oversized Completed manifest
+не публикуется. Размер измеряется bounded writer без второй полной копии JSON.
+Все произведения и суммарный горизонт проверяются до запуска. Первый runner последовательный,
 один активный Run; завершённый Run экспортируется и освобождается, его полный
 World не копится в памяти всех variants. Wall-clock не задаёт экономический
 cutoff и не выбирает строку для исключения. Native caps продолжают действовать.

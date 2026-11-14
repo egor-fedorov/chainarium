@@ -428,6 +428,9 @@ impl Plan {
             }
             infos.push(info);
         }
+        // Preflight immutable report metadata before the first native execution.
+        // The final report is also bounded after outcomes/statistics are known.
+        super::Report::new(self, infos.clone(), vec![])?;
         Ok(infos)
     }
 }
