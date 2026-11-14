@@ -3130,6 +3130,152 @@ plan/report и native per-run checkpoint, streaming export/Incomplete при I/O
 failure, UI exact fractions/exclusions, 20-seed demo и независимый review.
 Четыре builder cases — deterministic sensitivity fixture, не случайная выборка.
 
+### 23.2.18. Предлагаемый контракт M5c — Proposed DEC-30
+
+**DEC-30 / G-11, сравнение с HODL при внешних потоках.** Статус **Proposed**;
+реализация ждёт согласования владельца. Следующий срез дополняет DEC-28:
+фактический portfolio MTM сравнивается с пассивным сохранением начального
+состава активов и тех же фактически исполненных внешних взносов/выводов.
+Это reference benchmark, а не второй исполняемый рынок, кошелёк или источник
+ликвидности. Executor, fee model, RNG, observations и правила settlement не
+меняются. Результат называется **excess PnL относительно HODL**, не «чистый IL»,
+LVR или реализованная прибыль. LVR/rebalancing benchmark остаётся вне среза.
+
+**Профиль и область.** Опциональный Scenario `hodl_policy` и model tag
+`flow-matched-hodl-v1`, присутствующие вместе. Policy явно задаёт version,
+список `portfolios` (непустые уникальные IDs из valuation_policy) и limits:
+portfolios16, assets_per_portfolio64, flow_events_per_portfolio4096,
+rational_bits32768 (минимум512); caps можно снижать. Требуется DEC-28
+`reference-mtm-v1` с Q/committed-block-end/environment-reference. Выбор счетов,
+price feeds, свежесть, capital bindings и единицы наследуются именно из неё,
+без второго набора цен или скрытого изменения границ портфеля.
+
+Невалидная конфигурация отвергается до исполнения. Ошибка/недоступность derived
+benchmark не отменяет native Run. Сценарии без hodl_policy сохраняют прежний
+профиль JSON/экспорта. В этом срезе не меняются selectors или primary_metric
+`paired-experiments-v1`: отчёт HODL доступен в собственном native Run export и
+при открытии checkpoint строки серии. Наличие hodl_policy входит в общие
+неизменные условия пары, как и прочая конфигурация вне intervention objects.
+
+**Начальный состав.** Из DEC-28 genesis snapshot берутся quantities полных
+components выбранного портфеля: wallet, underlying CPMM/Stable LP, признанные
+CLMM principal/fees, book escrow, deposit claims и collateral. Уже признанные
+quantity/rounding правила DEC-28 сохраняются. Holdings `H_a(0)` — точная сумма
+quantity каждого базового актива в стабильном порядке component Key; fractions
+не floor-ятся ни до, ни после группировки. Benchmark замораживает эту экспозицию:
+LP не ребалансируется, deposit claim не получает будущих процентов, escrow не
+исполняется. Это сравнение экспозиций; оно не утверждает, что начальные claims
+можно мгновенно погасить, получить дробный atom или продать по reference price.
+
+Ненулевая начальная liability/отрицательный component не превращается в
+«пассивный short»: benchmark этого профиля недоступен с
+`InitialLiabilityUnsupported`, даже если его можно погасить положительным
+component того же актива. Нулевая debt quantity не препятствует benchmark.
+Неполная extraction (ComponentLimit), неизвестная quantity или превышение
+лимита assets/rational bits делает начальные holdings недоступными. Отсутствие
+цены само по себе не уничтожает известную quantity. Native genesis и будущие
+профили не переопределяются ради расширения HODL на leveraged opening balances.
+
+**Внешние потоки и выполнимость.** Применяются только фактические positive
+canonical capital Transfer из DEC-28: тот же portfolio, binding/tx_id, актив,
+amount и committed execution time. Неисполненная emission, rejection, revert,
+отменённая bundle-проба, unlabelled transfer, swap, LP add/remove, borrow/repay,
+interest, trading fee или native fee не становятся benchmark capital flow.
+Те же потоки учитываются при сравнении динамических LP-взносов: только исходного
+начального HODL для такой истории недостаточно.
+
+Порядок — block number, затем **канонический receipt index и event index**.
+Нельзя сортировать по TxId или неттировать внутриблочные inflow/outflow до
+проверки: поздний взнос не финансирует более ранний вывод. DEC-28 export order
+по TxId не определяет экономический порядок применения HODL flows.
+
+- Inflow актива `a`: `H_a += amount`.
+- Outflow актива `a`: допускается только `H_a >= amount`, затем `H_a -= amount`.
+- При нехватке именно этого актива: `InfeasibleOutflow` с block/receipt/tx_id,
+  asset, requested amount и available quantity. Нет автоматической продажи
+  других активов по reference price, займа, отрицательного остатка или
+  пропуска фактического внешнего вывода.
+
+InfeasibleOutflow и arithmetic/resource failure изменения holdings делают
+весь benchmark этого портфеля недоступным с этой точки и для дальнейшего prefix.
+Позднее пополнение не устраняет уже невозможную историю. Последние корректные
+holdings сохраняются только как **last feasible** diagnostic с границей/flow
+cursor; они не выдаются за текущий HODL и не входят в excess PnL. Остальные
+портфели и native execution продолжаются. Caps потоков считаются по портфелю
+накопительно от genesis; учитывается каждая фактическая labelled capital запись,
+а не число разных активов или итоговое нетто.
+
+**Оценка и результат.** На genesis и каждом committed block end:
+
+`V_hold(t) = Σ_a H_a(t) × reference_price_a(t)`
+
+`PnL_hold(t) = V_hold(t) − V_initial − capital_inflows + capital_outflows`
+
+`excess_pnl(t) = PnL_actual(t) − PnL_hold(t)`.
+
+Начальная стоимость и capital marks имеют те же точки времени и ту же политику,
+что DEC-28. Flow value по исторической цене не заменяется конечной ценой периода.
+Ненулевые holdings требуют допустимой свежей цены; Q=1, нулевая quantity не
+требует reference record. Пропущенная историческая цена сохраняет Unpriced PnL,
+даже если текущая оценка снова известна. Текущая price unavailability может
+исчезнуть после нового reference record, если сами holdings остаются известны.
+
+Excess PnL доступен только при двух доступных PnL; общие неизвестные historical
+terms не сокращаются молча. Отдельный **value_gap = V_actual − V_hold** допускается
+при двух известных текущих marks и всегда подписан как разница текущих стоимостей,
+а не доходность или восстановленный PnL. При доступных всех terms он равен excess
+PnL. Частичная priced_part не становится полной benchmark value.
+
+Фактические fees/interest/losses уже входят в actual MTM и повторно не вычитаются.
+HODL не генерирует transactions и не имеет искусственной native fee или turnover.
+В том числе actual native fee за вывод капитала остаётся расходом actual
+портфеля; сам external flow зеркалируется по asset units без второй комиссии.
+Последующий borrow actual стратегии сравнивается вместе с её debt, но не меняет
+holdings эталона и не классифицируется как дополнительный капитал.
+
+Все quantities, marks, PnL, value_gap/excess — reduced signed fractions DEC-28
+wire с floor только для представления. Проверка rational_bits выполняется после
+сокращения на каждом шаге. Изменение holdings — canonical flow order; суммирование
+marks — AssetId order. Ошибка арифметики только текущего mark/PnL делает эту
+метрику недоступной; она не превращается в permanent ledger failure, если
+quantity ledger построен полностью. Monetary JSON Number и float запрещены.
+
+**Артефакты и UI.** Derived report строится из immutable Scenario/committed
+history, не хранит mutable authoritative cache. Сохраняются policy hash,
+valuation policy/reference input hashes, build/run ID, начальные components и
+holdings, все применённые flows с before/after/canonical cursor, текущие holdings
+или last-feasible diagnostic, price provenance, actual/HODL marks и PnL,
+value_gap, excess PnL и причины недоступности. Native export добавляет
+`hodl-policy.json` и `hodl.jsonl` (genesis + committed boundaries).
+Readonly API/UI показывают те же Rust-defined значения, объяснение сравнения,
+внешние потоки и момент невозможного outflow; UI не считает финансовую арифметику.
+Checkpoint replay пересоздаёт benchmark без изменения native state/RNG.
+
+**Ожидания до реализации.** `docs/reviews/hodl-reference.py/.json` содержит
+18 самостоятельных Fraction cases без production imports. Основные результаты:
+
+| Case | Ожидание |
+| --- | --- |
+| Начальный basket10 X+100 Q, reference10→12 | HODL200→220, PnL20; при actual220 excess0 |
+| Fee-free CPMM100 X/100 Q: swap100 Q →50 X, final pool50 X/200 Q, reference1→4 | HODL value500/PnL300; actual400/PnL200; excess−100 Q |
+|10 X+100 Q, inflow2 X при10, final reference15, actual value250 | HODL280/PnL60; actual PnL30; excess−30 |
+|10 X+100 Q, outflow3 X при12, final reference15, actual195 | HODL205/PnL41; actual PnL31; excess−10 |
+| Genesis100 Q, z-in2 X затем a-out1 X при10 | Holdings1 X+100 Q, HODL PnL0; TxId lexical order не применяется |
+| Те же потоки out1 X раньше in2 X | InfeasibleOutflow; положительный end-of-block net не исправляет историю |
+| Genesis10 X/0 Q, actual продаёт1 X и выводит10 Q | HODL не продаёт X автоматически: InfeasibleOutflow Q |
+| Историческая цена inflow2 X отсутствует, текущий mark снова известен | Current HODL19 и value_gap−1 доступны; HODL/excess PnL Unpriced |
+| Начальная claim1/3 X, reference3→5, actual value4/3 | HODL PnL2/3, actual1/3, excess−1/3, presentation floor−1 |
+| Genesis1000 Q, оплаченный failed Transfer с native fee115 | Capital flow отсутствует; HODL1000, actual885, excess−115 |
+
+Acceptance: эти18 cases и самостоятельный price/flow Fraction sweep; initial
+fraction regrouping, gross liability guard,0/1/64/65 assets, caps/overflow,
+внутриблочный receipt order против TxId, failed/rejected/rolled-back capital,
+missing/stale/future/historical prices, отсутствие двойного учёта fees,
+checkpoint equality и noninterference state/events/receipts/RNG с выключенным
+benchmark. Нужны CLI/UI demos статического LP shock, динамических потоков,
+negative/fractional excess, Unpriced и infeasible outflow, а также независимый
+review до объявления функциональной/экономической приёмки M5c.
+
 ### 23.3. Вертикальные срезы и Definition of Done
 
 Работа дробится на сквозные сценарии **требование → состояние → действие → исполнение → тесты → trace → визуальное объяснение**. Новый компонент не считается завершённым по одному лишь trait, mock API или графическому экрану. На один срез — один проверяемый вопрос и минимальное число новых механизмов.

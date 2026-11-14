@@ -1261,3 +1261,26 @@ rows, а не доказательство исполнения без native re
 reviewer для `1a4e5af..2bc4465` согласно §23.4. Следующие срезы — HODL/LP benchmark,
 полный Explorer и performance/user-task приёмка; вся v1.0 ещё не завершена.
 Среда не публиковалась.
+
+### Подготовлен M5c / Proposed DEC-30 — HODL с фактическими внешними потоками
+
+Пока идёт независимая перепроверка исправлений DEC-29, подготовлен следующий
+контракт `docs/spec.md` §23.2.18. **Proposed**, production реализация не начата.
+Профиль `flow-matched-hodl-v1` замораживает начальные underlying quantities
+портфеля и зеркалирует только фактические labelled external capital transfers
+в canonical receipt/event order. Он не исполняет сделки и не занимает активы.
+Если конкретного актива для вывода нет, benchmark становится InfeasibleOutflow;
+поздний inflow не исправляет невозможную раннюю историю.
+
+Сравниваются actual/HODL PnL и excess после тех же внешних потоков. Отдельный
+value_gap не подменяет Unpriced PnL, историческая цена потока не заменяется
+конечной, fees не вычитаются дважды. Начальная liability не превращается в
+неявный пассивный short. Native state/receipts/RNG остаются неизменными.
+
+Независимый от production код `docs/reviews/hodl-reference.py/.json` содержит
+18 Fraction cases. Примеры: CPMM100X/100Q после swap100Q при reference1→4 даёт
+HODL500, actual400, excess−100; динамический inflow2X при10 и конечной цене15
+даёт HODL PnL60; fractional claim1/3X даёт excess−1/3 с presentation floor−1;
+unknown historical flow price оставляет PnL недоступным при известном current
+value19/value_gap−1. Assertions и побайтная повторная генерация прошли.
+Перед реализацией нового профиля требуется согласование DEC-30 по §23.7.

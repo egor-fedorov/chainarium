@@ -338,3 +338,7 @@ capability checks и явный submission outcome. [Перепроверка и
 Checkpoint привязан к SHA-256 исходников/lockfile/toolchain, target и build profile;
 другая сборка явно отвергается. Начальная эмиссия каждого актива должна помещаться
 в U256, как и балансы.
+
+Следующий подготовленный контракт — [Proposed DEC-30](docs/spec.md#23218-предлагаемый-контракт-m5c--proposed-dec-30):
+reference HODL с фактическими внешними потоками и excess PnL.18 самостоятельных
+Fraction cases подготовлены до реализации; контракт ожидает согласования.
