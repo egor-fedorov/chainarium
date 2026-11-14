@@ -16,7 +16,7 @@ async function api(path,body,method=body===undefined?'GET':'POST') {const respon
 function error(e){$('#error').hidden=false;$('#error').textContent=e.message;stop();}
 async function guard(fn){if(busy)return;busy=true;$('#error').hidden=true;try{await fn();}catch(e){error(e);}finally{busy=false;}}
 function stop(){playing=false;clearTimeout(timer);$('#play').textContent='▶ Продолжить';}
-function download(name,value){const a=document.createElement('a');const url=URL.createObjectURL(new Blob([JSON.stringify(value,null,2)],{type:'application/json'}));a.href=url;a.download=name;a.click();setTimeout(()=>URL.revokeObjectURL(url),1000);}
+function download(name,value,indent=2){const a=document.createElement('a');const url=URL.createObjectURL(new Blob([JSON.stringify(value,null,indent)],{type:'application/json'}));a.href=url;a.download=name;a.click();setTimeout(()=>URL.revokeObjectURL(url),1000);}
 function balance(state,account,asset){return state.accounts[account]?.balances[asset]??'0';}
 function render(){
  if(!run)return;

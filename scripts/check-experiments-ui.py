@@ -63,7 +63,10 @@ with sync_playwright() as playwright:
             assert page.request.get(base+'/api/run').json() == checkpoint['run']
         with page.expect_download() as downloaded:
             page.locator('#experiment-download').click()
-        assert json.loads(Path(downloaded.value.path()).read_text()) == report
+        payload=Path(downloaded.value.path()).read_bytes()
+        assert len(payload)==(root/kind/'manifest.json').stat().st_size
+        assert len(payload)<=64*1024*1024
+        assert json.loads(payload)==report
         page.set_viewport_size({'width':390,'height':844})
         assert page.evaluate('document.documentElement.scrollWidth <= innerWidth'), kind
         if kind == 'unpriced':

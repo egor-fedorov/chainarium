@@ -61,5 +61,6 @@ export function bindExperiments(api,guard,{beforeRestore,restored,download}){
   const result=await api('experiment-checkpoint',{report,row:Number($('#experiment-row').value),checkpoint:JSON.parse(await file.text())});
   await restored(result);
  });
- $('#experiment-download').onclick=()=>{if(report)download('experiment-manifest.json',report);};
+ // Preserve the compact report budget on download, including near the 64 MiB cap.
+ $('#experiment-download').onclick=()=>{if(report)download('experiment-manifest.json',report,0);};
 }
