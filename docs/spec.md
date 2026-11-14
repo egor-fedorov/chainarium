@@ -3130,10 +3130,10 @@ plan/report и native per-run checkpoint, streaming export/Incomplete при I/O
 failure, UI exact fractions/exclusions, 20-seed demo и независимый review.
 Четыре builder cases — deterministic sensitivity fixture, не случайная выборка.
 
-### 23.2.18. Предлагаемый контракт M5c — Proposed DEC-30
+### 23.2.18. Принятый контракт M5c — Accepted DEC-30
 
-**DEC-30 / G-11, сравнение с HODL при внешних потоках.** Статус **Proposed**;
-реализация ждёт согласования владельца. Следующий срез дополняет DEC-28:
+**DEC-30 / G-11, сравнение с HODL при внешних потоках.** Статус **Accepted**;
+владелец согласовал реализацию ответом «Приступай». Срез дополняет DEC-28:
 фактический portfolio MTM сравнивается с пассивным сохранением начального
 состава активов и тех же фактически исполненных внешних взносов/выводов.
 Это reference benchmark, а не второй исполняемый рынок, кошелёк или источник
@@ -3340,9 +3340,9 @@ openspec/                   # опционально, после решения 
 
 **Уже закрытые требования:** единый ledger; разделение origin/caller/callee и явная авторизация; точная передача atoms/цен без потери целых; native fee/nonce и ресурсный профиль `100 / 10 / 5 / 1` (§5–§6); изолированный collateral, уравнение `C + D = S + E`, распределение процентов и убытков, атомарность liquidation+writeoff (§8); возраст цены по observation time, полномочия publisher и validity oracle (§10); раздельные committed events/attempt trace и полные checkpoints (§15–§17). Выбор конкретного Rust crate или UI-транспорта обязан сохранить эти требования.
 
-**Состояние решений на 2026-11-14:** DEC-05–DEC-29 приняты владельцем;
+**Состояние решений на 2026-11-14:** DEC-05–DEC-30 приняты владельцем;
 DEC-29 (§23.2.17) согласован для парных серий экспериментов. Независимые reviews до DEC-29 включительно закрыты;
-DEC-30 (§23.2.18) предложен для HODL benchmark и ожидает согласования.
+DEC-30 (§23.2.18) принят для реализации HODL benchmark.
 DEC-28 (§23.2.16, G-11) согласован для реализации MTM. Для текущих
 профилей определены G-01/G-02, CPMM/LP часть G-03, прототип G-04,
 reference lending G-05, external oracle часть G-06, router budget часть G-09,
@@ -3382,7 +3382,7 @@ M4f реализован и функционально проверен; нез�
 | G-08 | CLMM sqrt-price/tick math, tick spacing/bounds, fee-growth rounding; точные lot/tick/fee/dust правила стакана и неудовлетворимого FOK | Диапазоны/пересечения/position fees, price-time priority, GTC/IOC/FOK, escrow и общий rollback обязательны | До соответствующего механизма M3 | Принятые model cards и exact fixtures tick boundaries/fees/no-liquidity и partial/IOC/FOK/cancel |
 | G-09 | Бюджеты route search и пробных исполнений builder; scheduler cutoff/лимиты реакций, mempool size/eviction; оценка greedy, bundle conflicts и hook capabilities | Ограниченный поиск, nonce/resource checks, обеспеченность bid, отсутствие interleaving и общий hook rollback обязательны; превышение бюджета не зависит от wall-clock | Router limits до M2a; partial policy до M3; pending scheduler/mempool/builder/hooks до реализации M4 | Профили с численными лимитами и исходами превышения; fixtures конфликтов, нулевой задержки/циклов реакций, cutoff и запретных эффектов |
 | G-10 | Частота snapshots/checkpoints, файловый формат, совместимость версий, компрессия и ограничение traces | Полный checkpoint только после committed-блока; обязательные replay-данные; начальные нагрузки §16.4 и будущие измеренные бюджеты G-16; урезание traces обозначается | Базовый checkpoint/экспорт до M1; масштабирование до M4/M5 | VF-CHECKPOINT-01 совпадает с непрерывным запуском; несовместимое восстановление отвергается; performance сравнивается с принятым после измерений бюджетом |
-| G-11 | Ожидаемые ответы и сопоставимость A/B; численная MTM-семантика и portfolio/price/capital rules закрыты DEC-28 | Q, committed-block-end, reference feed, Unpriced, liabilities и формула MTM/closed-cycle уже приняты; deposit redemption rounding из §8 не заменяет общий valuation-контракт | M5a функционально и независимо проверен; Accepted DEC-29 функционально и независимо проверен для серий; Proposed DEC-30 задаёт HODL; полная приёмка M5 остаётся открытой | Независимые fixtures дробной цены, группировки активов, потоков/borrow, Unpriced и post-loss claims; версия reference-mtm-v1 и пользовательская приёмка |
+| G-11 | Ожидаемые ответы и сопоставимость A/B; численная MTM-семантика и portfolio/price/capital rules закрыты DEC-28 | Q, committed-block-end, reference feed, Unpriced, liabilities и формула MTM/closed-cycle уже приняты; deposit redemption rounding из §8 не заменяет общий valuation-контракт | M5a функционально и независимо проверен; Accepted DEC-29 функционально и независимо проверен для серий; Accepted DEC-30 задаёт HODL; полная приёмка M5 остаётся открытой | Независимые fixtures дробной цены, группировки активов, потоков/borrow, Unpriced и post-loss claims; версия reference-mtm-v1 и пользовательская приёмка |
 | G-12 | Независимый differential-эталон для каждой заявленной проверяемой совместимости | Нужны реальный commit SHA, файлы, параметры, compiler/fork и границы допустимых различий; источник на `master` не закрепляет эталон | До заявления о mechanism compatibility и закрытия среза, если differential входит в его acceptance | Проверенный паспорт эталона §20.4 и фактический результат сравнения; отсутствие эталона остаётся явным открытым gate |
 | G-13 | Точная семантика RL-step, action encoding, reward, episode horizon и train/validation/test datasets | Observation access, общий executor, два baseline, несколько seeds и out-of-sample оценка обязательны | До реализации/оценки соответствующего M6; не блокирует v1.0 | Версия environment/reward, RL-01 и протокол независимой оценки |
 | G-14 | Первый исторический dataset и deployment/fork для будущего EVM backend | Различие replay/environment/counterfactual и единственный authoritative backend закреплено §18 | Только соответствующее расширение после v1.0 | Dataset provenance, immutable inputs, корректный prestate, применимые fork rules и acceptance scenario |

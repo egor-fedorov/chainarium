@@ -1332,3 +1332,9 @@ JS-only fix синтаксис/wire test, **48 native/standalone/resume comparis
 M5b функционально и независимо проверен. DEC-30/HODL подготовлен отдельно и
 ожидает согласования; production HODL ещё не реализован. Explorer и остальные
 performance/user-task gates всей v1.0 остаются впереди. Среда не публиковалась.
+
+### Принят DEC-30 / M5c
+
+Владелец согласовал контракт ответом «Приступай». DEC-30 отмечен Accepted;
+начата реализация HODL evaluator/export/UI по §23.2.18. Предыдущие Proposed
+записи и независимые Fraction expectations описывают подготовку до согласования.
