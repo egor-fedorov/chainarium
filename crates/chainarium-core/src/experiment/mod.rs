@@ -404,7 +404,7 @@ impl Report {
         let mut index = 0;
         let mut model_error = false;
         let mut horizon = None;
-        for c in &self.cases {
+        for (case_index, c) in self.cases.iter().enumerate() {
             if c.variants.keys().ne(variants.iter().copied())
                 || !hash_ok(&c.common_input_sha256)
                 || !hash_ok(&c.external_inputs_sha256)
@@ -419,6 +419,7 @@ impl Report {
                     || !hash_ok(&info.scenario_sha256)
                     || r.run_id != info.scenario_sha256
                     || r.committed_blocks > r.horizon
+                    || r.horizon != count(self.plan.cases[case_index].variants[variant].rounds())
                     || r.horizon > count(self.limits.blocks_per_run)
                     || r.metrics.keys().ne(self.metrics.keys())
                 {
@@ -492,6 +493,26 @@ impl Report {
                 };
                 if expected != r.outcomes.included_failure_fraction {
                     return Err("included failure fraction mismatch".into());
+                }
+                // Count selectors duplicate diagnostic fields. Validate both
+                // representations even when final metrics exclude a ModelError
+                // and its committed observations live in prefix_metrics.
+                let observed_metrics = r.prefix_metrics.as_ref().unwrap_or(&r.metrics);
+                for (id, selector) in &self.metrics {
+                    let expected = match selector {
+                        Metric::IncludedCount { status } => {
+                            Some(r.outcomes.included[status.as_str()])
+                        }
+                        Metric::InclusionRejectionAttempts => {
+                            Some(r.outcomes.inclusion_rejection_attempts)
+                        }
+                        _ => None,
+                    };
+                    if let Some(n) = expected
+                        && observed_metrics[id] != Value::available(Exact::integer(n))
+                    {
+                        return Err("report count metric differs from outcomes".into());
+                    }
                 }
                 index += 1;
             }

@@ -555,6 +555,15 @@ fn model_error_retains_replayable_prefix_and_continues_planned_runs() {
         r.restore_row(i, &checkpoints[i]).unwrap();
     }
     assert_eq!(r.analysis.paired["alternative"]["pnl"].eligible_n, 0.into());
+    for metric in ["success", "rejections"] {
+        let mut forged = r.clone();
+        forged.rows[0]
+            .prefix_metrics
+            .as_mut()
+            .unwrap()
+            .insert(metric.into(), Value::available(exact(999, 1)));
+        assert!(forged.validate().unwrap_err().contains("count metric"));
+    }
 }
 #[test]
 fn reports_reject_tampered_statistics_plan_and_paths() {
@@ -802,4 +811,36 @@ fn diff_wire_preserves_present_null_separately_from_absence() {
     let j: Json = serde_json::from_slice(&encoded).unwrap();
     assert!(j[0].get("old").is_some());
     assert!(j[0].get("new").is_none());
+}
+
+#[test]
+fn imported_horizon_must_equal_the_embedded_scenario() {
+    let mut r = execute_report(&one("builder"));
+    for row in &mut r.rows {
+        row.horizon = Amount::ZERO;
+        row.committed_blocks = Amount::ZERO;
+    }
+    assert!(
+        r.validate().is_err(),
+        "Completed zero-block report cannot describe a three-round Scenario"
+    );
+}
+#[test]
+fn imported_count_selectors_must_agree_with_outcomes() {
+    let r = execute_report(&one("builder"));
+    let mut included = r.clone();
+    included.rows[0]
+        .outcomes
+        .included
+        .insert("Success".into(), 999.into());
+    assert!(
+        included.validate().is_err(),
+        "Success outcome and IncludedCount must agree"
+    );
+    let mut rejected = r;
+    rejected.rows[0].outcomes.inclusion_rejection_attempts = 999.into();
+    assert!(
+        rejected.validate().is_err(),
+        "rejection outcome and selector must agree"
+    );
 }
